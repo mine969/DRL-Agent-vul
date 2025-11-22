@@ -1,29 +1,89 @@
+"""
+Optimized Deep Q-Network (DQN) Agent
+
+Performance improvements:
+- O(1) Replay Buffer using numpy arrays (vs O(n) deque)
+- Type hints for code quality
+- Efficient batch sampling
+- GPU acceleration support
+"""
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import random
-from collections import deque
+from typing import Tuple, Dict, List
+import os
+
+class ReplayBuffer:
+    """
+    Optimized Replay Buffer using numpy arrays for O(1) access
+    """
+    def __init__(self, state_dim: int, action_dim: int, max_size: int = 10000):
+        self.max_size = max_size
+        self.ptr = 0
+        self.size = 0
+        
+        # Pre-allocate memory for O(1) insertion
+        self.states = np.zeros((max_size, state_dim), dtype=np.float32)
+        self.actions = np.zeros((max_size, 1), dtype=np.int64)
+        self.rewards = np.zeros((max_size, 1), dtype=np.float32)
+        self.next_states = np.zeros((max_size, state_dim), dtype=np.float32)
+        self.dones = np.zeros((max_size, 1), dtype=np.float32)
+        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    def add(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
+        """Add experience to buffer in O(1)"""
+        self.states[self.ptr] = state
+        self.actions[self.ptr] = action
+        self.rewards[self.ptr] = reward
+        self.next_states[self.ptr] = next_state
+        self.dones[self.ptr] = done
+        
+        self.ptr = (self.ptr + 1) % self.max_size
+        self.size = min(self.size + 1, self.max_size)
+
+    def sample(self, batch_size: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Sample batch in O(1)"""
+        ind = np.random.randint(0, self.size, size=batch_size)
+        
+        return (
+            torch.FloatTensor(self.states[ind]).to(self.device),
+            torch.LongTensor(self.actions[ind]).to(self.device),
+            torch.FloatTensor(self.rewards[ind]).to(self.device),
+            torch.FloatTensor(self.next_states[ind]).to(self.device),
+            torch.FloatTensor(self.dones[ind]).to(self.device)
+        )
+
+    def __len__(self) -> int:
+        return self.size
+
 
 class QNetwork(nn.Module):
-    def __init__(self, state_dim, action_dim):
+    """Deep Q-Network Architecture"""
+    def __init__(self, state_dim: int, action_dim: int):
         super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 512)  # Increased from 128 to 512
-        self.fc2 = nn.Linear(512, 512)         # Added second large layer
-        self.fc3 = nn.Linear(512, 256)         # Third layer for depth
+        self.fc1 = nn.Linear(state_dim, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.fc3 = nn.Linear(512, 256)
         self.fc4 = nn.Linear(256, action_dim)
         
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = torch.relu(self.fc1(x))
         x = torch.relu(self.fc2(x))
         x = torch.relu(self.fc3(x))
         return self.fc4(x)
 
+
 class DQNAgent:
-    def __init__(self, state_dim, action_dim):
+    """Optimized DQN Agent"""
+    def __init__(self, state_dim: int, action_dim: int):
         self.state_dim = state_dim
         self.action_dim = action_dim
-        self.memory = deque(maxlen=10000)
+        
+        # Hyperparameters
         self.gamma = 0.99
         self.epsilon = 1.0
         self.epsilon_min = 0.01
@@ -32,41 +92,45 @@ class DQNAgent:
         self.lr = 0.001
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"🚀 Agent using device: {self.device}")
+        if self.device.type == 'cuda':
+            print(f"   GPU: {torch.cuda.get_device_name(0)}")
+        
+        # Optimized Replay Buffer
+        self.memory = ReplayBuffer(state_dim, action_dim, max_size=10000)
         
         self.q_network = QNetwork(state_dim, action_dim).to(self.device)
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
 
-    def act(self, state):
+    def act(self, state: np.ndarray) -> int:
+        """Select action using Epsilon-Greedy policy"""
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_dim)
         
-        state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            q_values = self.q_network(state)
-        return np.argmax(q_values.cpu().data.numpy())
+            q_values = self.q_network(state_tensor)
+        return int(np.argmax(q_values.cpu().data.numpy()))
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
+    def remember(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
+        """Store experience in replay buffer"""
+        self.memory.add(state, action, reward, next_state, done)
 
     def replay(self):
+        """Train the network on a batch of experiences"""
         if len(self.memory) < self.batch_size:
             return
         
-        minibatch = random.sample(self.memory, self.batch_size)
-        
-        states = torch.FloatTensor(np.array([t[0] for t in minibatch])).to(self.device)
-        actions = torch.LongTensor(np.array([t[1] for t in minibatch])).unsqueeze(1).to(self.device)
-        rewards = torch.FloatTensor(np.array([t[2] for t in minibatch])).to(self.device)
-        next_states = torch.FloatTensor(np.array([t[3] for t in minibatch])).to(self.device)
-        dones = torch.FloatTensor(np.array([t[4] for t in minibatch])).to(self.device)
+        # Sample batch (Optimized)
+        states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
         
         # Q(s, a)
         current_q = self.q_network(states).gather(1, actions).squeeze(1)
         
         # Q(s', a')
         next_q = self.q_network(next_states).max(1)[0]
-        target_q = rewards + (1 - dones) * self.gamma * next_q
+        target_q = rewards.squeeze(1) + (1 - dones.squeeze(1)) * self.gamma * next_q
         
         loss = self.criterion(current_q, target_q.detach())
         
@@ -74,5 +138,7 @@ class DQNAgent:
         loss.backward()
         self.optimizer.step()
         
+        # Decay epsilon
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+

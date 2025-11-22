@@ -1,265 +1,259 @@
-from flask import Flask, request, render_template, redirect, url_for, session, flash, send_file
-import time
+from flask import Flask, request, render_template, redirect, url_for, session, flash, jsonify, make_response
+import sqlite3
+import jwt
+import datetime
+import hashlib
+import os
 import random
 import string
-import hashlib
-import jwt
-import xml.etree.ElementTree as ET
-from jinja2 import Template
-import os
+from functools import wraps
 
 app = Flask(__name__)
-app.secret_key = 'hard_mode_secret'
-JWT_SECRET = 'weak_jwt_secret_123'
+app.secret_key = 'secure_blog_secret_key_2025'
+JWT_SECRET = 'jwt_secret_key_secure_2025'
+DB_NAME = 'blog.db'
 
-# --- DEFENSES ---
-
-# 1. Rate Limiting
-request_history = {}
-banned_ips = {}
-RATE_LIMIT = 5
-TIME_WINDOW = 2
-BAN_DURATION = 10
-
-def check_rate_limit():
-    ip = request.remote_addr
-    now = time.time()
+# --- DATABASE SETUP ---
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
     
-    if ip in banned_ips:
-        if now < banned_ips[ip]:
-            return True
-        else:
-            del banned_ips[ip]
-            
-    if ip not in request_history:
-        request_history[ip] = []
-    request_history[ip].append(now)
+    # Users Table
+    c.execute('''CREATE TABLE IF NOT EXISTS users
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  username TEXT UNIQUE, 
+                  password TEXT, 
+                  role TEXT)''')
     
-    request_history[ip] = [t for t in request_history[ip] if now - t < TIME_WINDOW]
+    # Posts Table
+    c.execute('''CREATE TABLE IF NOT EXISTS posts
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  title TEXT, 
+                  content TEXT, 
+                  author_id INTEGER,
+                  FOREIGN KEY(author_id) REFERENCES users(id))''')
+                  
+    # Comments Table
+    c.execute('''CREATE TABLE IF NOT EXISTS comments
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  post_id INTEGER, 
+                  content TEXT, 
+                  author_name TEXT,
+                  FOREIGN KEY(post_id) REFERENCES posts(id))''')
     
-    if len(request_history[ip]) > RATE_LIMIT:
-        banned_ips[ip] = now + BAN_DURATION
-        return True
+    # Seed Data
+    c.execute("SELECT count(*) FROM users")
+    if c.fetchone()[0] == 0:
+        print("🌱 Seeding database...")
+        # Users
+        c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", 
+                  ('admin', 'secure_password_123', 'admin'))
+        c.execute("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", 
+                  ('guest', 'guest', 'user'))
         
-    return False
+        # Posts
+        c.execute("INSERT INTO posts (title, content, author_id) VALUES (?, ?, ?)",
+                  ('Welcome to Secure Blog', 'This is our new full-stack blog with JWT auth!', 1))
+        c.execute("INSERT INTO posts (title, content, author_id) VALUES (?, ?, ?)",
+                  ('JWT Security', 'JSON Web Tokens are stateless and secure if used correctly.', 1))
+        c.execute("INSERT INTO posts (title, content, author_id) VALUES (?, ?, ?)",
+                  ('Database Security', 'Always sanitize your inputs to prevent SQL Injection.', 1))
+        
+        # Comments
+        c.execute("INSERT INTO comments (post_id, content, author_name) VALUES (?, ?, ?)",
+                  (1, 'Great post!', 'Guest User'))
+                  
+        conn.commit()
+        
+    conn.close()
 
-# 2. WAF
-BLACKLIST = ["UNION", "SELECT", "script", "alert", "/etc/passwd", "OR", "1=1", "ENTITY", "DOCTYPE"]
+# Initialize DB on start
+init_db()
 
-def check_waf(payload):
-    if not payload: return False
-    for bad in BLACKLIST:
-        if bad in payload:
-            return True
-    return False
+# --- HELPERS ---
+def get_db_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-# 3. CSRF Protection
-def get_csrf_token():
-    if 'csrf_token' not in session:
-        session['csrf_token'] = ''.join(random.choices(string.ascii_letters + string.digits, k=16))
-    return session['csrf_token']
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        # Check header
+        if 'Authorization' in request.headers:
+            token = request.headers['Authorization'].replace('Bearer ', '')
+        # Check cookie (hybrid support)
+        elif 'secure_sess_id_v2' in request.cookies:
+            token = request.cookies['secure_sess_id_v2']
+            
+        if not token:
+            return jsonify({'message': 'Token is missing!'}), 401
+            
+        try:
+            data = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+            conn = get_db_connection()
+            current_user = conn.execute('SELECT * FROM users WHERE username = ?', (data['user'],)).fetchone()
+            conn.close()
+        except:
+            return jsonify({'message': 'Token is invalid!'}), 401
+            
+        return f(current_user, *args, **kwargs)
+    return decorated
 
-@app.before_request
-def before_request():
-    if check_rate_limit():
-        return "429 Too Many Requests - You are banned for 10s", 429
+# --- API ROUTES (CTF Mode: Obscured Endpoints) ---
 
-# --- ROUTES ---
+@app.route('/api/v1/auth/gate_keeper_99', methods=['POST'])
+def api_login():
+    # CTF Hint: "The gate keeper only lets the admin pass."
+    auth = request.json
+    if not auth or not auth.get('username') or not auth.get('password'):
+        return jsonify({'message': 'Gate closed'}), 401
+    
+    conn = get_db_connection()
+    
+    # VULNERABILITY: SQL Injection (Classic)
+    query = f"SELECT * FROM users WHERE username = '{auth['username']}' AND password = '{auth['password']}'"
+    try:
+        user = conn.execute(query).fetchone()
+    except Exception as e:
+        return jsonify({'message': 'DB_ERR_X99', 'error': str(e)}), 500
+    finally:
+        conn.close()
+        
+    if user:
+        token = jwt.encode({
+            'user': user['username'],
+            'role': user['role'],
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30),
+            'flag': 'CTF{JWT_MASTER_KEY_FOUND}' # Hidden flag in token
+        }, JWT_SECRET, algorithm="HS256")
+        
+        return jsonify({'auth_token_v2': token, 'access_level': user['role']})
+    
+    return jsonify({'message': 'Access Denied'}), 401
+
+@app.route('/api/v1/content/stream_77', methods=['GET'])
+def get_posts():
+    conn = get_db_connection()
+    posts = conn.execute('SELECT * FROM posts').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in posts])
+
+@app.route('/api/v1/interact/comment_x', methods=['POST'])
+@token_required
+def api_add_comment(current_user):
+    data = request.json
+    content = data.get('payload') # Changed from 'content' to 'payload'
+    post_id = data.get('target_id') # Changed from 'post_id' in URL
+    
+    # VULNERABILITY: Stored XSS
+    conn = get_db_connection()
+    conn.execute('INSERT INTO comments (post_id, content, author_name) VALUES (?, ?, ?)',
+                 (post_id, content, current_user['username']))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({'status': 'payload_accepted', 'flag_hint': 'check_the_logs'})
+
+@app.route('/api/internal/sys_admin/users_db_dump', methods=['GET'])
+@token_required
+def api_admin_users(current_user):
+    # VULNERABILITY: Broken Access Control
+    # CTF Flag hidden in response
+    conn = get_db_connection()
+    users = conn.execute('SELECT id, username, role, "CTF{DB_LEAK_SUCCESS}" as flag FROM users').fetchall()
+    conn.close()
+    return jsonify([dict(ix) for ix in users])
+
+# --- FRONTEND ROUTES (Hybrid) ---
+
+@app.route('/')
+def index():
+    conn = get_db_connection()
+    posts = conn.execute('SELECT * FROM posts').fetchall()
+    conn.close()
+    response = make_response(render_template('blog_index.html', posts=posts))
+    response.headers['X-CTF-Hint'] = 'try_api_v1_auth_gate_keeper_99'
+    return response
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        token = request.form.get('csrf_token')
-        if not token or token != session.get('csrf_token'):
-            flash("Invalid CSRF Token", "alert")
-            return render_template('login.html', csrf_token=get_csrf_token()), 400
-            
         username = request.form.get('username')
         password = request.form.get('password')
         
-        if check_waf(username) or check_waf(password):
-            flash("WAF Blocked Malicious Payload", "alert")
-            return render_template('login.html', csrf_token=get_csrf_token()), 403
-        
-        # VULNERABILITY: SQL Injection
+        conn = get_db_connection()
         query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
-        
-        if ("' or '1'='1" in query.lower() and "OR" not in query) or (username == 'admin' and password == 'secret'):
-            flash("Welcome Admin! Flag: SQLI_SUCCESS", "success")
-            return render_template('login.html', csrf_token=get_csrf_token())
-        else:
-            flash("Invalid credentials", "alert")
-            return render_template('login.html', csrf_token=get_csrf_token())
+        try:
+            user = conn.execute(query).fetchone()
+        except:
+            user = None
+        conn.close()
             
-    token = get_csrf_token()
-    return render_template('login.html', csrf_token=token)
+        if user:
+            token = jwt.encode({
+                'user': user['username'],
+                'role': user['role'],
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=30)
+            }, JWT_SECRET, algorithm="HS256")
+            
+            resp = make_response(redirect(url_for('index')))
+            resp.set_cookie('secure_sess_id_v2', token) # Obscure cookie name
+            session['user'] = user['username']
+            flash(f"Welcome back, {user['username']}!", "success")
+            return resp
+        
+        flash("Invalid credentials", "danger")
+    
+    return render_template('blog_login.html', csrf_token="jwt_mode_no_csrf")
+
+@app.route('/post/<int:post_id>')
+def view_post(post_id):
+    conn = get_db_connection()
+    post = conn.execute('SELECT * FROM posts WHERE id = ?', (post_id,)).fetchone()
+    comments = conn.execute('SELECT * FROM comments WHERE post_id = ?', (post_id,)).fetchall()
+    conn.close()
+    
+    if not post:
+        return "Post not found", 404
+        
+    return render_template('blog_post.html', post=post, comments=comments, csrf_token="jwt_mode")
 
 @app.route('/search')
 def search():
     query = request.args.get('q', '')
-    
-    if check_waf(query):
-        flash("WAF Blocked Malicious Payload", "alert")
-        return render_template('search.html', query=query), 403
-        
     # VULNERABILITY: Reflected XSS
-    return render_template('search.html', query=query)
-
-# VULNERABILITY: A02 - Cryptographic Failures
-@app.route('/download')
-def download_file():
-    file_id = request.args.get('id', '1')
-    # Weak encryption: predictable token
-    token = hashlib.md5(file_id.encode()).hexdigest()
-    
-    if request.args.get('token') == token:
-        return f"File {file_id} downloaded! Flag: CRYPTO_FAIL"
-    return "Invalid token"
-
-# VULNERABILITY: XXE (XML External Entity)
-@app.route('/xml-upload', methods=['POST'])
-def xml_upload():
-    xml_data = request.data.decode('utf-8')
-    
-    if check_waf(xml_data):
-        return "403 Forbidden - WAF Blocked", 403
-    
-    try:
-        # Vulnerable XML parsing
-        root = ET.fromstring(xml_data)
-        if 'file://' in xml_data:
-            return "XXE Success! Flag: XXE_EXPLOIT"
-        return f"Parsed: {root.tag}"
-    except:
-        return "Invalid XML"
-
-# VULNERABILITY: SSTI (Server-Side Template Injection)
-@app.route('/render')
-def render_template_vuln():
-    name = request.args.get('name', 'Guest')
-    
-    if check_waf(name):
-        return "403 Forbidden - WAF Blocked", 403
-    
-    # Vulnerable template rendering
-    template_str = f"Hello {name}!"
-    if '{{' in name:
-        try:
-            template = Template(template_str)
-            result = template.render()
-            return f"SSTI Success! Flag: SSTI_EXPLOIT | {result}"
-        except:
-            return "Template error"
-    return template_str
-
-# VULNERABILITY: Path Traversal
-@app.route('/files')
-def file_access():
-    filename = request.args.get('file', 'public.txt')
-    
-    if check_waf(filename):
-        return "403 Forbidden - WAF Blocked", 403
-    
-    # Vulnerable path handling
-    if '../' in filename or '..\\' in filename:
-        if 'etc/passwd' in filename or 'secret' in filename:
-            return "Path Traversal Success! Flag: PATH_TRAVERSAL | root:x:0:0"
-    return f"File: {filename}"
-
-# VULNERABILITY: File Upload (Unrestricted)
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        return "No file"
-    
-    file = request.files['file']
-    filename = file.filename
-    
-    # No extension validation
-    if filename.endswith('.php') or filename.endswith('.sh'):
-        return "Upload Success! Webshell uploaded. Flag: FILE_UPLOAD"
-    return "File uploaded"
-
-# VULNERABILITY: JWT Manipulation
-@app.route('/api/token', methods=['POST'])
-def get_token():
-    username = request.json.get('username', 'guest')
-    token = jwt.encode({'user': username, 'role': 'user'}, JWT_SECRET, algorithm='HS256')
-    return {'token': token}
-
-@app.route('/api/admin')
-def admin_api():
-    token = request.headers.get('Authorization', '').replace('Bearer ', '')
-    
-    try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
-        if payload.get('role') == 'admin':
-            return "JWT Success! Flag: JWT_ADMIN_ACCESS"
-        return "Access denied"
-    except:
-        return "Invalid token"
-
-# VULNERABILITY: NoSQL Injection
-@app.route('/api/users')
-def nosql_query():
-    username = request.args.get('username', '')
-    
-    # Simulated NoSQL query
-    if '[$ne]' in username or '{"$gt":""}' in username:
-        return "NoSQL Injection Success! Flag: NOSQL_BYPASS"
-    return f"User: {username}"
-
-# VULNERABILITY: A08 - Integrity Failures
-@app.route('/update', methods=['POST'])
-def software_update():
-    package = request.json.get('package', '')
-    signature = request.json.get('signature', '')
-    
-    # No signature verification
-    if package and not signature:
-        return "Update installed without verification! Flag: INTEGRITY_FAIL"
-    return "Update rejected"
-
-# VULNERABILITY: A09 - Logging Failures
-@app.route('/admin/delete-user', methods=['POST'])
-def delete_user():
-    user_id = request.json.get('user_id')
-    # Sensitive action not logged
-    return f"User {user_id} deleted (no audit log). Flag: LOGGING_FAIL"
-
-@app.route('/admin/debug')
-def admin_debug():
-    return "DEBUG INFO: SECRET_KEY = 'super_secret_key_123'; DB_HOST = 'localhost'"
-
-@app.route('/ping')
-def ping():
-    ip = request.args.get('ip', '')
-    if check_waf(ip):
-         return "403 Forbidden - WAF Blocked", 403
-         
-    if ';' in ip:
-        cmd = ip.split(';')[1].strip()
-        if 'cat /etc/passwd' in cmd:
-            return "root:x:0:0:root:/root:/bin/bash"
-    return f"Pinging {ip}..."
+    return render_template('blog_search.html', query=query)
 
 @app.route('/profile')
 def profile():
-    user_id = request.args.get('user_id', '1')
-    if user_id == '2':
-        return "User Profile: Admin (ID: 2) | Email: admin@example.com"
-    return "User Profile: Guest (ID: 1)"
+    token = request.cookies.get('secure_sess_id_v2') # Changed cookie name
+    if not token:
+        return redirect(url_for('login'))
+        
+    try:
+        data = jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    except:
+        return redirect(url_for('login'))
 
-@app.route('/fetch')
-def fetch_url():
-    url = request.args.get('url', '')
-    if 'localhost' in url and '/admin/debug' in url:
-        return "DEBUG INFO: SECRET_KEY = 'super_secret_key_123'"
-    return f"Fetched {url}"
+    # VULNERABILITY: IDOR
+    user_id = request.args.get('uid') # Changed param from user_id to uid
+    conn = get_db_connection()
+    
+    if user_id:
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        if user:
+            return f"Profile: {user['username']} | Role: {user['role']} | ID: {user['id']} | Flag: CTF{{IDOR_MASTER}}"
+            
+    return f"Profile: {data['user']} | Role: {data['role']}"
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+@app.route('/logout')
+def logout():
+    resp = make_response(redirect(url_for('index')))
+    resp.set_cookie('secure_sess_id_v2', '', expires=0)
+    session.clear()
+    return resp
 
 if __name__ == '__main__':
     app.run(port=5000)

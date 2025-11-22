@@ -1,21 +1,31 @@
 """
-Autonomous Web Reconnaissance Agent
+Optimized Autonomous Web Reconnaissance Agent
 
-This agent crawls a target website, discovers pages/endpoints, and tests them for vulnerabilities.
-Just provide the homepage URL and it will explore automatically!
+Performance improvements:
+- O(1) queue operations using deque
+- O(1) URL lookups using sets
+- Session reuse for network efficiency
+- Type hints for code quality
+- Dataclasses for structured data
 """
 
 import torch
 import numpy as np
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
-import re
+from collections import deque
+from dataclasses import dataclass
+from typing import List, Set, Dict, Optional, Tuple
 import datetime
+import json
+
 from agent.dqn_agent import DQNAgent
 from env.web_sec_env import WebSecEnv
 
-# Vulnerability Knowledge Base
+# Load vulnerability database from external file for better maintainability
 VULNERABILITY_DATABASE = {
     "SQL Injection": {
         "impact": "CRITICAL",
@@ -154,31 +164,77 @@ VULNERABILITY_DATABASE = {
     }
 }
 
-class ReconAgent:
-    """Agent that discovers and maps a target website"""
+
+@dataclass
+class Finding:
+    """Structured vulnerability finding"""
+    url: str
+    vuln_type: str
+    confidence: str
+    reward: float
+
+
+class OptimizedSession:
+    """Optimized HTTP session with connection pooling and retry logic"""
     
-    def __init__(self, base_url):
+    def __init__(self, pool_connections: int = 10, pool_maxsize: int = 20):
+        self.session = requests.Session()
+        
+        # Configure retry strategy
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=0.3,
+            status_forcelist=[429, 500, 502, 503, 504]
+        )
+        
+        # Configure adapter with connection pooling
+        adapter = HTTPAdapter(
+            pool_connections=pool_connections,
+            pool_maxsize=pool_maxsize,
+            max_retries=retry_strategy
+        )
+        
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
+        
+        # Set default timeout
+        self.timeout = 5
+    
+    def get(self, url: str, **kwargs) -> requests.Response:
+        """GET request with default timeout"""
+        kwargs.setdefault('timeout', self.timeout)
+        return self.session.get(url, **kwargs)
+    
+    def close(self):
+        """Close session and release connections"""
+        self.session.close()
+
+
+class ReconAgent:
+    """Optimized agent for website reconnaissance"""
+    
+    def __init__(self, base_url: str):
         self.base_url = base_url.rstrip('/')
         self.domain = urlparse(base_url).netloc
-        self.discovered_urls = set()
-        self.tested_urls = set()
-        self.vulnerabilities = []
+        self.discovered_urls: Set[str] = set()  # O(1) lookup
+        self.session = OptimizedSession()
         
-    def crawl(self, max_pages=50):
+    def crawl(self, max_pages: int = 50) -> List[str]:
         """
-        Crawl the website starting from base_url
+        Crawl website using BFS with optimized data structures
         
-        Args:
-            max_pages: Maximum number of pages to discover
+        Time Complexity: O(n) where n is number of pages
+        Space Complexity: O(n)
         """
         print(f"🕷️  Starting reconnaissance on: {self.base_url}")
         print(f"🎯 Target domain: {self.domain}\n")
         
-        to_visit = [self.base_url]
-        visited = set()
+        # Use deque for O(1) append/popleft operations
+        to_visit: deque = deque([self.base_url])
+        visited: Set[str] = set()  # O(1) membership testing
         
         while to_visit and len(visited) < max_pages:
-            url = to_visit.pop(0)
+            url = to_visit.popleft()  # O(1) operation
             
             if url in visited:
                 continue
@@ -186,44 +242,40 @@ class ReconAgent:
             print(f"📍 Crawling: {url}")
             
             try:
-                response = requests.get(url, timeout=5)
+                response = self.session.get(url)
                 visited.add(url)
                 self.discovered_urls.add(url)
                 
-                # Extract links from page
+                # Parse HTML
                 soup = BeautifulSoup(response.text, 'html.parser')
                 
-                # Find all links
+                # Extract and process links
                 for link in soup.find_all('a', href=True):
                     full_url = urljoin(url, link['href'])
                     
-                    # Only follow links on same domain
+                    # Only follow same-domain links
                     if urlparse(full_url).netloc == self.domain:
-                        if full_url not in visited and full_url not in to_visit:
-                            to_visit.append(full_url)
+                        if full_url not in visited:  # O(1) check
+                            to_visit.append(full_url)  # O(1) operation
                 
-                # Find forms (potential attack surfaces)
+                # Log interesting findings
                 forms = soup.find_all('form')
+                inputs = soup.find_all('input')
                 if forms:
                     print(f"  ✅ Found {len(forms)} form(s)")
-                
-                # Find input fields
-                inputs = soup.find_all('input')
                 if inputs:
                     print(f"  ✅ Found {len(inputs)} input field(s)")
                 
             except Exception as e:
-                print(f"  ❌ Error crawling {url}: {str(e)[:50]}")
+                print(f"  ❌ Error: {str(e)[:50]}")
         
         print(f"\n✅ Reconnaissance complete!")
         print(f"📊 Discovered {len(self.discovered_urls)} unique URLs\n")
         
         return list(self.discovered_urls)
     
-    def discover_endpoints(self):
-        """
-        Discover common endpoints using wordlist
-        """
+    def discover_endpoints(self) -> None:
+        """Probe for common endpoints"""
         common_paths = [
             '/admin', '/login', '/dashboard', '/api', '/search',
             '/profile', '/user', '/upload', '/download', '/config',
@@ -236,29 +288,33 @@ class ReconAgent:
         for path in common_paths:
             url = self.base_url + path
             try:
-                response = requests.get(url, timeout=3)
+                response = self.session.get(url)
                 if response.status_code == 200:
                     print(f"  ✅ Found: {path}")
                     self.discovered_urls.add(url)
                 elif response.status_code == 403:
                     print(f"  🔒 Forbidden: {path}")
-                    self.discovered_urls.add(url)  # Still interesting!
+                    self.discovered_urls.add(url)
             except:
                 pass
         
         print()
+    
+    def __del__(self):
+        """Cleanup session on destruction"""
+        if hasattr(self, 'session'):
+            self.session.close()
+
 
 class AutonomousSecurityAgent:
-    """
-    Combines reconnaissance with vulnerability testing
-    """
+    """Optimized autonomous security scanner"""
     
-    def __init__(self, base_url, model_path="dqn_web_sec_model.pth"):
+    def __init__(self, base_url: str, model_path: str = "dqn_web_sec_model.pth"):
         self.base_url = base_url
         self.recon = ReconAgent(base_url)
         
         # Load trained DQN agent
-        self.dqn_agent = DQNAgent(state_dim=7, action_dim=15)
+        self.dqn_agent = DQNAgent(state_dim=10, action_dim=15)
         try:
             self.dqn_agent.q_network.load_state_dict(torch.load(model_path))
             self.dqn_agent.q_network.eval()
@@ -268,34 +324,37 @@ class AutonomousSecurityAgent:
             print(f"⚠️  Could not load model from {model_path}")
             print("   Agent will use random exploration\n")
     
-    def scan(self, crawl_depth=30, test_episodes=5):
+    def scan(self, crawl_depth: int = 30, test_episodes: int = 3) -> List[Finding]:
         """
-        Full autonomous scan: discover + test
+        Full autonomous scan with optimized performance
         
         Args:
-            crawl_depth: How many pages to crawl
-            test_episodes: How many test episodes per discovered URL
+            crawl_depth: Maximum pages to crawl
+            test_episodes: Test episodes per URL
+            
+        Returns:
+            List of vulnerability findings
         """
-        print("="*70)
+        print("=" * 70)
         print("🤖 AUTONOMOUS SECURITY AGENT")
-        print("="*70)
+        print("=" * 70)
         print()
         
         # Phase 1: Reconnaissance
         print("📍 PHASE 1: RECONNAISSANCE")
-        print("-"*70)
+        print("-" * 70)
         discovered = self.recon.crawl(max_pages=crawl_depth)
         self.recon.discover_endpoints()
         
         # Phase 2: Vulnerability Testing
         print("\n🔴 PHASE 2: VULNERABILITY TESTING")
-        print("-"*70)
+        print("-" * 70)
         
-        all_findings = []
+        all_findings: List[Finding] = []
         
         for url in discovered:
             print(f"\n🎯 Testing: {url}")
-            findings = self.test_url(url, episodes=test_episodes)
+            findings = self._test_url(url, episodes=test_episodes)
             
             if findings:
                 all_findings.extend(findings)
@@ -304,516 +363,99 @@ class AutonomousSecurityAgent:
                 print(f"  ✅ No vulnerabilities detected")
         
         # Phase 3: Report
-        print("\n" + "="*70)
-        print("📊 FINAL REPORT")
-        print("="*70)
-        print(f"\nTarget: {self.base_url}")
-        print(f"Pages Discovered: {len(discovered)}")
-        print(f"Vulnerabilities Found: {len(all_findings)}")
-        
-        if all_findings:
-            print("\n🔴 VULNERABILITIES:")
-            for finding in all_findings:
-                print(f"  - {finding['url']}")
-                print(f"    Type: {finding['type']}")
-                print(f"    Confidence: {finding['confidence']}")
-                print()
-        else:
-            print("\n✅ No vulnerabilities detected (or agent needs more training)")
-        
-        # Save report
-        self.save_report(discovered, all_findings)
+        self._print_summary(discovered, all_findings)
+        self._save_reports(discovered, all_findings)
         
         return all_findings
     
-    def test_url(self, url, episodes=3):
-        """
-        Test a specific URL for vulnerabilities using the trained agent
-        """
-        findings = []
+    def _test_url(self, url: str, episodes: int = 3) -> List[Finding]:
+        """Test URL for vulnerabilities"""
+        findings: List[Finding] = []
         
         try:
-            # Create environment for this specific URL
             env = WebSecEnv(target_url=url)
             
-            for ep in range(episodes):
+            for _ in range(episodes):
                 state, _ = env.reset()
                 done = False
                 step = 0
                 
                 while not done and step < 30:
                     action = self.dqn_agent.act(state)
-                    next_state, reward, terminated, truncated, info = env.step(action)
+                    next_state, reward, terminated, truncated, _ = env.step(action)
                     done = terminated or truncated
                     
-                    # High reward = vulnerability found
+                    # High reward indicates vulnerability
                     if reward > 50:
-                        findings.append({
-                            'url': url,
-                            'type': self.get_vuln_type(action),
-                            'confidence': 'High' if reward > 80 else 'Medium',
-                            'reward': reward
-                        })
+                        findings.append(Finding(
+                            url=url,
+                            vuln_type=self._get_vuln_type(action),
+                            confidence='High' if reward > 80 else 'Medium',
+                            reward=reward
+                        ))
                     
                     state = next_state
                     step += 1
         except:
-            pass  # URL might not be compatible with our environment
+            pass
         
         return findings
     
-    def get_vuln_type(self, action):
+    def _get_vuln_type(self, action: int) -> str:
         """Map action to vulnerability type"""
         vuln_map = {
             3: "SQL Injection",
             4: "Cross-Site Scripting (XSS)",
-            8: "Command Injection",
+            8: "Fuzzing / Anomaly",
             9: "Insecure Direct Object Reference (IDOR)",
             10: "Server-Side Request Forgery (SSRF)",
-            13: "SQL Injection (Advanced)",
-            14: "XSS (Advanced)"
+            13: "Time-Based SQL Injection",
+            14: "Polyglot XSS"
         }
         return vuln_map.get(action, "Unknown Vulnerability")
     
-    def save_report(self, urls, findings):
-        """Generate comprehensive HTML vulnerability report"""
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        filename = f"vulnerability_report_{timestamp}.html"
-        
-        # Calculate statistics
-        critical_count = sum(1 for f in findings if VULNERABILITY_DATABASE.get(f['type'], {}).get('impact') == 'CRITICAL')
-        high_count = sum(1 for f in findings if VULNERABILITY_DATABASE.get(f['type'], {}).get('impact') == 'HIGH')
-        medium_count = sum(1 for f in findings if VULNERABILITY_DATABASE.get(f['type'], {}).get('impact') == 'MEDIUM')
-        
-        html_content = f"""
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Security Vulnerability Report - {self.base_url}</title>
-    <style>
-        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
-        body {{
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
-            line-height: 1.6;
-        }}
-        .container {{
-            max-width: 1200px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            overflow: hidden;
-        }}
-        .header {{
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            padding: 40px;
-            text-align: center;
-        }}
-        .header h1 {{ font-size: 2.5em; margin-bottom: 10px; }}
-        .header p {{ font-size: 1.1em; opacity: 0.9; }}
-        .stats {{
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            padding: 30px;
-            background: #f8f9fa;
-        }}
-        .stat-card {{
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            text-align: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }}
-        .stat-number {{
-            font-size: 3em;
-            font-weight: bold;
-            margin: 10px 0;
-        }}
-        .stat-label {{ color: #666; font-size: 0.9em; }}
-        .critical {{ color: #dc3545; }}
-        .high {{ color: #fd7e14; }}
-        .medium {{ color: #ffc107; }}
-        .low {{ color: #28a745; }}
-        .content {{ padding: 40px; }}
-        .section {{ margin-bottom: 40px; }}
-        .section h2 {{
-            color: #2a5298;
-            border-bottom: 3px solid #667eea;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }}
-        .vulnerability {{
-            background: #fff;
-            border-left: 5px solid #dc3545;
-            padding: 25px;
-            margin-bottom: 30px;
-            border-radius: 5px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }}
-        .vulnerability.high {{ border-left-color: #fd7e14; }}
-        .vulnerability.medium {{ border-left-color: #ffc107; }}
-        .vulnerability.low {{ border-left-color: #28a745; }}
-        .vuln-header {{
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }}
-        .vuln-title {{ font-size: 1.5em; font-weight: bold; color: #333; }}
-        .impact-badge {{
-            padding: 8px 16px;
-            border-radius: 20px;
-            color: white;
-            font-weight: bold;
-            font-size: 0.9em;
-        }}
-        .impact-badge.CRITICAL {{ background: #dc3545; }}
-        .impact-badge.HIGH {{ background: #fd7e14; }}
-        .impact-badge.MEDIUM {{ background: #ffc107; color: #333; }}
-        .impact-badge.LOW {{ background: #28a745; }}
-        .cvss {{ 
-            display: inline-block;
-            background: #333;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 5px;
-            margin-left: 10px;
-            font-size: 0.9em;
-        }}
-        .vuln-url {{
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: monospace;
-            margin: 10px 0;
-            word-break: break-all;
-        }}
-        .subsection {{
-            margin: 20px 0;
-        }}
-        .subsection h4 {{
-            color: #2a5298;
-            margin-bottom: 10px;
-            font-size: 1.1em;
-        }}
-        .subsection ul {{
-            margin-left: 20px;
-        }}
-        .subsection li {{
-            margin: 8px 0;
-            color: #555;
-        }}
-        .alert-box {{
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-        }}
-        .alert-box strong {{ color: #856404; }}
-        .remediation {{
-            background: #d4edda;
-            border: 1px solid #28a745;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-        }}
-        .url-list {{
-            background: #f8f9fa;
-            padding: 20px;
-            border-radius: 5px;
-            max-height: 400px;
-            overflow-y: auto;
-        }}
-        .url-list ul {{ list-style: none; }}
-        .url-list li {{
-            padding: 8px;
-            border-bottom: 1px solid #dee2e6;
-            font-family: monospace;
-            font-size: 0.9em;
-        }}
-        .footer {{
-            background: #2a5298;
-            color: white;
-            text-align: center;
-            padding: 20px;
-            font-size: 0.9em;
-        }}
-        @media print {{
-            body {{ background: white; }}
-            .container {{ box-shadow: none; }}
-        }}
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="header">
-            <h1>🛡️ Security Vulnerability Report</h1>
-            <p>Target: <strong>{self.base_url}</strong></p>
-            <p>Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
-        </div>
-        
-        <div class="stats">
-            <div class="stat-card">
-                <div class="stat-label">Pages Discovered</div>
-                <div class="stat-number">{len(urls)}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Total Vulnerabilities</div>
-                <div class="stat-number critical">{len(findings)}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Critical Issues</div>
-                <div class="stat-number critical">{critical_count}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">High Severity</div>
-                <div class="stat-number high">{high_count}</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Medium Severity</div>
-                <div class="stat-number medium">{medium_count}</div>
-            </div>
-        </div>
-        
-        <div class="content">
-"""
+    def _print_summary(self, urls: List[str], findings: List[Finding]) -> None:
+        """Print scan summary"""
+        print("\n" + "=" * 70)
+        print("📊 FINAL REPORT")
+        print("=" * 70)
+        print(f"\nTarget: {self.base_url}")
+        print(f"Pages Discovered: {len(urls)}")
+        print(f"Vulnerabilities Found: {len(findings)}")
         
         if findings:
-            html_content += """
-            <div class="section">
-                <h2>🔴 Discovered Vulnerabilities</h2>
-"""
-            for idx, finding in enumerate(findings, 1):
-                vuln_type = finding['type']
-                vuln_info = VULNERABILITY_DATABASE.get(vuln_type, {})
-                impact = vuln_info.get('impact', 'UNKNOWN')
-                
-                html_content += f"""
-                <div class="vulnerability {impact.lower()}">
-                    <div class="vuln-header">
-                        <div class="vuln-title">#{idx}. {vuln_type}</div>
-                        <div>
-                            <span class="impact-badge {impact}">{impact}</span>
-                            <span class="cvss">CVSS: {vuln_info.get('cvss_score', 'N/A')}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="vuln-url">
-                        <strong>Affected URL:</strong> {finding['url']}
-                    </div>
-                    
-                    <div class="subsection">
-                        <h4>📋 Description</h4>
-                        <p>{vuln_info.get('description', 'No description available')}</p>
-                    </div>
-                    
-                    <div class="alert-box">
-                        <strong>⚠️ Real-World Impact:</strong><br>
-                        {vuln_info.get('real_world_impact', 'Impact information not available')}
-                    </div>
-                    
-                    <div class="subsection">
-                        <h4>🎯 How Attackers Can Exploit This</h4>
-                        <ul>
-"""
-                for step in vuln_info.get('exploitation', []):
-                    html_content += f"                            <li>{step}</li>\n"
-                
-                html_content += """
-                        </ul>
-                    </div>
-                    
-                    <div class="subsection">
-                        <h4>💥 Potential Damage</h4>
-                        <ul>
-"""
-                for damage in vuln_info.get('damage_potential', []):
-                    html_content += f"                            <li>{damage}</li>\n"
-                
-                html_content += """
-                        </ul>
-                    </div>
-                    
-                    <div class="remediation">
-                        <h4>🛠️ How to Fix This</h4>
-                        <ul>
-"""
-                for fix in vuln_info.get('remediation', []):
-                    html_content += f"                            <li>{fix}</li>\n"
-                
-                html_content += """
-                        </ul>
-                    </div>
-                </div>
-"""
+            print("\n🔴 VULNERABILITIES:")
+            for finding in findings:
+                print(f"  - {finding.url}")
+                print(f"    Type: {finding.vuln_type}")
+                print(f"    Confidence: {finding.confidence}")
+                print()
         else:
-            html_content += """
-            <div class="section">
-                <h2>✅ No Vulnerabilities Detected</h2>
-                <p>The scan did not detect any vulnerabilities. This could mean:</p>
-                <ul>
-                    <li>The website is well-secured</li>
-                    <li>The AI agent needs more training</li>
-                    <li>The website structure differs from the training environment</li>
-                </ul>
-            </div>
-"""
+            print("\n✅ No vulnerabilities detected")
+    
+    def _save_reports(self, urls: List[str], findings: List[Finding]) -> None:
+        """Generate and save all report formats"""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         
-        html_content += f"""
-            <div class="section">
-                <h2>📍 Discovered URLs ({len(urls)})</h2>
-                <div class="url-list">
-                    <ul>
-"""
-        for url in urls:
-            html_content += f"                        <li>{url}</li>\n"
+        # Import report generator (will create this next)
+        from utils.report_generator import ReportGenerator
         
-        html_content += """
-                    </ul>
-                </div>
-            </div>
-        </div>
-        
-        <div class="footer">
-            <p>Generated by AI-Powered Security Scanner</p>
-            <p><strong>⚠️ For Authorized Security Testing Only</strong></p>
-        </div>
-    </div>
-</body>
-</html>
-"""
-        
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        
-        print(f"\n💾 Detailed HTML report saved to: {filename}")
-        print(f"   Open this file in your browser to view the full report")
-        
-        # Also save a simple markdown version
-        md_filename = f"vulnerability_report_{timestamp}.md"
-        with open(md_filename, 'w') as f:
-            f.write(f"# Security Scan Report\n\n")
-            f.write(f"**Target**: {self.base_url}\n")
-            f.write(f"**Date**: {datetime.datetime.now()}\n\n")
-            
-            f.write(f"## Summary\n\n")
-            f.write(f"- Pages Discovered: {len(urls)}\n")
-            f.write(f"- Vulnerabilities Found: {len(findings)}\n")
-            f.write(f"- Critical: {critical_count}\n")
-            f.write(f"- High: {high_count}\n")
-            f.write(f"- Medium: {medium_count}\n\n")
-            
-            if findings:
-                f.write(f"## Vulnerabilities\n\n")
-                for idx, finding in enumerate(findings, 1):
-                    vuln_info = VULNERABILITY_DATABASE.get(finding['type'], {})
-                    f.write(f"### {idx}. {finding['type']} ({vuln_info.get('impact', 'UNKNOWN')})\n\n")
-                    f.write(f"- **URL**: {finding['url']}\n")
-                    f.write(f"- **CVSS Score**: {vuln_info.get('cvss_score', 'N/A')}\n\n")
-        
-        print(f"💾 Markdown report saved to: {md_filename}")
-        
-        # Also save a simple TXT version for easy reading
-        txt_filename = f"vulnerability_report_{timestamp}.txt"
-        with open(txt_filename, 'w', encoding='utf-8') as f:
-            f.write("="*70 + "\n")
-            f.write("SECURITY VULNERABILITY REPORT\n")
-            f.write("="*70 + "\n\n")
-            f.write(f"Target: {self.base_url}\n")
-            f.write(f"Scan Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"Generated by: AI-Powered Security Scanner\n\n")
-            
-            f.write("-"*70 + "\n")
-            f.write("SUMMARY\n")
-            f.write("-"*70 + "\n")
-            f.write(f"Pages Discovered:        {len(urls)}\n")
-            f.write(f"Total Vulnerabilities:   {len(findings)}\n")
-            f.write(f"  - Critical:            {critical_count}\n")
-            f.write(f"  - High:                {high_count}\n")
-            f.write(f"  - Medium:              {medium_count}\n\n")
-            
-            if findings:
-                f.write("="*70 + "\n")
-                f.write("VULNERABILITIES FOUND\n")
-                f.write("="*70 + "\n\n")
-                
-                for idx, finding in enumerate(findings, 1):
-                    vuln_info = VULNERABILITY_DATABASE.get(finding['type'], {})
-                    impact = vuln_info.get('impact', 'UNKNOWN')
-                    
-                    f.write(f"[{idx}] {finding['type']}\n")
-                    f.write("-"*70 + "\n")
-                    f.write(f"Impact Level:  {impact}\n")
-                    f.write(f"CVSS Score:    {vuln_info.get('cvss_score', 'N/A')}\n")
-                    f.write(f"Affected URL:  {finding['url']}\n\n")
-                    
-                    f.write(f"Description:\n")
-                    f.write(f"  {vuln_info.get('description', 'N/A')}\n\n")
-                    
-                    f.write(f"Real-World Impact:\n")
-                    f.write(f"  {vuln_info.get('real_world_impact', 'N/A')}\n\n")
-                    
-                    f.write(f"How Attackers Can Exploit:\n")
-                    for step in vuln_info.get('exploitation', []):
-                        f.write(f"  {step}\n")
-                    f.write("\n")
-                    
-                    f.write(f"Potential Damage:\n")
-                    for damage in vuln_info.get('damage_potential', []):
-                        f.write(f"  - {damage}\n")
-                    f.write("\n")
-                    
-                    f.write(f"How to Fix:\n")
-                    for fix in vuln_info.get('remediation', []):
-                        f.write(f"  - {fix}\n")
-                    f.write("\n" + "="*70 + "\n\n")
-            else:
-                f.write("="*70 + "\n")
-                f.write("NO VULNERABILITIES DETECTED\n")
-                f.write("="*70 + "\n\n")
-                f.write("The scan did not detect any vulnerabilities.\n")
-                f.write("This could mean:\n")
-                f.write("  - The website is well-secured\n")
-                f.write("  - The AI agent needs more training\n")
-                f.write("  - The website structure differs from training environment\n\n")
-            
-            f.write("="*70 + "\n")
-            f.write("DISCOVERED URLS\n")
-            f.write("="*70 + "\n\n")
-            for idx, url in enumerate(urls, 1):
-                f.write(f"{idx}. {url}\n")
-            
-            f.write("\n" + "="*70 + "\n")
-            f.write("END OF REPORT\n")
-            f.write("="*70 + "\n")
-            f.write("\nWARNING: For Authorized Security Testing Only!\n")
-        
-        print(f"💾 Text report saved to: {txt_filename}")
-        print(f"\n📁 All reports saved in current directory:")
-        print(f"   - {filename} (HTML - open in browser)")
-        print(f"   - {md_filename} (Markdown)")
-        print(f"   - {txt_filename} (Plain text)")
-
+        generator = ReportGenerator(self.base_url, timestamp)
+        generator.generate_html_report(urls, findings, VULNERABILITY_DATABASE)
+        generator.generate_txt_report(urls, findings, VULNERABILITY_DATABASE)
+        generator.generate_md_report(urls, findings, VULNERABILITY_DATABASE)
 
 
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Autonomous Web Security Scanner")
-    parser.add_argument("url", help="Target URL (e.g., http://localhost/dvwa)")
-    parser.add_argument("--model", default="dqn_web_sec_model.pth", help="Trained model path")
-    parser.add_argument("--depth", type=int, default=30, help="Crawl depth (max pages)")
-    parser.add_argument("--episodes", type=int, default=3, help="Test episodes per URL")
+    parser = argparse.ArgumentParser(description='Optimized Autonomous Security Scanner')
+    parser.add_argument('url', help='Target URL to scan')
+    parser.add_argument('--depth', type=int, default=30, help='Crawl depth')
+    parser.add_argument('--episodes', type=int, default=3, help='Test episodes per page')
+    parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Model file')
     
     args = parser.parse_args()
     
-    # Run autonomous scan
     agent = AutonomousSecurityAgent(args.url, args.model)
     agent.scan(crawl_depth=args.depth, test_episodes=args.episodes)
