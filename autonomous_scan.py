@@ -11,8 +11,148 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
 import re
+import datetime
 from agent.dqn_agent import DQNAgent
 from env.web_sec_env import WebSecEnv
+
+# Vulnerability Knowledge Base
+VULNERABILITY_DATABASE = {
+    "SQL Injection": {
+        "impact": "CRITICAL",
+        "cvss_score": 9.8,
+        "description": "Allows attackers to execute arbitrary SQL commands on the database",
+        "exploitation": [
+            "1. Inject malicious SQL code through input fields",
+            "2. Bypass authentication (login as admin without password)",
+            "3. Extract entire database contents (usernames, passwords, credit cards)",
+            "4. Modify or delete database records",
+            "5. Execute administrative operations on the database"
+        ],
+        "damage_potential": [
+            "Complete database compromise",
+            "Theft of all user credentials and personal information",
+            "Financial fraud through stolen payment information",
+            "Data manipulation or deletion",
+            "Potential server takeover through database functions"
+        ],
+        "real_world_impact": "Attackers can steal millions of user records, leading to identity theft, financial loss, and complete business shutdown. Examples: Equifax breach (2017), TalkTalk hack (2015).",
+        "remediation": [
+            "Use parameterized queries (prepared statements)",
+            "Implement input validation and sanitization",
+            "Apply principle of least privilege to database accounts",
+            "Use ORM frameworks properly",
+            "Regular security audits and penetration testing"
+        ]
+    },
+    "Cross-Site Scripting (XSS)": {
+        "impact": "HIGH",
+        "cvss_score": 7.1,
+        "description": "Allows attackers to inject malicious scripts into web pages viewed by other users",
+        "exploitation": [
+            "1. Inject JavaScript code through input fields or URLs",
+            "2. Steal session cookies and authentication tokens",
+            "3. Redirect users to phishing sites",
+            "4. Modify page content to display fake information",
+            "5. Perform actions on behalf of the victim user"
+        ],
+        "damage_potential": [
+            "Session hijacking (account takeover)",
+            "Credential theft through fake login forms",
+            "Malware distribution",
+            "Defacement of web pages",
+            "Phishing attacks against other users"
+        ],
+        "real_world_impact": "Attackers can hijack user sessions, steal credentials, and spread malware. Commonly used in targeted attacks against high-value accounts.",
+        "remediation": [
+            "Encode all user input before displaying",
+            "Implement Content Security Policy (CSP)",
+            "Use HTTPOnly and Secure flags on cookies",
+            "Validate and sanitize all input",
+            "Use modern frameworks with built-in XSS protection"
+        ]
+    },
+    "Command Injection": {
+        "impact": "CRITICAL",
+        "cvss_score": 9.9,
+        "description": "Allows attackers to execute arbitrary system commands on the server",
+        "exploitation": [
+            "1. Inject shell commands through vulnerable input fields",
+            "2. Execute system commands with web server privileges",
+            "3. Read sensitive files (/etc/passwd, config files)",
+            "4. Install backdoors and malware",
+            "5. Pivot to internal network"
+        ],
+        "damage_potential": [
+            "Complete server compromise",
+            "Installation of persistent backdoors",
+            "Data exfiltration",
+            "Use server for cryptocurrency mining",
+            "Lateral movement to other systems"
+        ],
+        "real_world_impact": "Full server takeover, allowing attackers to steal all data, install ransomware, or use the server for attacks on others. Can lead to complete business shutdown.",
+        "remediation": [
+            "Never pass user input to system commands",
+            "Use safe APIs instead of shell commands",
+            "Implement strict input validation with whitelists",
+            "Run web applications with minimal privileges",
+            "Use containerization and sandboxing"
+        ]
+    },
+    "Insecure Direct Object Reference (IDOR)": {
+        "impact": "MEDIUM",
+        "cvss_score": 6.5,
+        "description": "Allows attackers to access unauthorized resources by manipulating object references",
+        "exploitation": [
+            "1. Modify ID parameters in URLs or requests",
+            "2. Access other users' profiles, documents, or data",
+            "3. Enumerate all records by iterating IDs",
+            "4. Modify or delete other users' resources",
+            "5. Escalate privileges by accessing admin resources"
+        ],
+        "damage_potential": [
+            "Privacy breach (viewing others' personal data)",
+            "Data theft through enumeration",
+            "Unauthorized modifications",
+            "Privilege escalation",
+            "Compliance violations (GDPR, HIPAA)"
+        ],
+        "real_world_impact": "Attackers can access sensitive personal information, medical records, or financial data of other users. Common in healthcare and financial applications.",
+        "remediation": [
+            "Implement proper access control checks",
+            "Use indirect references (UUIDs instead of sequential IDs)",
+            "Verify user authorization for each request",
+            "Implement session-based access controls",
+            "Log and monitor access patterns"
+        ]
+    },
+    "Server-Side Request Forgery (SSRF)": {
+        "impact": "HIGH",
+        "cvss_score": 8.6,
+        "description": "Allows attackers to make the server perform requests to arbitrary locations",
+        "exploitation": [
+            "1. Force server to access internal resources",
+            "2. Scan internal network from the server",
+            "3. Access cloud metadata services (AWS, Azure)",
+            "4. Bypass firewall restrictions",
+            "5. Interact with internal APIs and services"
+        ],
+        "damage_potential": [
+            "Access to internal admin panels",
+            "Cloud credential theft (AWS keys, etc.)",
+            "Internal network reconnaissance",
+            "Data exfiltration from internal systems",
+            "Potential remote code execution on internal services"
+        ],
+        "real_world_impact": "Can lead to cloud account takeover, access to internal databases, and exposure of sensitive internal systems. Critical in cloud environments.",
+        "remediation": [
+            "Validate and sanitize all URLs",
+            "Use allowlists for permitted destinations",
+            "Disable unnecessary URL schemas (file://, gopher://)",
+            "Implement network segmentation",
+            "Use cloud instance metadata protection"
+        ]
+    }
+}
 
 class ReconAgent:
     """Agent that discovers and maps a target website"""
@@ -236,26 +376,350 @@ class AutonomousSecurityAgent:
         return vuln_map.get(action, "Unknown Vulnerability")
     
     def save_report(self, urls, findings):
-        """Save scan report to file"""
-        with open('scan_report.md', 'w') as f:
+        """Generate comprehensive HTML vulnerability report"""
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"vulnerability_report_{timestamp}.html"
+        
+        # Calculate statistics
+        critical_count = sum(1 for f in findings if VULNERABILITY_DATABASE.get(f['type'], {}).get('impact') == 'CRITICAL')
+        high_count = sum(1 for f in findings if VULNERABILITY_DATABASE.get(f['type'], {}).get('impact') == 'HIGH')
+        medium_count = sum(1 for f in findings if VULNERABILITY_DATABASE.get(f['type'], {}).get('impact') == 'MEDIUM')
+        
+        html_content = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Vulnerability Report - {self.base_url}</title>
+    <style>
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            line-height: 1.6;
+        }}
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }}
+        .header {{
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }}
+        .header h1 {{ font-size: 2.5em; margin-bottom: 10px; }}
+        .header p {{ font-size: 1.1em; opacity: 0.9; }}
+        .stats {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 30px;
+            background: #f8f9fa;
+        }}
+        .stat-card {{
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        .stat-number {{
+            font-size: 3em;
+            font-weight: bold;
+            margin: 10px 0;
+        }}
+        .stat-label {{ color: #666; font-size: 0.9em; }}
+        .critical {{ color: #dc3545; }}
+        .high {{ color: #fd7e14; }}
+        .medium {{ color: #ffc107; }}
+        .low {{ color: #28a745; }}
+        .content {{ padding: 40px; }}
+        .section {{ margin-bottom: 40px; }}
+        .section h2 {{
+            color: #2a5298;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }}
+        .vulnerability {{
+            background: #fff;
+            border-left: 5px solid #dc3545;
+            padding: 25px;
+            margin-bottom: 30px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        .vulnerability.high {{ border-left-color: #fd7e14; }}
+        .vulnerability.medium {{ border-left-color: #ffc107; }}
+        .vulnerability.low {{ border-left-color: #28a745; }}
+        .vuln-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }}
+        .vuln-title {{ font-size: 1.5em; font-weight: bold; color: #333; }}
+        .impact-badge {{
+            padding: 8px 16px;
+            border-radius: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 0.9em;
+        }}
+        .impact-badge.CRITICAL {{ background: #dc3545; }}
+        .impact-badge.HIGH {{ background: #fd7e14; }}
+        .impact-badge.MEDIUM {{ background: #ffc107; color: #333; }}
+        .impact-badge.LOW {{ background: #28a745; }}
+        .cvss {{ 
+            display: inline-block;
+            background: #333;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            margin-left: 10px;
+            font-size: 0.9em;
+        }}
+        .vuln-url {{
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            word-break: break-all;
+        }}
+        .subsection {{
+            margin: 20px 0;
+        }}
+        .subsection h4 {{
+            color: #2a5298;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }}
+        .subsection ul {{
+            margin-left: 20px;
+        }}
+        .subsection li {{
+            margin: 8px 0;
+            color: #555;
+        }}
+        .alert-box {{
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }}
+        .alert-box strong {{ color: #856404; }}
+        .remediation {{
+            background: #d4edda;
+            border: 1px solid #28a745;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 15px 0;
+        }}
+        .url-list {{
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }}
+        .url-list ul {{ list-style: none; }}
+        .url-list li {{
+            padding: 8px;
+            border-bottom: 1px solid #dee2e6;
+            font-family: monospace;
+            font-size: 0.9em;
+        }}
+        .footer {{
+            background: #2a5298;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+        }}
+        @media print {{
+            body {{ background: white; }}
+            .container {{ box-shadow: none; }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Security Vulnerability Report</h1>
+            <p>Target: <strong>{self.base_url}</strong></p>
+            <p>Generated: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-label">Pages Discovered</div>
+                <div class="stat-number">{len(urls)}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Total Vulnerabilities</div>
+                <div class="stat-number critical">{len(findings)}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Critical Issues</div>
+                <div class="stat-number critical">{critical_count}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">High Severity</div>
+                <div class="stat-number high">{high_count}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Medium Severity</div>
+                <div class="stat-number medium">{medium_count}</div>
+            </div>
+        </div>
+        
+        <div class="content">
+"""
+        
+        if findings:
+            html_content += """
+            <div class="section">
+                <h2>🔴 Discovered Vulnerabilities</h2>
+"""
+            for idx, finding in enumerate(findings, 1):
+                vuln_type = finding['type']
+                vuln_info = VULNERABILITY_DATABASE.get(vuln_type, {})
+                impact = vuln_info.get('impact', 'UNKNOWN')
+                
+                html_content += f"""
+                <div class="vulnerability {impact.lower()}">
+                    <div class="vuln-header">
+                        <div class="vuln-title">#{idx}. {vuln_type}</div>
+                        <div>
+                            <span class="impact-badge {impact}">{impact}</span>
+                            <span class="cvss">CVSS: {vuln_info.get('cvss_score', 'N/A')}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="vuln-url">
+                        <strong>Affected URL:</strong> {finding['url']}
+                    </div>
+                    
+                    <div class="subsection">
+                        <h4>📋 Description</h4>
+                        <p>{vuln_info.get('description', 'No description available')}</p>
+                    </div>
+                    
+                    <div class="alert-box">
+                        <strong>⚠️ Real-World Impact:</strong><br>
+                        {vuln_info.get('real_world_impact', 'Impact information not available')}
+                    </div>
+                    
+                    <div class="subsection">
+                        <h4>🎯 How Attackers Can Exploit This</h4>
+                        <ul>
+"""
+                for step in vuln_info.get('exploitation', []):
+                    html_content += f"                            <li>{step}</li>\n"
+                
+                html_content += """
+                        </ul>
+                    </div>
+                    
+                    <div class="subsection">
+                        <h4>💥 Potential Damage</h4>
+                        <ul>
+"""
+                for damage in vuln_info.get('damage_potential', []):
+                    html_content += f"                            <li>{damage}</li>\n"
+                
+                html_content += """
+                        </ul>
+                    </div>
+                    
+                    <div class="remediation">
+                        <h4>🛠️ How to Fix This</h4>
+                        <ul>
+"""
+                for fix in vuln_info.get('remediation', []):
+                    html_content += f"                            <li>{fix}</li>\n"
+                
+                html_content += """
+                        </ul>
+                    </div>
+                </div>
+"""
+        else:
+            html_content += """
+            <div class="section">
+                <h2>✅ No Vulnerabilities Detected</h2>
+                <p>The scan did not detect any vulnerabilities. This could mean:</p>
+                <ul>
+                    <li>The website is well-secured</li>
+                    <li>The AI agent needs more training</li>
+                    <li>The website structure differs from the training environment</li>
+                </ul>
+            </div>
+"""
+        
+        html_content += f"""
+            <div class="section">
+                <h2>📍 Discovered URLs ({len(urls)})</h2>
+                <div class="url-list">
+                    <ul>
+"""
+        for url in urls:
+            html_content += f"                        <li>{url}</li>\n"
+        
+        html_content += """
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Generated by AI-Powered Security Scanner</p>
+            <p><strong>⚠️ For Authorized Security Testing Only</strong></p>
+        </div>
+    </div>
+</body>
+</html>
+"""
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+        
+        print(f"\n💾 Detailed HTML report saved to: {filename}")
+        print(f"   Open this file in your browser to view the full report")
+        
+        # Also save a simple markdown version
+        md_filename = f"vulnerability_report_{timestamp}.md"
+        with open(md_filename, 'w') as f:
             f.write(f"# Security Scan Report\n\n")
             f.write(f"**Target**: {self.base_url}\n")
-            f.write(f"**Date**: {__import__('datetime').datetime.now()}\n\n")
+            f.write(f"**Date**: {datetime.datetime.now()}\n\n")
             
-            f.write(f"## Discovered URLs ({len(urls)})\n\n")
-            for url in urls:
-                f.write(f"- {url}\n")
+            f.write(f"## Summary\n\n")
+            f.write(f"- Pages Discovered: {len(urls)}\n")
+            f.write(f"- Vulnerabilities Found: {len(findings)}\n")
+            f.write(f"- Critical: {critical_count}\n")
+            f.write(f"- High: {high_count}\n")
+            f.write(f"- Medium: {medium_count}\n\n")
             
-            f.write(f"\n## Vulnerabilities ({len(findings)})\n\n")
             if findings:
-                for finding in findings:
-                    f.write(f"### {finding['type']}\n")
+                f.write(f"## Vulnerabilities\n\n")
+                for idx, finding in enumerate(findings, 1):
+                    vuln_info = VULNERABILITY_DATABASE.get(finding['type'], {})
+                    f.write(f"### {idx}. {finding['type']} ({vuln_info.get('impact', 'UNKNOWN')})\n\n")
                     f.write(f"- **URL**: {finding['url']}\n")
-                    f.write(f"- **Confidence**: {finding['confidence']}\n\n")
-            else:
-                f.write("No vulnerabilities detected.\n")
+                    f.write(f"- **CVSS Score**: {vuln_info.get('cvss_score', 'N/A')}\n\n")
         
-        print(f"\n💾 Report saved to: scan_report.md")
+        print(f"💾 Markdown report saved to: {md_filename}")
+
 
 if __name__ == "__main__":
     import argparse
