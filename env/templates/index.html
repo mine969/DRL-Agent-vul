@@ -1,0 +1,46 @@
+{% extends "base.html" %} {% block content %}
+<div class="card">
+  <h1>System Dashboard</h1>
+  <p>
+    Welcome to the secure target environment. This system is protected by
+    advanced security measures.
+  </p>
+
+  <h3>System Status</h3>
+  <ul style="list-style: none; padding: 0">
+    <li>✅ WAF: <span style="color: var(--accent-color)">ONLINE</span></li>
+    <li>
+      ✅ Rate Limiting: <span style="color: var(--accent-color)">ONLINE</span>
+    </li>
+    <li>
+      ✅ CSRF Protection: <span style="color: var(--accent-color)">ONLINE</span>
+    </li>
+  </ul>
+</div>
+
+<div class="card">
+  <h3>Available Tools</h3>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem">
+    <div style="border: 1px solid var(--border-color); padding: 1rem">
+      <h4>Login Portal</h4>
+      <p>Secure authentication gateway.</p>
+      <a href="/login">Access &rarr;</a>
+    </div>
+    <div style="border: 1px solid var(--border-color); padding: 1rem">
+      <h4>Search Database</h4>
+      <p>Query public records.</p>
+      <a href="/search">Access &rarr;</a>
+    </div>
+    <div style="border: 1px solid var(--border-color); padding: 1rem">
+      <h4>Network Ping</h4>
+      <p>Connectivity diagnostic tool.</p>
+      <a href="/ping">Access &rarr;</a>
+    </div>
+    <div style="border: 1px solid var(--border-color); padding: 1rem">
+      <h4>User Profile</h4>
+      <p>Manage account settings.</p>
+      <a href="/profile">Access &rarr;</a>
+    </div>
+  </div>
+</div>
+{% endblock %}
