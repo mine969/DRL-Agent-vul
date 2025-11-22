@@ -1,57 +1,55 @@
-from flask import Flask, request, render_template, redirect, url_for, session, flash
+from flask import Flask, request, render_template, redirect, url_for, session, flash, send_file
 import time
 import random
 import string
+import hashlib
+import jwt
+import xml.etree.ElementTree as ET
+from jinja2 import Template
+import os
 
 app = Flask(__name__)
 app.secret_key = 'hard_mode_secret'
+JWT_SECRET = 'weak_jwt_secret_123'
 
 # --- DEFENSES ---
 
 # 1. Rate Limiting
-# Simple in-memory store: {ip: [timestamp1, timestamp2, ...]}
 request_history = {}
 banned_ips = {}
-RATE_LIMIT = 5  # requests
-TIME_WINDOW = 2 # seconds
-BAN_DURATION = 10 # seconds
+RATE_LIMIT = 5
+TIME_WINDOW = 2
+BAN_DURATION = 10
 
 def check_rate_limit():
     ip = request.remote_addr
     now = time.time()
     
-    # Check ban
     if ip in banned_ips:
         if now < banned_ips[ip]:
-            return True # Banned
+            return True
         else:
-            del banned_ips[ip] # Unban
+            del banned_ips[ip]
             
-    # Record request
     if ip not in request_history:
         request_history[ip] = []
     request_history[ip].append(now)
     
-    # Clean old requests
     request_history[ip] = [t for t in request_history[ip] if now - t < TIME_WINDOW]
     
-    # Check limit
     if len(request_history[ip]) > RATE_LIMIT:
         banned_ips[ip] = now + BAN_DURATION
         return True
         
     return False
 
-# 2. WAF (Web Application Firewall)
-BLACKLIST = ["UNION", "SELECT", "script", "alert", "/etc/passwd", "OR", "1=1"]
+# 2. WAF
+BLACKLIST = ["UNION", "SELECT", "script", "alert", "/etc/passwd", "OR", "1=1", "ENTITY", "DOCTYPE"]
 
 def check_waf(payload):
     if not payload: return False
-    # Simple case-insensitive check (but we can make it strict for "Hard Mode")
-    # Real WAFs are smarter, but this forces obfuscation (e.g. SeLeCt vs SELECT)
-    # Let's make it case-SENSITIVE for some, insensitive for others to simulate mixed rules
     for bad in BLACKLIST:
-        if bad in payload: # Strict check
+        if bad in payload:
             return True
     return False
 
@@ -71,7 +69,6 @@ def before_request():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        # CSRF Check
         token = request.form.get('csrf_token')
         if not token or token != session.get('csrf_token'):
             flash("Invalid CSRF Token", "alert")
@@ -80,12 +77,11 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         
-        # WAF Check
         if check_waf(username) or check_waf(password):
             flash("WAF Blocked Malicious Payload", "alert")
             return render_template('login.html', csrf_token=get_csrf_token()), 403
         
-        # VULNERABILITY: SQL Injection (Obfuscation needed)
+        # VULNERABILITY: SQL Injection
         query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
         
         if ("' or '1'='1" in query.lower() and "OR" not in query) or (username == 'admin' and password == 'secret'):
@@ -107,8 +103,129 @@ def search():
         return render_template('search.html', query=query), 403
         
     # VULNERABILITY: Reflected XSS
-    # Rendered with | safe in template, so XSS is possible
     return render_template('search.html', query=query)
+
+# VULNERABILITY: A02 - Cryptographic Failures
+@app.route('/download')
+def download_file():
+    file_id = request.args.get('id', '1')
+    # Weak encryption: predictable token
+    token = hashlib.md5(file_id.encode()).hexdigest()
+    
+    if request.args.get('token') == token:
+        return f"File {file_id} downloaded! Flag: CRYPTO_FAIL"
+    return "Invalid token"
+
+# VULNERABILITY: XXE (XML External Entity)
+@app.route('/xml-upload', methods=['POST'])
+def xml_upload():
+    xml_data = request.data.decode('utf-8')
+    
+    if check_waf(xml_data):
+        return "403 Forbidden - WAF Blocked", 403
+    
+    try:
+        # Vulnerable XML parsing
+        root = ET.fromstring(xml_data)
+        if 'file://' in xml_data:
+            return "XXE Success! Flag: XXE_EXPLOIT"
+        return f"Parsed: {root.tag}"
+    except:
+        return "Invalid XML"
+
+# VULNERABILITY: SSTI (Server-Side Template Injection)
+@app.route('/render')
+def render_template_vuln():
+    name = request.args.get('name', 'Guest')
+    
+    if check_waf(name):
+        return "403 Forbidden - WAF Blocked", 403
+    
+    # Vulnerable template rendering
+    template_str = f"Hello {name}!"
+    if '{{' in name:
+        try:
+            template = Template(template_str)
+            result = template.render()
+            return f"SSTI Success! Flag: SSTI_EXPLOIT | {result}"
+        except:
+            return "Template error"
+    return template_str
+
+# VULNERABILITY: Path Traversal
+@app.route('/files')
+def file_access():
+    filename = request.args.get('file', 'public.txt')
+    
+    if check_waf(filename):
+        return "403 Forbidden - WAF Blocked", 403
+    
+    # Vulnerable path handling
+    if '../' in filename or '..\\' in filename:
+        if 'etc/passwd' in filename or 'secret' in filename:
+            return "Path Traversal Success! Flag: PATH_TRAVERSAL | root:x:0:0"
+    return f"File: {filename}"
+
+# VULNERABILITY: File Upload (Unrestricted)
+@app.route('/upload', methods=['POST'])
+def upload_file():
+    if 'file' not in request.files:
+        return "No file"
+    
+    file = request.files['file']
+    filename = file.filename
+    
+    # No extension validation
+    if filename.endswith('.php') or filename.endswith('.sh'):
+        return "Upload Success! Webshell uploaded. Flag: FILE_UPLOAD"
+    return "File uploaded"
+
+# VULNERABILITY: JWT Manipulation
+@app.route('/api/token', methods=['POST'])
+def get_token():
+    username = request.json.get('username', 'guest')
+    token = jwt.encode({'user': username, 'role': 'user'}, JWT_SECRET, algorithm='HS256')
+    return {'token': token}
+
+@app.route('/api/admin')
+def admin_api():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') == 'admin':
+            return "JWT Success! Flag: JWT_ADMIN_ACCESS"
+        return "Access denied"
+    except:
+        return "Invalid token"
+
+# VULNERABILITY: NoSQL Injection
+@app.route('/api/users')
+def nosql_query():
+    username = request.args.get('username', '')
+    
+    # Simulated NoSQL query
+    if '[$ne]' in username or '{"$gt":""}' in username:
+        return "NoSQL Injection Success! Flag: NOSQL_BYPASS"
+    return f"User: {username}"
+
+# VULNERABILITY: A08 - Integrity Failures
+@app.route('/update', methods=['POST'])
+def software_update():
+    package = request.json.get('package', '')
+    signature = request.json.get('signature', '')
+    
+    # No signature verification
+    if package and not signature:
+        return "Update installed without verification! Flag: INTEGRITY_FAIL"
+    return "Update rejected"
+
+# VULNERABILITY: A09 - Logging Failures
+@app.route('/admin/delete-user', methods=['POST'])
+def delete_user():
+    user_id = request.json.get('user_id')
+    # Sensitive action not logged
+    return f"User {user_id} deleted (no audit log). Flag: LOGGING_FAIL"
 
 @app.route('/admin/debug')
 def admin_debug():
