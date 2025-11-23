@@ -205,8 +205,8 @@ class SecurityAuditor:
     def _load_ai_brain(self, model_path):
         """Attempts to load the trained neural network."""
         try:
-            self.ai_agent.q_network.load_state_dict(torch.load(model_path))
-            self.ai_agent.q_network.eval() # Set to evaluation mode (no learning, just doing)
+            self.ai_agent.brain.load_state_dict(torch.load(model_path))
+            self.ai_agent.brain.eval() # Set to evaluation mode (no learning, just doing)
             self.ai_agent.epsilon = 0.0    # Stop exploring randomly, use learned skills
             print(f"✅ Loaded AI Brain from: {model_path}\n")
         except:

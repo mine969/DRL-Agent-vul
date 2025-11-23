@@ -1,251 +1,67 @@
-# 🛡️ AI-Powered Web Security Scanner
+# 🛡️ AI Security Scanner
 
-**Autonomous Deep Reinforcement Learning agent for web vulnerability discovery**
-
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.7+-red.svg)](https://pytorch.org/)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-[![GPU](https://img.shields.io/badge/GPU-Accelerated-brightgreen.svg)](docs/GPU_SUCCESS.md)
+**A smart robot that finds security holes in websites.**
 
 ---
 
-## 🚀 Quick Start
+## 🚀 How to Run It
 
-### For Beginners (GUI)
+### 1. The Easy Way (Visual)
 
 ```bash
 python scanner_gui.py
 ```
 
-Beautiful graphical interface - just enter a URL and click scan!
+Just type a URL and click "Scan".
 
-### For Command Line Users
-
-```bash
-python scan.py
-```
-
-Interactive terminal - answer simple questions and go!
-
-### For Advanced Users
-
-```bash
-python autonomous_scan.py http://target.com --depth 50 --episodes 5
-```
-
----
-
-## ✨ Features
-
-- 🤖 **AI-Powered**: Deep Q-Network (DQN) trained on 500 episodes
-- 🕷️ **Autonomous Discovery**: Automatically crawls and finds pages
-- 🎯 **15 Attack Vectors**: SQLi, XSS, IDOR, SSRF, Command Injection, and more
-- 📊 **Professional Reports**: HTML, TXT, and Markdown formats
-- ⚡ **GPU Accelerated**: 10-15x faster training with CUDA
-- 🎨 **Modern GUI**: Beautiful dark-themed interface
-- 🔄 **Checkpoint System**: 25+ model versions to choose from
-
----
-
-## 📁 Project Structure
-
-```
-d:/github/RL/
-├── 📄 README.md                 # This file
-├── 📄 requirements.txt          # Python dependencies
-│
-├── 🎮 Main Scripts
-│   ├── scanner_gui.py           # GUI application (easiest!)
-│   ├── scan.py                  # Interactive CLI scanner
-│   ├── autonomous_scan.py       # Advanced scanner
-│   ├── train.py                 # Training script
-│   └── deploy_agent.py          # Quick testing tool
-│
-├── 🧠 Core Components
-│   ├── agent/
-│   │   └── dqn_agent.py        # DQN implementation
-│   └── env/
-│       ├── web_sec_env.py      # Gymnasium environment
-│       ├── target_app.py       # Flask test server
-│       └── templates/          # Modern UI
-│
-├── 💾 Models & Checkpoints
-│   ├── checkpoints/            # Training checkpoints (ep20, ep40, ...)
-│   └── dqn_web_sec_model.pth   # Final trained model
-│
-└── 📚 Documentation
-    ├── BEGINNER_GUIDE.md       # Complete beginner's guide
-    ├── QUICK_START.md          # Quick reference
-    ├── GUI_GUIDE.md            # GUI usage guide
-    ├── REAL_WORLD_USAGE.md     # Practical examples
-    ├── AUTONOMOUS_SCAN_GUIDE.md # Advanced scanning
-    ├── DEPLOYMENT_GUIDE.md     # DVWA deployment
-    ├── CHECKPOINT_SYSTEM.md    # Model management
-    ├── SPEED_UP_TRAINING.md    # Training optimization
-    ├── GPU_SUCCESS.md          # GPU setup
-    ├── CLEANUP_GUIDE.md        # File management
-    └── TRANSFER_LEARNING.md    # Pre-trained models
-```
-
----
-
-## 🎯 Usage Options
-
-### Option 1: GUI (Recommended for Beginners)
-
-```bash
-python scanner_gui.py
-```
-
-- Beautiful dark-themed interface
-- Real-time progress tracking
-- One-click scanning
-- Visual model selection
-
-**See**: [GUI Guide](docs/GUI_GUIDE.md)
-
-### Option 2: Interactive CLI
+### 2. The Fast Way (Terminal)
 
 ```bash
 python scan.py
 ```
 
-- Simple question-and-answer format
-- No complex commands
-- Automatic page discovery
-- 3 report formats (HTML/TXT/MD)
+Answer a few questions and watch it go.
 
-**See**: [Quick Start Guide](docs/QUICK_START.md)
-
-### Option 3: Advanced CLI
-
-```bash
-python autonomous_scan.py http://target.com --depth 50 --episodes 5 --model checkpoints/dqn_checkpoint_ep500.pth
-```
-
-- Full control over parameters
-- Scriptable and automatable
-- Batch processing support
-
-**See**: [Autonomous Scan Guide](docs/AUTONOMOUS_SCAN_GUIDE.md)
-
----
-
-## 📖 Documentation
-
-### Getting Started
-
-- 📘 [**Beginner's Guide**](docs/BEGINNER_GUIDE.md) - Complete guide for non-technical users
-- 🚀 [**Quick Start**](docs/QUICK_START.md) - Get scanning in 5 minutes
-- 🖥️ [**GUI Guide**](docs/GUI_GUIDE.md) - Using the graphical interface
-
-### Usage Guides
-
-- 🌐 [**Real-World Usage**](docs/REAL_WORLD_USAGE.md) - Practical scanning examples
-- 🕷️ [**Autonomous Scanning**](docs/AUTONOMOUS_SCAN_GUIDE.md) - Advanced features
-- 🎯 [**Deployment Guide**](docs/DEPLOYMENT_GUIDE.md) - Testing against DVWA
-
-### Technical Documentation
-
-- 💾 [**Checkpoint System**](docs/CHECKPOINT_SYSTEM.md) - Model management
-- ⚡ [**Speed Up Training**](docs/SPEED_UP_TRAINING.md) - Optimization tips
-- 🎮 [**GPU Setup**](docs/GPU_SUCCESS.md) - CUDA acceleration
-- 🔄 [**Transfer Learning**](docs/TRANSFER_LEARNING.md) - Pre-trained models
-- 🧹 [**Cleanup Guide**](docs/CLEANUP_GUIDE.md) - File management
-
----
-
-## 🎓 Training
-
-### First Time Training
+### 3. Train the AI (Make it Smarter)
 
 ```bash
 python train.py
 ```
 
-- Trains for 500 episodes (~1-2 hours with GPU)
-- Saves checkpoints every 20 episodes
-- Auto-resumes from latest checkpoint
-- GPU accelerated (10-15x faster)
-
-### Resume Training
-
-```bash
-python train.py
-```
-
-Automatically detects and resumes from the latest checkpoint!
-
-**See**: [Speed Up Training Guide](docs/SPEED_UP_TRAINING.md)
+Watch the AI learn to hack in real-time.
 
 ---
 
-## 📊 Reports
+## ✨ What Can It Do?
 
-Each scan generates **3 comprehensive reports**:
-
-### 1. HTML Report (Best for Viewing)
-
-- Beautiful, color-coded interface
-- CVSS scores and impact levels
-- Step-by-step exploitation guides
-- Remediation instructions
-- Real-world examples
-
-### 2. Plain Text Report (Best for Quick Review)
-
-- Easy to read in any text editor
-- All vulnerability details
-- Summary statistics
-
-### 3. Markdown Report (Best for Documentation)
-
-- GitHub-friendly format
-- Easy to include in docs
-- Version control friendly
+- **🧠 It Learns**: Uses AI to get smarter every time it scans.
+- **⚔️ It Attacks**: Tries SQL Injection, XSS, and more (safely).
+- **⚡ It's Fast**: Uses your Graphics Card (GPU) to think quickly.
+- **📊 It Reports**: Gives you a clear report of what it found.
 
 ---
 
-## 🔧 Installation
+## 📂 Files You Need to Know
 
-### Prerequisites
-
-- Python 3.10 or higher
-- NVIDIA GPU (optional, for faster training)
-- CUDA 11.8 (optional, for GPU support)
-
-### Install Dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
-### GPU Support (Optional but Recommended)
-
-```bash
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
-```
-
-**See**: [GPU Success Guide](docs/GPU_SUCCESS.md)
+- `scanner_gui.py`: The main app. Run this first!
+- `train.py`: The school. Run this to teach the AI.
+- `agent/`: The Brain. Where the AI logic lives.
+- `env/`: The World. A fake website for the AI to practice on.
 
 ---
 
-## 🎯 Attack Vectors
+## 🔧 Setup
 
-The agent can detect:
-
-- ✅ SQL Injection (basic + obfuscated)
-- ✅ Cross-Site Scripting (XSS)
-- ✅ Command Injection
-- ✅ IDOR (Insecure Direct Object Reference)
-- ✅ SSRF (Server-Side Request Forgery)
-- ✅ CSRF Token Extraction
-- ✅ Path Traversal
-- ✅ File Upload Vulnerabilities
-- ✅ Authentication Bypass
-- ✅ And more...
+1.  **Install Python** (3.10 or newer).
+2.  **Install Libraries**:
+    ```bash
+    pip install -r requirements.txt
+    ```
+3.  **Run it!**
 
 ---
+
+_**Note**: Only use this on websites you own. Hacking others is illegal._
 
 ## ⚠️ Legal & Ethical Use
 

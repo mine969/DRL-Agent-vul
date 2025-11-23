@@ -17,3 +17,4 @@ Evaluations are performed automatically every 40 episodes.
 
 | Date | Episode | Avg Reward | Vulns Found | Success Rate | Epsilon | Notes |
 | ---- | ------- | ---------- | ----------- | ------------ | ------- | ----- |
+| 2025-11-23 07:46 | 40 | -60.0 | 0 | 0.0% | 0.0100 | Automatic Eval |

@@ -77,18 +77,40 @@ class NeuralNetworkBrain(nn.Module):
     """
     def __init__(self, input_size: int, output_size: int):
         super(NeuralNetworkBrain, self).__init__()
-        # Layers of neurons
-        self.layer1 = nn.Linear(input_size, 512)
-        self.layer2 = nn.Linear(512, 512)
-        self.layer3 = nn.Linear(512, 256)
-        self.output_layer = nn.Linear(256, output_size)
+        
+        # Common Feature Layer
+        self.feature_layer = nn.Sequential(
+            nn.Linear(input_size, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU()
+        )
+        
+        # Stream 1: Value (V) - How good is the current state?
+        self.value_stream = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, 1) # Output: Single value for the state
+        )
+        
+        # Stream 2: Advantage (A) - How much better is this action than others?
+        self.advantage_stream = nn.Sequential(
+            nn.Linear(512, 256),
+            nn.ReLU(),
+            nn.Linear(256, output_size) # Output: Score for each action
+        )
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        """Passes information through the brain to get a decision."""
-        x = torch.relu(self.layer1(x))
-        x = torch.relu(self.layer2(x))
-        x = torch.relu(self.layer3(x))
-        return self.output_layer(x)
+        """Passes information through the Dueling Network."""
+        features = self.feature_layer(x)
+        
+        values = self.value_stream(features)
+        advantages = self.advantage_stream(features)
+        
+        # Combine V and A to get Q
+        # Q(s,a) = V(s) + (A(s,a) - mean(A(s,a)))
+        q_values = values + (advantages - advantages.mean(dim=1, keepdim=True))
+        return q_values
 
 
 class DQNAgent:
@@ -104,9 +126,10 @@ class DQNAgent:
         self.gamma = 0.99           # How much we care about future rewards
         self.epsilon = 1.0          # Curiosity level (1.0 = 100% random)
         self.epsilon_min = 0.01     # Minimum curiosity
-        self.epsilon_decay = 0.995  # How fast curiosity fades
-        self.batch_size = 32        # How many memories to learn from at once
-        self.learning_rate = 0.001
+        self.epsilon_decay = 0.9995 # Slower decay = More exploration (Pro Mode)
+        self.batch_size = 64        # Larger batch = More stable gradients
+        self.learning_rate = 0.0005 # Lower LR = More precise convergence
+        self.tau = 0.005            # Soft update rate (how fast target brain follows main brain)
         
         # Hardware Setup
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -116,10 +139,17 @@ class DQNAgent:
         
         # Initialize Components
         self.memory = ExperienceMemory(state_dim, action_dim, capacity=10000)
-        self.q_network = NeuralNetworkBrain(state_dim, action_dim).to(self.device)
+        
+        # 1. Main Brain (The one that learns)
+        self.brain = NeuralNetworkBrain(state_dim, action_dim).to(self.device)
+        
+        # 2. Target Brain (The stable reference)
+        self.target_brain = NeuralNetworkBrain(state_dim, action_dim).to(self.device)
+        self.target_brain.load_state_dict(self.brain.state_dict()) # Start as a clone
+        self.target_brain.eval() # Never train this directly!
         
         # Optimizer (The "Teacher" that corrects the brain)
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate)
+        self.optimizer = optim.Adam(self.brain.parameters(), lr=self.learning_rate)
         self.loss_function = nn.MSELoss()
 
     def act(self, state: np.ndarray) -> int:
@@ -134,7 +164,7 @@ class DQNAgent:
         # 2. Exploit: Use the Brain
         state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            predicted_rewards = self.q_network(state_tensor)
+            predicted_rewards = self.brain(state_tensor)
         
         # Pick the action with the highest predicted reward
         return int(np.argmax(predicted_rewards.cpu().data.numpy()))
@@ -155,11 +185,17 @@ class DQNAgent:
         states, actions, rewards, next_states, dones = self.memory.recall_batch(self.batch_size)
         
         # 2. Predict what we THOUGHT would happen (Current Q)
-        current_q_values = self.q_network(states).gather(1, actions).squeeze(1)
+        current_q_values = self.brain(states).gather(1, actions).squeeze(1)
         
-        # 3. Calculate what ACTUALLY happened (Target Q)
-        # Formula: Reward + (Future Value * Discount)
-        next_q_values = self.q_network(next_states).max(1)[0]
+        # 3. Calculate what ACTUALLY happened (Target Q) using Double DQN
+        # Step A: Main Brain picks the best action for the next state
+        best_actions = self.brain(next_states).argmax(1).unsqueeze(1)
+        
+        # Step B: Target Brain calculates the value of that action
+        # This prevents the agent from being "overconfident"
+        next_q_values = self.target_brain(next_states).gather(1, best_actions).squeeze(1)
+        
+        # Step C: Bellman Equation
         target_q_values = rewards.squeeze(1) + (1 - dones.squeeze(1)) * self.gamma * next_q_values
         
         # 4. Calculate the mistake (Loss)
@@ -170,7 +206,19 @@ class DQNAgent:
         loss.backward()
         self.optimizer.step()
         
+        # 6. Soft Update: Slowly blend Main Brain into Target Brain
+        self.soft_update()
+        
         # 6. Reduce curiosity slightly (become more confident)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
+
+    def soft_update(self):
+        """
+        Slowly updates the Target Brain to match the Main Brain.
+        This creates a "Moving Target" that is stable but eventually catches up.
+        Formula: Target = (tau * Main) + ((1-tau) * Target)
+        """
+        for target_param, local_param in zip(self.target_brain.parameters(), self.brain.parameters()):
+            target_param.data.copy_(self.tau * local_param.data + (1.0 - self.tau) * target_param.data)
 

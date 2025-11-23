@@ -1,28 +1,5 @@
 # 👨‍💻 Code Learning Guide: Under the Hood
 
-This guide explains the actual code for beginners. We will look at the three most important files.
-
-## 1. `agent/dqn_agent.py` (The Brain)
-
-This file defines the **Agent**. It's where the learning happens.
-
-### Key Class: `DQNAgent`
-
-```python
-class DQNAgent:
-    def __init__(self, state_dim, action_dim):
-        # ... setup ...
-        self.memory = ExperienceMemory(...) # The Agent's memory
-        self.brain = NeuralNetworkBrain(...)  # The Neural Network
-```
-
-### Key Function: `act()`
-
-This is how the agent decides what to do.
-
-```python
-def act(self, state):
-    # 1. Explore: Try something random?
     if np.random.rand() <= self.epsilon:
         return random.randrange(self.action_dim)
 
@@ -30,7 +7,8 @@ def act(self, state):
     state_tensor = torch.FloatTensor(state)...
     predicted_rewards = self.brain(state_tensor)
     return int(np.argmax(predicted_rewards...)) # Pick the best move
-```
+
+````
 
 ---
 
@@ -56,7 +34,7 @@ def step(self, action_id):
 
     # 3. Return everything to the Agent
     return self._get_observation(), reward, done, ...
-```
+````
 
 ### Key Function: `_calculate_reward()`
 

@@ -137,7 +137,8 @@ def start_training_session():
     if checkpoint_path:
         print(f"\n📂 Found save file: {checkpoint_path}")
         print(f"🔄 Resuming training from episode {start_episode}")
-        agent.q_network.load_state_dict(torch.load(checkpoint_path))
+        # agent.brain.load_state_dict(torch.load(checkpoint_path))
+        print("⚠️  Starting FRESH training with Rainbow DQN Architecture (Ignoring old checkpoints)")
         
         # Adjust the agent's curiosity based on how much it has already learned
         # (Less curious if it's been training for a long time)
@@ -150,7 +151,7 @@ def start_training_session():
     # Training Configuration
     total_episodes = 500      # How long to train
     save_frequency = 20       # Save every 20 episodes
-    eval_frequency = 40       # Test performance every 40 episodes
+    eval_frequency = 20       # Test performance every 20 episodes
     
     print(f"Training for {total_episodes} episodes...")
     print(f"Autosaving every {save_frequency} episodes.")
@@ -185,7 +186,7 @@ def start_training_session():
             if (episode + 1) % save_frequency == 0:
                 checkpoint_path = f"checkpoints/dqn_checkpoint_ep{episode+1}.pth"
                 os.makedirs("checkpoints", exist_ok=True)
-                torch.save(agent.q_network.state_dict(), checkpoint_path)
+                torch.save(agent.brain.state_dict(), checkpoint_path)
                 print(f"💾 Progress saved: {checkpoint_path}")
             
             # Run Evaluation
@@ -193,13 +194,17 @@ def start_training_session():
                 evaluate_performance(agent, env, episode+1)
         
         # Save Final Model
-        torch.save(agent.q_network.state_dict(), "dqn_web_sec_model.pth")
+        torch.save(agent.brain.state_dict(), "dqn_web_sec_model.pth")
         print("\n✅ Training complete! Final model saved.")
         
     except KeyboardInterrupt:
         print("\n\n⚠️  Training paused by user.")
-        torch.save(agent.q_network.state_dict(), "dqn_web_sec_model.pth")
-        print("💾 Progress saved safely.")
+        # Save with episode number so we can resume exactly here
+        checkpoint_path = f"checkpoints/dqn_checkpoint_ep{episode}_INTERRUPTED.pth"
+        os.makedirs("checkpoints", exist_ok=True)
+        torch.save(agent.brain.state_dict(), checkpoint_path)
+        print(f"💾 Progress saved to: {checkpoint_path}")
+        print("   (You can resume from here next time!)")
 
 if __name__ == "__main__":
     start_training_session()

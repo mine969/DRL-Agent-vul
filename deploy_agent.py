@@ -13,8 +13,8 @@ import argparse
 def load_trained_agent(model_path, state_dim=7, action_dim=15):
     """Load a trained DQN agent from checkpoint"""
     agent = DQNAgent(state_dim, action_dim)
-    agent.q_network.load_state_dict(torch.load(model_path))
-    agent.q_network.eval()  # Set to evaluation mode
+    agent.brain.load_state_dict(torch.load(model_path))
+    agent.brain.eval()  # Set to evaluation mode
     agent.epsilon = 0.0  # No exploration, only exploitation
     print(f"✅ Loaded trained model from: {model_path}")
     return agent

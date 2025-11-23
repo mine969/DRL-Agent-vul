@@ -59,7 +59,7 @@ def evaluate():
     checkpoint_path, episode = find_latest_checkpoint()
     if checkpoint_path:
         print(f"📂 Loading checkpoint: {checkpoint_path}")
-        agent.q_network.load_state_dict(torch.load(checkpoint_path))
+        agent.brain.load_state_dict(torch.load(checkpoint_path))
         agent.epsilon = 0.0 # Pure exploitation
     else:
         print("❌ No checkpoint found!")

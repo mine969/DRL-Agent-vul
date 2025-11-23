@@ -23,26 +23,6 @@ graph TD
     subgraph "Environment"
     D -->|Response| G[WebSecurityGym]
     G -->|Reward/State| C
-    G -->|Payloads| H[PayloadManager]
-    end
-```
-
-## 🧠 Core Components
-
-### 1. The Agent (`dqn_agent.py`)
-
-- **Algorithm**: Deep Q-Learning (DQN) with Experience Replay.
-- **Brain (`NeuralNetworkBrain`)**: 3-layer Fully Connected Network (Input: 10 -> Hidden: 512 -> Hidden: 512 -> Output: 15).
-- **Optimization**:
-  - **GPU Acceleration**: Uses CUDA (NVIDIA RTX 2070) for tensor operations.
-  - **Memory (`ExperienceMemory`)**: Implemented using pre-allocated `numpy` arrays instead of dynamic lists/deques. This eliminates memory reallocation overhead during training.
-  - **Batch Sampling**: Vectorized sampling for high-speed training.
-
-### 2. The Environment (`web_sec_env.py`)
-
-- **Framework**: Gymnasium (OpenAI Gym).
-- **Class Name**: `WebSecurityGym`
-- **State Space (10 Dimensions)**:
   1.  `page_id`: Current page identifier.
   2.  `status_code`: Normalized HTTP status.
   3.  `found_vulnerability`: Boolean flag.
@@ -98,3 +78,4 @@ The agent balances exploration (trying new things) and exploitation (using what 
 - **GPU**: PyTorch tensors are moved to `cuda:0`.
 - **CPU**: Handles environment interaction and HTTP requests.
 - **RAM**: Efficiently managed via fixed-size buffers.
+```

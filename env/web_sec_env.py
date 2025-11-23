@@ -160,8 +160,24 @@ class WebSecurityGym(gym.Env):
             # 1. Perform the Action
             action_function = self.action_book.get(action_id)
             if action_function:
+                action_name = action_function.__name__
+                
+                # Execute action
                 response, action_reward = action_function()
                 reward += action_reward
+                
+                # LOGGING FOR USER
+                status = response.status_code if response else "None"
+                url = response.url if response else "N/A"
+                
+                # Try to extract payload from request body/params for display
+                payload_info = ""
+                if response and response.request.body:
+                    payload_info = f" | Body: {str(response.request.body)[:50]}..."
+                elif response and 'q=' in url:
+                    payload_info = f" | Query: {url.split('q=')[1][:50]}..."
+                
+                print(f"Action: {action_name:<25} | Status: {status:<3} | Reward: {action_reward:>5.1f} | URL: {url[-40:]:<40}{payload_info}")
             else:
                 response = None
                 
