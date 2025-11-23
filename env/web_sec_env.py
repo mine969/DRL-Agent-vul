@@ -424,23 +424,6 @@ class WebSecurityGym(gym.Env):
         """Try IDOR (Insecure Direct Object Reference) on Profile."""
         if not self.auth_token:
              self.action_login_valid()
-
-        r = self.session.get(f"{self.target_url}/profile?uid=1", timeout=3)
-        reward = self._calculate_reward(r, "IDOR")
-        return r, reward
-    
-    def attack_ssrf_preview(self) -> Tuple[requests.Response, float]:
-        """Try Server-Side Request Forgery (SSRF)."""
-        r = self.session.get(
-            f"{self.target_url}/api/fetch_preview?url=http://localhost:5000/admin",
-            timeout=3
-        )
-        if r.status_code == 404:
-            return r, -1.0
-        reward = self._calculate_reward(r, "SSRF")
-        return r, reward
-    
-    def attack_fuzzing(self) -> Tuple[requests.Response, float]:
         """Send random garbage data to see if the server crashes."""
         payload = self.payload_manager.get_fuzz()
         r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)

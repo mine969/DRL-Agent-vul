@@ -565,7 +565,10 @@ class SecurityAuditor:
             41: "Mass Assignment",
             42: "Prototype Pollution",
             43: "Login (Valid)",
-            44: "Wait"
+            44: "Wait",
+            45: "Unrestricted File Upload",
+            46: "OSINT (Sensitive Files)",
+            47: "OSINT (Server Fingerprint)"
         }
         name = vuln_map.get(action, f"Unknown Action {action}")
         return name
