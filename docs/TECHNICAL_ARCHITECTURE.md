@@ -8,20 +8,20 @@ The system follows a modular architecture separating the **Agent** (Brain), **En
 
 ```mermaid
 graph TD
-    A[Autonomous Scanner] -->|Controls| B(Recon Agent)
+    A[Security Auditor] -->|Controls| B(Website Explorer)
     A -->|Controls| C(DQN Agent)
 
     B -->|Crawls| D[Target Website]
     C -->|Attacks| D
 
     subgraph "AI Core (GPU Accelerated)"
-    C -->|State| E[Neural Network]
+    C -->|State| E[NeuralNetworkBrain]
     E -->|Q-Values| C
-    C -->|Experience| F[Replay Buffer O(1)]
+    C -->|Experience| F[ExperienceMemory O(1)]
     end
 
     subgraph "Environment"
-    D -->|Response| G[WebSecEnv]
+    D -->|Response| G[WebSecurityGym]
     G -->|Reward/State| C
     G -->|Payloads| H[PayloadManager]
     end
@@ -31,27 +31,28 @@ graph TD
 
 ### 1. The Agent (`dqn_agent.py`)
 
-- **Algorithm**: Deep Q-Network (DQN) with Experience Replay.
-- **Neural Network**: 3-layer Fully Connected Network (Input: 10 -> Hidden: 256 -> Hidden: 256 -> Output: 15).
+- **Algorithm**: Deep Q-Learning (DQN) with Experience Replay.
+- **Brain (`NeuralNetworkBrain`)**: 3-layer Fully Connected Network (Input: 10 -> Hidden: 512 -> Hidden: 512 -> Output: 15).
 - **Optimization**:
   - **GPU Acceleration**: Uses CUDA (NVIDIA RTX 2070) for tensor operations.
-  - **O(1) Replay Buffer**: Implemented using pre-allocated `numpy` arrays instead of dynamic lists/deques. This eliminates memory reallocation overhead during training.
+  - **Memory (`ExperienceMemory`)**: Implemented using pre-allocated `numpy` arrays instead of dynamic lists/deques. This eliminates memory reallocation overhead during training.
   - **Batch Sampling**: Vectorized sampling for high-speed training.
 
 ### 2. The Environment (`web_sec_env.py`)
 
 - **Framework**: Gymnasium (OpenAI Gym).
+- **Class Name**: `WebSecurityGym`
 - **State Space (10 Dimensions)**:
   1.  `page_id`: Current page identifier.
   2.  `status_code`: Normalized HTTP status.
-  3.  `vuln_detected`: Boolean flag.
-  4.  `sensitive_data`: Boolean flag (CTF flags).
-  5.  `waf_triggered`: Boolean flag.
-  6.  `rate_limited`: Boolean flag.
-  7.  `auth_status`: JWT token presence.
-  8.  `response_time`: Normalized latency (for Time-Based SQLi).
+  3.  `found_vulnerability`: Boolean flag.
+  4.  `found_sensitive_data`: Boolean flag (CTF flags).
+  5.  `triggered_waf`: Boolean flag.
+  6.  `got_rate_limited`: Boolean flag.
+  7.  `auth_token`: JWT token presence.
+  8.  `last_response_time`: Normalized latency (for Time-Based SQLi).
   9.  `content_variance`: Anomaly detection metric.
-  10. `param_count`: Complexity metric.
+  10. `input_count`: Complexity metric.
 - **Action Space (15 Actions)**:
   - Navigation (Home, Login, Search...)
   - Attacks (SQLi, XSS, IDOR, SSRF...)
@@ -79,7 +80,7 @@ Instead of a standard Python list `[]` or `deque`, we use fixed-size Numpy array
 
 ### 2. BFS Crawling (Scanner)
 
-The `ReconAgent` uses Breadth-First Search (BFS) to map the website.
+The `WebsiteExplorer` uses Breadth-First Search (BFS) to map the website.
 
 - **Queue**: `collections.deque` for **O(1)** pops/appends.
 - **Visited Set**: `set()` for **O(1)** lookup of visited URLs.

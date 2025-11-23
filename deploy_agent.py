@@ -7,7 +7,7 @@ This script loads your trained DQN model and runs it against any target website.
 import torch
 import numpy as np
 from agent.dqn_agent import DQNAgent
-from env.web_sec_env import WebSecEnv
+from env.web_sec_env import WebSecurityGym
 import argparse
 
 def load_trained_agent(model_path, state_dim=7, action_dim=15):
@@ -31,7 +31,7 @@ def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, verb
     """
     
     # Create environment pointing to target
-    env = WebSecEnv(target_url=target_url)
+    env = WebSecurityGym(target_url=target_url)
     
     # Load trained agent
     agent = load_trained_agent(model_path)
@@ -122,7 +122,7 @@ def interactive_mode(target_url, model_path="dqn_web_sec_model.pth"):
     """
     Interactive mode: Watch the agent in real-time
     """
-    env = WebSecEnv(target_url=target_url)
+    env = WebSecurityGym(target_url=target_url)
     agent = load_trained_agent(model_path)
     
     print(f"\n🎮 INTERACTIVE MODE")

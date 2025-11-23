@@ -12,7 +12,7 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from autonomous_scan import AutonomousSecurityAgent
+from autonomous_scan import SecurityAuditor
 
 def print_banner():
     """Display welcome banner"""
@@ -124,15 +124,15 @@ def main():
     
     try:
         # Create and run scanner
-        agent = AutonomousSecurityAgent(target, model)
-        findings = agent.scan(crawl_depth=depth, test_episodes=episodes)
+        agent = SecurityAuditor(target, model)
+        findings = agent.start_audit(crawl_depth=depth, test_intensity=episodes)
         
         print("\n" + "="*70)
         print("✅ SCAN COMPLETE!")
         print("="*70)
         print(f"\nFound {len(findings)} vulnerabilities")
-        print("\n📁 Reports have been saved in the current directory:")
-        print("   - vulnerability_report_*.html (Open in browser)")
+        print("\n📁 Reports have been saved in the reports/ directory:")
+        print("   - reports/vulnerability_report_*.md   (Markdown)")
         print("   - vulnerability_report_*.txt  (Plain text)")
         print("   - vulnerability_report_*.md   (Markdown)")
         print("\n💡 Tip: Open the HTML file in your browser for the best experience!")

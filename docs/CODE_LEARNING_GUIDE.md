@@ -12,8 +12,8 @@ This file defines the **Agent**. It's where the learning happens.
 class DQNAgent:
     def __init__(self, state_dim, action_dim):
         # ... setup ...
-        self.memory = ReplayBuffer(...) # The Agent's memory
-        self.q_network = QNetwork(...)  # The Neural Network
+        self.memory = ExperienceMemory(...) # The Agent's memory
+        self.brain = NeuralNetworkBrain(...)  # The Neural Network
 ```
 
 ### Key Function: `act()`
@@ -22,14 +22,14 @@ This is how the agent decides what to do.
 
 ```python
 def act(self, state):
-    # Epsilon-Greedy Logic
-    if random.random() <= self.epsilon:
-        return random.randrange(self.action_dim) # EXPLORE: Do something random
+    # 1. Explore: Try something random?
+    if np.random.rand() <= self.epsilon:
+        return random.randrange(self.action_dim)
 
-    # EXPLOIT: Ask the Neural Network for the best move
+    # 2. Exploit: Use the Brain
     state_tensor = torch.FloatTensor(state)...
-    q_values = self.q_network(state_tensor)
-    return np.argmax(q_values) # Pick the action with highest score
+    predicted_rewards = self.brain(state_tensor)
+    return int(np.argmax(predicted_rewards...)) # Pick the best move
 ```
 
 ---
@@ -38,33 +38,32 @@ def act(self, state):
 
 This file defines the **Environment**. It simulates the website interaction.
 
-### Key Class: `OptimizedWebSecEnv`
+### Key Class: `WebSecurityGym`
 
 It follows the standard Gym format: `reset()` and `step()`.
 
-### Key Function: `step(action)`
+### Key Function: `step(action_id)`
 
 This runs one "turn" of the game.
 
 ```python
-def step(self, action):
-    # 1. Execute the action (e.g., Click link, Inject SQL)
-    response, reward = self.action_map[action]()
+def step(self, action_id):
+    # 1. Perform the Action (e.g., Click link, Inject SQL)
+    response, reward = self.action_book[action_id]()
 
-    # 2. Calculate new state (What do we see now?)
-    self.last_response_time = ...
-    self.content_variance = ...
+    # 2. Analyze the Result (What do we see now?)
+    self._analyze_response_content(response)
 
     # 3. Return everything to the Agent
-    return self._get_obs(), reward, done, ...
+    return self._get_observation(), reward, done, ...
 ```
 
-### Key Function: `_check_vulnerability()`
+### Key Function: `_calculate_reward()`
 
 This calculates the score.
 
 ```python
-def _check_vulnerability(self, response, ...):
+def _calculate_reward(self, response, ...):
     if "admin" in response.text:    # Did we hack it?
         return 100.0                # Big Reward!
     if "WAF Blocked" in response.text:
@@ -78,12 +77,12 @@ def _check_vulnerability(self, response, ...):
 
 This script puts everything together to scan a real website.
 
-### Key Class: `ReconAgent`
+### Key Class: `WebsiteExplorer`
 
 It maps out the website before attacking.
 
 ```python
-def crawl(self):
+def explore(self):
     # Uses a Queue (deque) for Breadth-First Search
     queue = deque([base_url])
     while queue:
@@ -91,15 +90,23 @@ def crawl(self):
         # Visit page, find links, add to queue...
 ```
 
-### Key Function: `scan()`
+### Key Class: `SecurityAuditor`
 
-The main loop.
+The main scanner logic.
 
-1. **Recon**: Find all pages.
-2. **Test**: For every page found...
-   - Create a `WebSecEnv` for that page.
-   - Let the `DQNAgent` play on that page for 30 steps.
-   - If the Agent gets a high score (>50), report a bug!
+```python
+def start_audit(self):
+    # Phase 1: Reconnaissance
+    discovered_urls = self.explorer.explore()
+
+    # Phase 2: Attack
+    for url in discovered_urls:
+        # Let the AI Agent play on this page
+        findings = self._audit_page(url)
+
+    # Phase 3: Report
+    self._generate_final_report(...)
+```
 
 ---
 

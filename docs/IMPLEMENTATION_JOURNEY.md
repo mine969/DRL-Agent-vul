@@ -62,6 +62,27 @@ This document details the step-by-step evolution of the project. It serves as a 
     - Restarted training from scratch.
 4.  **Result**: An AI that can detect subtle bugs like Time-Based SQLi and bypass basic filters.
 
+## 📚 Phase 6: Documentation Overhaul
+
+**Goal**: Create a comprehensive knowledge base.
+
+1.  **Architecture Docs**: Detailed system design and algorithms.
+2.  **Learning Guides**: Line-by-line code explanations.
+3.  **Project Overview**: High-level summary for non-technical readers.
+4.  **Result**: A project that is easy to understand and contribute to.
+
+## 🧹 Phase 7: Codebase Refactoring (Readability)
+
+**Goal**: Make the code read like English.
+
+1.  **Descriptive Naming**:
+    - `QNetwork` -> `NeuralNetworkBrain`
+    - `ReplayBuffer` -> `ExperienceMemory`
+    - `OptimizedWebSecEnv` -> `WebSecurityGym`
+2.  **Narrative Structure**: Refactored `autonomous_scan.py` to follow a clear "Recon -> Attack -> Report" story.
+3.  **Decluttering**: Moved massive data (Vulnerability DB) to utility files.
+4.  **Result**: A codebase that explains itself through clear names and structure.
+
 ## 🔮 Future Steps
 
 - **Transformer Models**: Replace DQN with PPO or Transformer-based agents.

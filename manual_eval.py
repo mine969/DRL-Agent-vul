@@ -4,7 +4,7 @@ Runs a one-off evaluation of the latest model checkpoint and logs to TRAINING_PR
 """
 
 import gymnasium as gym
-from env.web_sec_env import WebSecEnv
+from env.web_sec_env import WebSecurityGym
 from agent.dqn_agent import DQNAgent
 import torch
 import numpy as np
@@ -50,7 +50,7 @@ def evaluate():
     time.sleep(2) # Wait for server
     
     # Setup
-    env = WebSecEnv()
+    env = WebSecurityGym()
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.n
     agent = DQNAgent(state_dim, action_dim)

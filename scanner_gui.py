@@ -27,7 +27,7 @@ from datetime import datetime
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from autonomous_scan import AutonomousSecurityAgent
+from autonomous_scan import SecurityAuditor
 
 class SecurityScannerGUI:
     def __init__(self, root):
@@ -596,17 +596,17 @@ Examples:
         
         try:
             # Import here to avoid GUI dependencies in headless mode
-            from autonomous_scan import AutonomousSecurityAgent
+            from autonomous_scan import SecurityAuditor
             
             print(f"[{datetime.now().strftime('%H:%M:%S')}] ℹ️  Starting scan...")
             
             # Create scanner
-            agent = AutonomousSecurityAgent(target, args.model)
+            agent = SecurityAuditor(target, args.model)
             
             # Run scan
-            findings = agent.scan(
+            findings = agent.start_audit(
                 crawl_depth=args.depth,
-                test_episodes=args.episodes
+                test_intensity=args.episodes
             )
             
             print(f"\n[{datetime.now().strftime('%H:%M:%S')}] ✅ Scan complete!")

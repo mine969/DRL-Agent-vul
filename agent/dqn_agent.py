@@ -1,11 +1,14 @@
 """
-Optimized Deep Q-Network (DQN) Agent
+The AI Brain (DQN Agent)
+========================
 
-Performance improvements:
-- O(1) Replay Buffer using numpy arrays (vs O(n) deque)
-- Type hints for code quality
-- Efficient batch sampling
-- GPU acceleration support
+This file defines the "Brain" of our AI Hacker.
+It uses a technique called Deep Q-Learning (DQN) to learn from experience.
+
+Concepts:
+- Brain (Neural Network): Estimates how good an action is.
+- Memory (Replay Buffer): Remembers past actions and rewards.
+- Learning (Replay): Reviews past memories to improve the Brain.
 """
 
 import torch
@@ -16,129 +19,158 @@ import random
 from typing import Tuple, Dict, List
 import os
 
-class ReplayBuffer:
+class ExperienceMemory:
     """
-    Optimized Replay Buffer using numpy arrays for O(1) access
+    The Agent's Memory.
+    It stores past experiences so the agent can learn from them later.
+    
+    Optimization:
+    Uses pre-allocated Numpy arrays for super-fast (O(1)) speed.
     """
-    def __init__(self, state_dim: int, action_dim: int, max_size: int = 10000):
-        self.max_size = max_size
-        self.ptr = 0
-        self.size = 0
+    def __init__(self, state_size: int, action_size: int, capacity: int = 10000):
+        self.capacity = capacity
+        self.pointer = 0
+        self.current_size = 0
         
-        # Pre-allocate memory for O(1) insertion
-        self.states = np.zeros((max_size, state_dim), dtype=np.float32)
-        self.actions = np.zeros((max_size, 1), dtype=np.int64)
-        self.rewards = np.zeros((max_size, 1), dtype=np.float32)
-        self.next_states = np.zeros((max_size, state_dim), dtype=np.float32)
-        self.dones = np.zeros((max_size, 1), dtype=np.float32)
+        # Pre-allocate memory blocks (like empty slots in a bookshelf)
+        self.states = np.zeros((capacity, state_size), dtype=np.float32)
+        self.actions = np.zeros((capacity, 1), dtype=np.int64)
+        self.rewards = np.zeros((capacity, 1), dtype=np.float32)
+        self.next_states = np.zeros((capacity, state_size), dtype=np.float32)
+        self.dones = np.zeros((capacity, 1), dtype=np.float32)
         
+        # Use GPU if available
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    def add(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
-        """Add experience to buffer in O(1)"""
-        self.states[self.ptr] = state
-        self.actions[self.ptr] = action
-        self.rewards[self.ptr] = reward
-        self.next_states[self.ptr] = next_state
-        self.dones[self.ptr] = done
+    def save(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
+        """Saves a single experience to memory."""
+        self.states[self.pointer] = state
+        self.actions[self.pointer] = action
+        self.rewards[self.pointer] = reward
+        self.next_states[self.pointer] = next_state
+        self.dones[self.pointer] = done
         
-        self.ptr = (self.ptr + 1) % self.max_size
-        self.size = min(self.size + 1, self.max_size)
+        # Move pointer to next slot (loop back to start if full)
+        self.pointer = (self.pointer + 1) % self.capacity
+        self.current_size = min(self.current_size + 1, self.capacity)
 
-    def sample(self, batch_size: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
-        """Sample batch in O(1)"""
-        ind = np.random.randint(0, self.size, size=batch_size)
+    def recall_batch(self, batch_size: int) -> Tuple[torch.Tensor, ...]:
+        """Randomly recalls a batch of past experiences for training."""
+        indices = np.random.randint(0, self.current_size, size=batch_size)
         
         return (
-            torch.FloatTensor(self.states[ind]).to(self.device),
-            torch.LongTensor(self.actions[ind]).to(self.device),
-            torch.FloatTensor(self.rewards[ind]).to(self.device),
-            torch.FloatTensor(self.next_states[ind]).to(self.device),
-            torch.FloatTensor(self.dones[ind]).to(self.device)
+            torch.FloatTensor(self.states[indices]).to(self.device),
+            torch.LongTensor(self.actions[indices]).to(self.device),
+            torch.FloatTensor(self.rewards[indices]).to(self.device),
+            torch.FloatTensor(self.next_states[indices]).to(self.device),
+            torch.FloatTensor(self.dones[indices]).to(self.device)
         )
 
     def __len__(self) -> int:
-        return self.size
+        return self.current_size
 
 
-class QNetwork(nn.Module):
-    """Deep Q-Network Architecture"""
-    def __init__(self, state_dim: int, action_dim: int):
-        super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(state_dim, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.fc3 = nn.Linear(512, 256)
-        self.fc4 = nn.Linear(256, action_dim)
+class NeuralNetworkBrain(nn.Module):
+    """
+    The actual 'Brain' structure.
+    It takes the current situation (State) and predicts the best move (Action).
+    """
+    def __init__(self, input_size: int, output_size: int):
+        super(NeuralNetworkBrain, self).__init__()
+        # Layers of neurons
+        self.layer1 = nn.Linear(input_size, 512)
+        self.layer2 = nn.Linear(512, 512)
+        self.layer3 = nn.Linear(512, 256)
+        self.output_layer = nn.Linear(256, output_size)
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = torch.relu(self.fc1(x))
-        x = torch.relu(self.fc2(x))
-        x = torch.relu(self.fc3(x))
-        return self.fc4(x)
+        """Passes information through the brain to get a decision."""
+        x = torch.relu(self.layer1(x))
+        x = torch.relu(self.layer2(x))
+        x = torch.relu(self.layer3(x))
+        return self.output_layer(x)
 
 
 class DQNAgent:
-    """Optimized DQN Agent"""
+    """
+    The AI Agent Controller.
+    Manages the Brain, Memory, and Learning process.
+    """
     def __init__(self, state_dim: int, action_dim: int):
         self.state_dim = state_dim
         self.action_dim = action_dim
         
-        # Hyperparameters
-        self.gamma = 0.99
-        self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
-        self.batch_size = 32
-        self.lr = 0.001
+        # Learning Settings
+        self.gamma = 0.99           # How much we care about future rewards
+        self.epsilon = 1.0          # Curiosity level (1.0 = 100% random)
+        self.epsilon_min = 0.01     # Minimum curiosity
+        self.epsilon_decay = 0.995  # How fast curiosity fades
+        self.batch_size = 32        # How many memories to learn from at once
+        self.learning_rate = 0.001
         
+        # Hardware Setup
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"🚀 Agent using device: {self.device}")
+        print(f"🚀 AI Brain initialized on: {self.device}")
         if self.device.type == 'cuda':
-            print(f"   GPU: {torch.cuda.get_device_name(0)}")
+            print(f"   GPU Model: {torch.cuda.get_device_name(0)}")
         
-        # Optimized Replay Buffer
-        self.memory = ReplayBuffer(state_dim, action_dim, max_size=10000)
+        # Initialize Components
+        self.memory = ExperienceMemory(state_dim, action_dim, capacity=10000)
+        self.q_network = NeuralNetworkBrain(state_dim, action_dim).to(self.device)
         
-        self.q_network = QNetwork(state_dim, action_dim).to(self.device)
-        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.lr)
-        self.criterion = nn.MSELoss()
+        # Optimizer (The "Teacher" that corrects the brain)
+        self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate)
+        self.loss_function = nn.MSELoss()
 
     def act(self, state: np.ndarray) -> int:
-        """Select action using Epsilon-Greedy policy"""
+        """
+        Decides what to do next.
+        Either explores randomly (Curiosity) or uses the Brain (Experience).
+        """
+        # 1. Explore: Try something random?
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_dim)
         
+        # 2. Exploit: Use the Brain
         state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            q_values = self.q_network(state_tensor)
-        return int(np.argmax(q_values.cpu().data.numpy()))
+            predicted_rewards = self.q_network(state_tensor)
+        
+        # Pick the action with the highest predicted reward
+        return int(np.argmax(predicted_rewards.cpu().data.numpy()))
 
     def remember(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
-        """Store experience in replay buffer"""
-        self.memory.add(state, action, reward, next_state, done)
+        """Stores a new experience in memory."""
+        self.memory.save(state, action, reward, next_state, done)
 
     def replay(self):
-        """Train the network on a batch of experiences"""
+        """
+        The Learning Step.
+        Reviews a batch of past memories and updates the brain to be smarter.
+        """
         if len(self.memory) < self.batch_size:
             return
         
-        # Sample batch (Optimized)
-        states, actions, rewards, next_states, dones = self.memory.sample(self.batch_size)
+        # 1. Recall a batch of memories
+        states, actions, rewards, next_states, dones = self.memory.recall_batch(self.batch_size)
         
-        # Q(s, a)
-        current_q = self.q_network(states).gather(1, actions).squeeze(1)
+        # 2. Predict what we THOUGHT would happen (Current Q)
+        current_q_values = self.q_network(states).gather(1, actions).squeeze(1)
         
-        # Q(s', a')
-        next_q = self.q_network(next_states).max(1)[0]
-        target_q = rewards.squeeze(1) + (1 - dones.squeeze(1)) * self.gamma * next_q
+        # 3. Calculate what ACTUALLY happened (Target Q)
+        # Formula: Reward + (Future Value * Discount)
+        next_q_values = self.q_network(next_states).max(1)[0]
+        target_q_values = rewards.squeeze(1) + (1 - dones.squeeze(1)) * self.gamma * next_q_values
         
-        loss = self.criterion(current_q, target_q.detach())
+        # 4. Calculate the mistake (Loss)
+        loss = self.loss_function(current_q_values, target_q_values.detach())
         
+        # 5. Correct the Brain (Backpropagation)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         
-        # Decay epsilon
+        # 6. Reduce curiosity slightly (become more confident)
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
 

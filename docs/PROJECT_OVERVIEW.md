@@ -22,9 +22,9 @@ This AI bridges the gap:
 
 The agent uses a technique called **Reinforcement Learning** (the same tech used by AlphaGo). It gets "points" (rewards) when it finds a bug and loses points when it gets blocked. Over time, it learns to maximize its score by finding the most critical bugs.
 
-### 2. 🚩 CTF Challenge Mode
+### 2. 🚩 CTF Challenge Mode (Web Security Gym)
 
-We built a special "Capture The Flag" (CTF) training ground. It's a fake website full of hidden secrets (`CTF{...}`) and puzzles. The AI trains here to learn advanced hacking skills like:
+We built a special "Capture The Flag" (CTF) training ground called the **Web Security Gym**. It's a fake website full of hidden secrets (`CTF{...}`) and puzzles. The AI trains here to learn advanced hacking skills like:
 
 - **SQL Injection**: Tricking a database into revealing secrets.
 - **XSS**: Injecting code into web pages.

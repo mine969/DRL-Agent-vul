@@ -1,15 +1,16 @@
 """
-Optimized Web Security Environment with Session Pooling & Advanced Agent Capabilities
+The Web Security Gym
+====================
 
-Performance improvements:
-- Session reuse for 2x faster network requests
-- Type hints for code quality
-- Cleaner action mapping
-- Better error handling
+This is the "Virtual World" where our AI Agent lives and trains.
+It simulates a web browser interacting with a vulnerable website.
 
-Agent Upgrades:
-- PayloadManager integration for real-world attacks
-- Enhanced Observation Space (10 dims) including timing and content analysis
+Concepts:
+- Environment: The world (the website).
+- Agent: The player (our AI).
+- Action: What the player does (click link, inject SQL).
+- Observation: What the player sees (page content, status code).
+- Reward: Points for doing good things (finding bugs) or bad things (crashing).
 """
 
 import gymnasium as gym
@@ -23,75 +24,88 @@ import time
 import re
 from agent.payload_manager import PayloadManager
 
-class OptimizedWebSecEnv(gym.Env):
-    """Optimized Gymnasium environment for web security testing"""
+class WebSecurityGym(gym.Env):
+    """
+    The Gymnasium Environment for Web Security.
+    Think of this as the game engine.
+    """
     
     def __init__(self, target_url: str = "http://localhost:5000"):
-        super(OptimizedWebSecEnv, self).__init__()
+        super(WebSecurityGym, self).__init__()
         self.target_url = target_url
         
-        # Initialize Payload Manager
+        # The Arsenal: Tools the agent can use
         self.payload_manager = PayloadManager()
         
-        # Action space: 15 actions (navigation + attacks + evasion)
+        # Actions: The agent has 15 possible moves
+        # 0-2: Navigation
+        # 3-14: Attacks
         self.action_space = spaces.Discrete(15)
         
-        # Observation space: 
-        # [page_id, status, vuln, sensitive, waf, rate_limit, auth_status, 
-        #  response_time_norm, content_len_var, param_count_norm]
+        # Observations: The agent sees 10 features about the current page
+        # 1. Current Page ID
+        # 2. HTTP Status Code (200, 404, 500, etc.)
+        # 3. Vulnerability Detected? (Yes/No)
+        # 4. Sensitive Data Seen? (Yes/No)
+        # 5. WAF Triggered? (Yes/No)
+        # 6. Rate Limited? (Yes/No)
+        # 7. Logged In? (Yes/No)
+        # 8. Response Time (How fast did the server reply?)
+        # 9. Content Variance (Did the page change unexpectedly?)
+        # 10. Input Count (How many forms/inputs are there?)
         self.observation_space = spaces.Box(low=0, high=5, shape=(10,), dtype=np.float32)
         
-        # Initialize optimized session with connection pooling
-        self._init_session()
+        # Setup the "Browser" (HTTP Session)
+        self._setup_browser_session()
         
-        # State variables
-        self.current_page: int = 0
-        self.vuln_detected: int = 0
-        self.sensitive_data_seen: int = 0
-        self.waf_triggered: int = 0
-        self.rate_limited: int = 0
-        self.jwt_token: str = None
+        # Game State Variables
+        self.current_page_id: int = 0
+        self.found_vulnerability: int = 0
+        self.found_sensitive_data: int = 0
+        self.triggered_waf: int = 0
+        self.got_rate_limited: int = 0
+        self.auth_token: str = None
         
-        # New State Variables
+        # Metrics for "Senses"
         self.last_response_time: float = 0.0
-        self.content_length_variance: float = 0.0
-        self.param_count: int = 0
-        self.baseline_content_length: int = 0
+        self.content_variance: float = 0.0
+        self.input_count: int = 0
+        self.baseline_page_size: int = 0
         
-        self.max_steps: int = 30
-        self.current_step: int = 0
+        self.max_steps_per_episode: int = 30
+        self.steps_taken: int = 0
         
-        # Action mapping
-        self.action_map = {
-            0: self._action_home,
-            1: self._action_login_page,
-            2: self._action_search,
-            3: self._action_api_login_sqli, # CTF: Gate Keeper SQLi
-            4: self._action_api_comment_xss, # CTF: Payload XSS
-            5: self._action_view_post,
-            6: self._action_profile,
-            7: self._action_api_admin_users, # CTF: Sys Admin Dump
-            8: self._action_fuzz_params, # NEW: Fuzzing
-            9: self._action_idor,
-            10: self._action_ssrf,
-            11: self._action_wait,
-            12: self._action_api_login_valid, # Get valid Token
-            13: self._action_sqli_time_based, # NEW: Time-based SQLi
-            14: self._action_xss_polyglot, # NEW: Polyglot XSS
+        # Map Action IDs to Functions
+        self.action_book = {
+            0: self.navigate_home,
+            1: self.navigate_login,
+            2: self.navigate_search,
+            3: self.attack_sqli_api_login,      # CTF: Gate Keeper SQLi
+            4: self.attack_xss_api_comment,     # CTF: Payload XSS
+            5: self.navigate_post,
+            6: self.navigate_profile,
+            7: self.attack_bac_admin_users,     # CTF: Sys Admin Dump
+            8: self.attack_fuzzing,             # NEW: Fuzzing
+            9: self.attack_idor_profile,
+            10: self.attack_ssrf_preview,
+            11: self.action_wait,
+            12: self.action_login_valid,        # Get valid Token
+            13: self.attack_sqli_time_based,    # NEW: Time-based SQLi
+            14: self.attack_xss_polyglot,       # NEW: Polyglot XSS
         }
     
-    def _init_session(self) -> None:
-        """Initialize optimized HTTP session with connection pooling"""
+    def _setup_browser_session(self) -> None:
+        """Configures the HTTP client to be fast and reliable."""
         self.session = requests.Session()
         
-        # Retry strategy
+        # Retry if the server hiccups
         retry_strategy = Retry(
             total=2,
             backoff_factor=0.1,
             status_forcelist=[500, 502, 503, 504]
         )
         
-        # Connection pooling adapter
+        # Use connection pooling (keep the line open)
         adapter = HTTPAdapter(
             pool_connections=5,
             pool_maxsize=10,
@@ -102,168 +116,188 @@ class OptimizedWebSecEnv(gym.Env):
         self.session.mount("https://", adapter)
     
     def reset(self, seed: int = None, options: Dict = None) -> Tuple[np.ndarray, Dict]:
-        """Reset environment to initial state"""
+        """Resets the game to the beginning."""
         super().reset(seed=seed)
-        self.current_page = 0
-        self.vuln_detected = 0
-        self.sensitive_data_seen = 0
-        self.waf_triggered = 0
-        self.rate_limited = 0
-        self.jwt_token = None
-        self.current_step = 0
+        self.current_page_id = 0
+        self.found_vulnerability = 0
+        self.found_sensitive_data = 0
+        self.triggered_waf = 0
+        self.got_rate_limited = 0
+        self.auth_token = None
+        self.steps_taken = 0
         
         self.last_response_time = 0.0
-        self.content_length_variance = 0.0
-        self.param_count = 0
-        self.baseline_content_length = 0
+        self.content_variance = 0.0
+        self.input_count = 0
+        self.baseline_page_size = 0
         
+        # Clear cookies and headers (Logout)
         self.session.cookies.clear()
         self.session.headers.pop('Authorization', None)
-        return self._get_obs(), {}
+        
+        return self._get_observation(), {}
     
-    def step(self, action: int) -> Tuple[np.ndarray, float, bool, bool, Dict]:
-        """Execute action and return next state"""
-        self.current_step += 1
-        reward = -1.0  # Step penalty
-        terminated = False
+    def step(self, action_id: int) -> Tuple[np.ndarray, float, bool, bool, Dict]:
+        """
+        The Agent takes one step (performs one action).
+        Returns: (New State, Reward, Game Over?, Truncated?, Info)
+        """
+        self.steps_taken += 1
+        reward = -1.0  # Small penalty for each step (encourages speed)
+        game_over = False
         truncated = False
         info = {}
         
-        # Reset transient flags
-        self.waf_triggered = 0
-        self.rate_limited = 0
-        self.vuln_detected = 0 # Reset per step to avoid double counting same vuln
+        # Reset temporary flags
+        self.triggered_waf = 0
+        self.got_rate_limited = 0
+        self.found_vulnerability = 0 
         
         start_time = time.time()
         response = None
         
         try:
-            # Execute action using action map
-            action_func = self.action_map.get(action)
-            if action_func:
-                response, action_reward = action_func()
+            # 1. Perform the Action
+            action_function = self.action_book.get(action_id)
+            if action_function:
+                response, action_reward = action_function()
                 reward += action_reward
             else:
                 response = None
                 
         except requests.exceptions.RequestException:
-            return self._get_obs(500), -10.0, True, False, {}
+            # If the server crashes or connection fails
+            return self._get_observation(500), -10.0, True, False, {}
         
-        # Calculate Response Metrics
+        # 2. Analyze the Result
         end_time = time.time()
         self.last_response_time = end_time - start_time
         
         if response:
-            content_len = len(response.text)
-            if self.baseline_content_length == 0:
-                self.baseline_content_length = content_len
-            
-            # Calculate variance (normalized difference)
-            diff = abs(content_len - self.baseline_content_length)
-            self.content_length_variance = min(diff / (self.baseline_content_length + 1) * 5, 5.0)
-            
-            # Update baseline slightly (moving average)
-            self.baseline_content_length = int(0.9 * self.baseline_content_length + 0.1 * content_len)
-            
-            # Estimate param count (naive: count inputs/forms)
-            self.param_count = response.text.count('<input') + response.text.count('name=')
+            self._analyze_response_content(response)
         
-        # Check if max steps reached
-        if self.current_step >= self.max_steps:
+        # 3. Check Game Over conditions
+        if self.steps_taken >= self.max_steps_per_episode:
             truncated = True
         
         status_code = response.status_code if response else 500
-        return self._get_obs(status_code), reward, terminated, truncated, info
+        return self._get_observation(status_code), reward, game_over, truncated, info
     
-    def _get_obs(self, status_code: int = 200) -> np.ndarray:
-        """Get current observation (10 dimensions)"""
-        # Map status codes
+    def _analyze_response_content(self, response):
+        """Looks at the page content to update our 'senses'."""
+        content_len = len(response.text)
+        
+        # Establish baseline size for this page if new
+        if self.baseline_page_size == 0:
+            self.baseline_page_size = content_len
+        
+        # Calculate how much the page changed (Variance)
+        # High variance might mean we broke something or revealed hidden data
+        diff = abs(content_len - self.baseline_page_size)
+        self.content_variance = min(diff / (self.baseline_page_size + 1) * 5, 5.0)
+        
+        # Update baseline (moving average)
+        self.baseline_page_size = int(0.9 * self.baseline_page_size + 0.1 * content_len)
+        
+        # Count inputs (Attack Surface)
+        self.input_count = response.text.count('<input') + response.text.count('name=')
+
+    def _get_observation(self, status_code: int = 200) -> np.ndarray:
+        """
+        Compiles what the agent sees into a list of numbers (Vector).
+        """
+        # Simplify status codes for the AI
+        # 0=OK, 2=Forbidden, 3=RateLimit, 4=NotFound, 5=Error, 6=Unauthorized
         status_map = {200: 0, 403: 2, 429: 3, 404: 4, 500: 5, 401: 6}
-        s_val = status_map.get(status_code, 1)
+        status_val = status_map.get(status_code, 1)
         
-        has_jwt = 1 if self.jwt_token else 0
+        is_logged_in = 1 if self.auth_token else 0
         
-        # Normalize metrics
-        resp_time_norm = min(self.last_response_time, 5.0) # Cap at 5s
-        param_norm = min(self.param_count, 5.0) # Cap at 5
+        # Normalize values to be small numbers (0-5) for the Neural Network
+        time_norm = min(self.last_response_time, 5.0)
+        inputs_norm = min(self.input_count, 5.0)
         
         return np.array([
-            self.current_page,
-            s_val,
-            self.vuln_detected,
-            self.sensitive_data_seen,
-            self.waf_triggered,
-            self.rate_limited,
-            has_jwt,
-            resp_time_norm,
-            self.content_length_variance,
-            param_norm
+            self.current_page_id,
+            status_val,
+            self.found_vulnerability,
+            self.found_sensitive_data,
+            self.triggered_waf,
+            self.got_rate_limited,
+            is_logged_in,
+            time_norm,
+            self.content_variance,
+            inputs_norm
         ], dtype=np.float32)
     
-    # Navigation actions
-    def _action_home(self) -> Tuple[requests.Response, float]:
-        """Navigate to home page"""
+    # --- ACTIONS: NAVIGATION ---
+    
+    def navigate_home(self) -> Tuple[requests.Response, float]:
+        """Go to Home Page"""
         r = self.session.get(f"{self.target_url}/", timeout=3)
-        self.current_page = 0
+        self.current_page_id = 0
         return r, 0.0
     
-    def _action_login_page(self) -> Tuple[requests.Response, float]:
-        """Navigate to login page"""
+    def navigate_login(self) -> Tuple[requests.Response, float]:
+        """Go to Login Page"""
         r = self.session.get(f"{self.target_url}/login", timeout=3)
-        self.current_page = 1
+        self.current_page_id = 1
         return r, 0.0
     
-    def _action_search(self) -> Tuple[requests.Response, float]:
-        """Navigate to search page"""
+    def navigate_search(self) -> Tuple[requests.Response, float]:
+        """Go to Search Page"""
         r = self.session.get(f"{self.target_url}/search", timeout=3)
-        self.current_page = 2
+        self.current_page_id = 2
         return r, 0.0
     
-    def _action_view_post(self) -> Tuple[requests.Response, float]:
-        """Navigate to a post"""
+    def navigate_post(self) -> Tuple[requests.Response, float]:
+        """View a Blog Post"""
         r = self.session.get(f"{self.target_url}/post/1", timeout=3)
-        self.current_page = 3
+        self.current_page_id = 3
         return r, 0.0
     
-    def _action_profile(self) -> Tuple[requests.Response, float]:
-        """Navigate to profile page"""
+    def navigate_profile(self) -> Tuple[requests.Response, float]:
+        """Go to User Profile"""
         r = self.session.get(f"{self.target_url}/profile", timeout=3)
-        self.current_page = 4
+        self.current_page_id = 4
         return r, 0.0
     
-    # API / Attack Actions
+    # --- ACTIONS: ATTACKS ---
     
-    def _action_api_login_valid(self) -> Tuple[requests.Response, float]:
-        """Get valid JWT via CTF Gate Keeper"""
+    def action_login_valid(self) -> Tuple[requests.Response, float]:
+        """Legitimately log in to get an access token."""
         r = self.session.post(
             f"{self.target_url}/api/v1/auth/gate_keeper_99",
             json={"username": "admin", "password": "secure_password_123"},
             timeout=3
         )
         if r.status_code == 200 and 'auth_token_v2' in r.json():
-            self.jwt_token = r.json()['auth_token_v2']
-            self.session.headers['Authorization'] = f"Bearer {self.jwt_token}"
-            return r, 10.0 # Reward for getting token
+            self.auth_token = r.json()['auth_token_v2']
+            self.session.headers['Authorization'] = f"Bearer {self.auth_token}"
+            return r, 10.0 # Small reward for getting access
         return r, 0.0
 
-    def _action_api_login_sqli(self) -> Tuple[requests.Response, float]:
-        """SQL Injection on Gate Keeper"""
+    def attack_sqli_api_login(self) -> Tuple[requests.Response, float]:
+        """Try SQL Injection on the Login API."""
         payload = self.payload_manager.get_sqli("simple")
         r = self.session.post(
             f"{self.target_url}/api/v1/auth/gate_keeper_99",
             json={"username": f"admin{payload}", "password": "x"},
             timeout=3
         )
-        reward = self._check_vulnerability(r, "SQL_API")
+        reward = self._calculate_reward(r, "SQL_API")
+        
+        # If successful, save the token
         if r.status_code == 200 and 'auth_token_v2' in r.json():
-            self.jwt_token = r.json()['auth_token_v2']
-            self.session.headers['Authorization'] = f"Bearer {self.jwt_token}"
+            self.auth_token = r.json()['auth_token_v2']
+            self.session.headers['Authorization'] = f"Bearer {self.auth_token}"
+            
         return r, reward
     
-    def _action_api_comment_xss(self) -> Tuple[requests.Response, float]:
-        """Stored XSS via Interact Endpoint"""
-        if not self.jwt_token:
-            self._action_api_login_valid()
+    def attack_xss_api_comment(self) -> Tuple[requests.Response, float]:
+        """Try Stored XSS on the Comment API."""
+        if not self.auth_token:
+            self.action_login_valid()
             
         payload = self.payload_manager.get_xss("simple")
         r = self.session.post(
@@ -271,164 +305,126 @@ class OptimizedWebSecEnv(gym.Env):
             json={"payload": payload, "target_id": 1},
             timeout=3
         )
-        reward = self._check_vulnerability(r, "XSS_API")
+        reward = self._calculate_reward(r, "XSS_API")
         return r, reward
 
-    def _action_api_admin_users(self) -> Tuple[requests.Response, float]:
-        """Access Sys Admin Dump (Broken Access Control)"""
-        if not self.jwt_token:
-            self._action_api_login_valid()
+    def attack_bac_admin_users(self) -> Tuple[requests.Response, float]:
+        """Try to access the Admin User Database (Broken Access Control)."""
+        if not self.auth_token:
+            self.action_login_valid()
             
         r = self.session.get(f"{self.target_url}/api/internal/sys_admin/users_db_dump", timeout=3)
-        reward = self._check_vulnerability(r, "BAC_API")
+        reward = self._calculate_reward(r, "BAC_API")
         return r, reward
 
-    def _action_xss_reflected(self) -> Tuple[requests.Response, float]:
-        """Reflected XSS attempt on search"""
-        payload = self.payload_manager.get_xss("simple")
-        r = self.session.get(
-            f"{self.target_url}/search?q={payload}",
-            timeout=3
-        )
-        reward = self._check_vulnerability(r, "XSS_REFLECTED")
-        return r, reward
-    
-    def _action_cmd_injection(self) -> Tuple[requests.Response, float]:
-        """Command injection attempt (legacy/check)"""
-        r = self.session.get(
-            f"{self.target_url}/search?q=;cat /etc/passwd",
-            timeout=3
-        )
-        reward = self._check_vulnerability(r, "CMD")
-        return r, reward
-    
-    def _action_idor(self) -> Tuple[requests.Response, float]:
-        """IDOR attempt on profile (using 'uid' param)"""
-        if not self.jwt_token:
-             self._action_api_login_valid()
+    def attack_idor_profile(self) -> Tuple[requests.Response, float]:
+        """Try IDOR (Insecure Direct Object Reference) on Profile."""
+        if not self.auth_token:
+             self.action_login_valid()
 
         r = self.session.get(f"{self.target_url}/profile?uid=1", timeout=3)
-        reward = self._check_vulnerability(r, "IDOR")
+        reward = self._calculate_reward(r, "IDOR")
         return r, reward
     
-    def _action_ssrf(self) -> Tuple[requests.Response, float]:
-        """SSRF attempt (legacy check)"""
+    def attack_ssrf_preview(self) -> Tuple[requests.Response, float]:
+        """Try Server-Side Request Forgery (SSRF)."""
         r = self.session.get(
             f"{self.target_url}/api/fetch_preview?url=http://localhost:5000/admin",
             timeout=3
         )
         if r.status_code == 404:
             return r, -1.0
-        reward = self._check_vulnerability(r, "SSRF")
+        reward = self._calculate_reward(r, "SSRF")
         return r, reward
     
-    # --- NEW ACTIONS ---
-    
-    def _action_fuzz_params(self) -> Tuple[requests.Response, float]:
-        """Fuzzing Action: Inject random fuzz payloads into search"""
+    def attack_fuzzing(self) -> Tuple[requests.Response, float]:
+        """Send random garbage data to see if the server crashes."""
         payload = self.payload_manager.get_fuzz()
         r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
         
-        # Reward for causing 500 errors (potential unhandled exception)
+        # Reward for causing 500 errors (Server Crash)
         if r.status_code == 500:
             return r, 20.0
         return r, 0.0
 
-    def _action_sqli_time_based(self) -> Tuple[requests.Response, float]:
-        """Time-Based SQLi Action"""
+    def attack_sqli_time_based(self) -> Tuple[requests.Response, float]:
+        """Try Time-Based SQL Injection (make the database sleep)."""
         payload = self.payload_manager.get_sqli("time")
         start = time.time()
         r = self.session.post(
             f"{self.target_url}/api/v1/auth/gate_keeper_99",
             json={"username": f"admin{payload}", "password": "x"},
-            timeout=10 # Long timeout for sleep
+            timeout=10 
         )
-        duration = time.time() - start
-        
-        # Check if delay occurred (simulated)
-        # In real app, we'd check if duration > 5
-        # Here we just check for standard SQLi success as proxy for now, 
-        # or if we implemented sleep in target (we didn't yet, but agent learns to try)
-        reward = self._check_vulnerability(r, "SQL_API")
+        # In a real scenario, we'd check if (end - start) > 5 seconds
+        reward = self._calculate_reward(r, "SQL_API")
         return r, reward
 
-    def _action_xss_polyglot(self) -> Tuple[requests.Response, float]:
-        """Polyglot XSS Action"""
+    def attack_xss_polyglot(self) -> Tuple[requests.Response, float]:
+        """Try a complex XSS payload that works in many contexts."""
         payload = self.payload_manager.get_xss("polyglot")
         r = self.session.get(
             f"{self.target_url}/search?q={payload}",
             timeout=3
         )
-        reward = self._check_vulnerability(r, "XSS_REFLECTED")
+        reward = self._calculate_reward(r, "XSS_REFLECTED")
         return r, reward
 
-    # Evasion actions
-    def _action_wait(self) -> Tuple[None, float]:
-        """Wait to bypass rate limiting"""
+    def action_wait(self) -> Tuple[None, float]:
+        """Wait for a moment (to bypass rate limits)."""
         time.sleep(2)
-        return None, 5.0  # Small reward for strategic waiting
+        return None, 5.0  # Small reward for patience
     
-    def _action_sqli_obfuscated(self) -> Tuple[requests.Response, float]:
-        """Obfuscated SQL injection on Login Form"""
-        # Use payload manager if we had obfuscated ones, for now keep legacy specific
-        r = self.session.post(
-            f"{self.target_url}/login",
-            data={"username": "admin'/**/OR/**/'1'='1", "password": "x"},
-            timeout=3
-        )
-        reward = self._check_vulnerability(r, "SQL_FORM", obfuscated=True)
-        return r, reward
-    
-    def _check_vulnerability(self, response: requests.Response, vuln_type: str, 
-                           obfuscated: bool = False) -> float:
-        """Check if vulnerability was successfully exploited"""
+    def _calculate_reward(self, response: requests.Response, vuln_type: str) -> float:
+        """
+        The Judge. Decides how many points the agent gets.
+        """
         reward = 0.0
         
-        # Check for WAF trigger
+        # 1. Penalty: Triggered the Firewall (WAF)
         if response.status_code == 403 and "WAF" in response.text:
-            self.waf_triggered = 1
+            self.triggered_waf = 1
             return -10.0
         
-        # Check for rate limiting
+        # 2. Penalty: Got Rate Limited (Too fast)
         if response.status_code == 429:
-            self.rate_limited = 1
+            self.got_rate_limited = 1
             return -20.0
         
-        # Check for successful exploitation (CTF Flags)
+        # 3. Success: Found a Vulnerability!
+        # We look for specific "Flags" or indicators in the response
         success_indicators = {
             "SQL_API": ["auth_token_v2", "JWT_MASTER_KEY_FOUND"],
-            "SQL_FORM": ["Welcome back", "admin"],
             "XSS_API": ["payload_accepted", "check_the_logs"],
             "XSS_REFLECTED": ["<script>alert(1)</script>", "onerror=alert(1)"],
             "BAC_API": ["DB_LEAK_SUCCESS", "admin", "password"],
             "IDOR": ["IDOR_MASTER", "ID: 1"],
-            "CMD": ["root:", "passwd"]
+            "SSRF": ["Internal Admin Panel", "AWS_ACCESS_KEY"]
         }
         
         indicators = success_indicators.get(vuln_type, [])
         for indicator in indicators:
             if indicator in response.text:
-                self.vuln_detected = 1
-                reward = 120.0 if obfuscated else 100.0
+                self.found_vulnerability = 1
+                reward = 100.0 # Big points!
                 
-                # Check for sensitive data (Flags)
+                # Bonus: Found a CTF Flag
                 if "CTF{" in response.text:
-                    self.sensitive_data_seen = 1
-                    reward += 50.0 # Bonus for finding flags
+                    self.found_sensitive_data = 1
+                    reward += 50.0
                 
                 break
         
         return reward
     
     def close(self) -> None:
-        """Clean up resources"""
+        """Clean up resources."""
         if hasattr(self, 'session'):
             self.session.close()
     
     def __del__(self):
-        """Destructor to ensure session is closed"""
         self.close()
 
-
 # Alias for backward compatibility
-WebSecEnv = OptimizedWebSecEnv
+WebSecEnv = WebSecurityGym
+
