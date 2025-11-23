@@ -1,0 +1,149 @@
+INFO:werkzeug:[31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.1.36:5000
+INFO:werkzeug:[33mPress CTRL+C to quit[0m
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 103-226-443
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:33] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:35] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:37] "GET /profile?uid=1 HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:40] "GET /admin/users HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:42] "GET /debug HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:44] "GET /config HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:46] "GET /weak_crypto?data=test HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:48] "GET /search?q=test HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:50] "GET /template?name=test HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:52] "[35m[1mGET /divide?a=10&b=0 HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:54] "[35m[1mGET /divide?a=10&b=0 HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:07:56] "[35m[1mGET /divide?a=10&b=0 HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:00] "[35m[1mGET /divide?a=10&b=0 HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:02] "[33mGET /admin HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:04] "[31m[1mGET /login HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:06] "[33mGET /dashboard HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:08] "[33mGET /api HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:10] "GET /search HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:12] "GET /profile HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:14] "[33mGET /user HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:16] "[33mGET /upload HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:18] "[33mGET /download HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:20] "GET /config HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:22] "GET /debug HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:24] "[33mGET /test HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:26] "[33mGET /dev HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:28] "[33mGET /backup HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:30] "[33mGET /files HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:32] "[33mGET /vulnerabilities/brute/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:34] "[33mGET /vulnerabilities/sqli/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:36] "[33mGET /vulnerabilities/sqli_blind/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:38] "[33mGET /vulnerabilities/xss_r/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:40] "[33mGET /vulnerabilities/xss_s/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:42] "[33mGET /vulnerabilities/csrf/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:44] "[33mGET /vulnerabilities/fi/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:46] "[33mGET /vulnerabilities/upload/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:48] "[33mGET /vulnerabilities/captcha/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:53] "[33mGET /vulnerabilities/javascript/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:55] "[33mGET /vulnerabilities/weak_id/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:57] "[33mGET /setup.php HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:08:59] "[33mGET /security.php HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:01] "[33mGET /instructions.php HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:03] "[33mGET /dvwa/ HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:05] "[33mGET /WebGoat/login HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:07] "[33mGET /WebGoat/attack HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:09] "[33mGET /rest/user/login HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:11] "[33mGET /api/Users HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:13] "[33mGET /ftp HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:15] "[33mGET /about HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:17] "[33mGET /about-us HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:19] "[33mGET /about-myanmar HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:21] "[33mGET /about-government HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:23] "[33mGET /news HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:25] "[33mGET /news-media HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:27] "[33mGET /media HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:29] "[33mGET /press HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:31] "[33mGET /announcements HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:33] "[33mGET /services HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:35] "[33mGET /contact HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:37] "[33mGET /contact-us HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:39] "[33mGET /help HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:41] "[33mGET /support HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:43] "[33mGET /departments HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:45] "[33mGET /ministries HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:47] "[33mGET /agencies HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:50] "[33mGET /offices HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:52] "[33mGET /policies HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:54] "[33mGET /laws HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:56] "[33mGET /regulations HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:09:58] "[33mGET /documents HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:00] "[33mGET /gallery HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:02] "[33mGET /photos HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:04] "[33mGET /videos HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:06] "[33mGET /events HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:08] "[33mGET /history HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:10] "[33mGET /leadership HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:12] "[33mGET /organization HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:14] "[33mGET /structure HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:16] "[33mGET /home HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:18] "[33mGET /index HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:20] "[33mGET /main HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:22] "[33mGET /portal HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:24] "[33mGET /en HTTP/1.1[0m" 404 -
+INFO:werkzeug: * Detected change in 'D:\\github\\RL\\env\\owasp_training_app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 103-226-443
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:36] "[33mGET /mm HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:37] "[33mGET /mm HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:39] "[33mGET /language HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:42] "[33mGET /wp-admin HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:45] "[33mGET /wp-login.php HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:47] "[33mGET /administrator HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:49] "[33mGET /admin.php HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:51] "[33mGET /phpmyadmin HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:53] "[33mGET /pma HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:55] "GET /console HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:57] "[33mGET /actuator HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:10:59] "[33mGET /robots.txt HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:01] "[33mGET /sitemap.xml HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:03] "[33mGET /sitemap HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:06] "[33mGET /.git HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:08] "[33mGET /phpinfo.php HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:10] "[33mGET /info.php HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:12] "[33mGET /.env HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:14] "[33mGET /.htaccess HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:16] "[33mGET /web.config HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:18] "[33mGET /composer.json HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:20] "[33mGET /package.json HTTP/1.1[0m" 404 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:22] "[31m[1mPOST /profile?uid=1/api/v1/auth/gate_keeper_99 HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:24] "[35m[1mGET /profile?uid=1/api/internal/sys_admin/users_db_dump HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:26] "[35m[1mGET /profile?uid=1/api/internal/sys_admin/users_db_dump HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:28] "[35m[1mGET /profile?uid=1/api/internal/sys_admin/users_db_dump HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:30] "[31m[1mPOST /profile?uid=1/api/v1/auth/gate_keeper_99 HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:32] "[35m[1mGET /profile?uid=1/search HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:34] "[35m[1mGET /profile?uid=1/search HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:37] "[35m[1mGET /profile?uid=1/search HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:39] "[35m[1mGET /profile?uid=1/search?q=jaVasCript:/*-/*\\`/*\\`/*'/*"/**/(/*%20*/oNcliCk=alert()%20)//%0D%0A%0D%0A//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert()//\\x3e HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:41] "[35m[1mGET /profile?uid=1/search?q=jaVasCript:/*-/*\\`/*\\`/*'/*"/**/(/*%20*/oNcliCk=alert()%20)//%0D%0A%0D%0A//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert()//\\x3e HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:43] "[35m[1mGET /profile?uid=1/search?q=jaVasCript:/*-/*\\`/*\\`/*'/*"/**/(/*%20*/oNcliCk=alert()%20)//%0D%0A%0D%0A//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert()//\\x3e HTTP/1.1[0m" 500 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:45] "[31m[1mPOST /weak_crypto?data=test/api/v1/auth/gate_keeper_99 HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:47] "GET /weak_crypto?data=test/api/internal/sys_admin/users_db_dump HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:49] "[31m[1mPOST /weak_crypto?data=test/api/v1/auth/gate_keeper_99 HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:51] "[31m[1mPOST /weak_crypto?data=test/api/v1/auth/gate_keeper_99 HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:53] "[31m[1mPOST /weak_crypto?data=test/api/v1/interact/comment_x HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:55] "[31m[1mPOST /weak_crypto?data=test/api/v1/auth/gate_keeper_99 HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:11:59] "GET /weak_crypto?data=test/search?q=..\\..\\..\\..\\windows\\system32\\config\\sam HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:12:01] "GET /weak_crypto?data=test/ HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:12:03] "GET /weak_crypto?data=test/search?q=<img%20src=x%20onerror='eval(String.fromCharCode(97,108,101,114,116,40,49,41))'> HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:12:05] "GET /weak_crypto?data=test/login HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:12:07] "GET /weak_crypto?data=test/profile HTTP/1.1" 200 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:12:09] "[31m[1mPOST /weak_crypto?data=test/api/v1/auth/gate_keeper_99 HTTP/1.1[0m" 405 -
+INFO:werkzeug:127.0.0.1 - - [23/Nov/2025 17:12:11] "[31m[1mPOST /weak_crypto?data=test/api/v1/interact/comment_x HTTP/1.1[0m" 405 -
+INFO:werkzeug: * Detected change in 'D:\\github\\RL\\env\\owasp_training_app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 103-226-443
+INFO:werkzeug: * Detected change in 'D:\\github\\RL\\env\\target_app.py', reloading
+INFO:werkzeug: * Restarting with stat
+WARNING:werkzeug: * Debugger is active!
+INFO:werkzeug: * Debugger PIN: 103-226-443

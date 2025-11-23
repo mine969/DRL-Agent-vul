@@ -448,12 +448,12 @@ class SecurityScannerGUI:
             self.update_status("Scanning in progress...")
             
             # Create scanner
-            agent = AutonomousSecurityAgent(target, model)
+            auditor = SecurityAuditor(target, model)
             
             # Run scan
-            findings = agent.scan(
+            findings = auditor.start_audit(
                 crawl_depth=self.crawl_depth.get(),
-                test_episodes=self.test_episodes.get()
+                test_intensity=self.test_episodes.get()
             )
             
             # Scan complete
@@ -467,9 +467,9 @@ class SecurityScannerGUI:
                     f"Scan finished successfully!\n\n"
                     f"Vulnerabilities found: {len(findings)}\n\n"
                     f"Reports have been saved:\n"
-                    f"- vulnerability_report_*.html\n"
-                    f"- vulnerability_report_*.txt\n"
-                    f"- vulnerability_report_*.md"
+                    f"- reports/vulnerability_report_*.html\n"
+                    f"- reports/vulnerability_report_*.txt\n"
+                    f"- reports/vulnerability_report_*.md"
                 )
             
         except Exception as e:
@@ -496,7 +496,7 @@ class SecurityScannerGUI:
             
     def view_report(self):
         """Open the latest HTML report"""
-        reports = glob.glob("vulnerability_report_*.html")
+        reports = glob.glob("reports/vulnerability_report_*.html")
         if reports:
             latest_report = max(reports, key=os.path.getctime)
             os.startfile(latest_report)
@@ -615,9 +615,9 @@ Examples:
             print(f"\n📁 Reports saved:")
             
             # Find latest reports
-            html_reports = glob.glob("vulnerability_report_*.html")
-            txt_reports = glob.glob("vulnerability_report_*.txt")
-            md_reports = glob.glob("vulnerability_report_*.md")
+            html_reports = glob.glob("reports/vulnerability_report_*.html")
+            txt_reports = glob.glob("reports/vulnerability_report_*.txt")
+            md_reports = glob.glob("reports/vulnerability_report_*.md")
             
             if html_reports:
                 latest_html = max(html_reports, key=os.path.getctime)

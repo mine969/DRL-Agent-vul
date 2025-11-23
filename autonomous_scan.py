@@ -92,18 +92,24 @@ class WebsiteExplorer:
         self.discovered_urls: Set[str] = set()
         self.session = OptimizedSession()
         
-    def explore(self, max_pages: int = 50) -> List[str]:
+    def explore(self, max_pages: int = 50, auto_login: bool = True) -> List[str]:
         """
         Crawls the website to discover pages.
         
         How it works:
-        1. Start at the home page.
-        2. Find all links on that page.
-        3. Add new links to a 'to-do' list.
-        4. Repeat until we've seen enough pages.
+        1. Attempt to log in (if auto_login=True)
+        2. Start at the home page.
+        3. Find all links on that page.
+        4. Add new links to a 'to-do' list.
+        5. Repeat until we've seen enough pages.
         """
         print(f"🕷️  Starting reconnaissance on: {self.base_url}")
         print(f"🎯 Target domain: {self.domain}\n")
+        
+        # Try to authenticate first
+        if auto_login:
+            self.attempt_login()
+            print()  # Blank line for readability
         
         # Queue: The list of pages we need to visit
         pages_to_visit: deque = deque([self.base_url])
@@ -115,7 +121,11 @@ class WebsiteExplorer:
             if current_url in visited_pages:
                 continue
                 
-            print(f"📍 Exploring: {current_url}")
+            # Show progress
+            progress = len(visited_pages) + 1
+            queue_size = len(pages_to_visit)
+            print(f"📍 [{progress}/{max_pages}] Exploring: {current_url}")
+            print(f"   Queue: {queue_size} pages waiting")
             
             try:
                 response = self.session.get(current_url)
@@ -137,13 +147,42 @@ class WebsiteExplorer:
     
     def _extract_links(self, soup, current_url, queue, visited):
         """Helper to find and add new links to the queue."""
+        links_found = 0
+        new_links = 0
+        
         for link in soup.find_all('a', href=True):
-            full_url = urljoin(current_url, link['href'])
+            href = link['href']
             
-            # We only want to scan THIS website, not the whole internet
-            if urlparse(full_url).netloc == self.domain:
-                if full_url not in visited:
-                    queue.append(full_url)
+            # Skip javascript links, mailto, tel, etc.
+            if href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
+                continue
+            
+            # Build full URL
+            full_url = urljoin(current_url, href)
+            
+            # Remove URL fragments (#section) to avoid duplicates
+            parsed = urlparse(full_url)
+            clean_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            if parsed.query:
+                clean_url += f"?{parsed.query}"
+            
+            links_found += 1
+            
+            # Extract the domain from the URL
+            link_domain = parsed.netloc
+            
+            # Allow same domain AND subdomains (e.g., myanmar.gov.mm and www.myanmar.gov.mm)
+            if link_domain == self.domain or link_domain.endswith('.' + self.domain):
+                if clean_url not in visited and clean_url not in queue:
+                    queue.append(clean_url)
+                    new_links += 1
+                    
+                    # Log if we discovered a new subdomain
+                    if link_domain != self.domain:
+                        print(f"  🔍 Discovered subdomain: {link_domain}")
+        
+        if new_links > 0:
+            print(f"  ➕ Added {new_links} new URLs to queue (found {links_found} total links)")
 
     def _log_interesting_elements(self, soup):
         """Helper to print if we found forms or inputs (attack surface)."""
@@ -153,33 +192,203 @@ class WebsiteExplorer:
             print(f"  ✅ Found {len(forms)} form(s) - Good target!")
         if inputs:
             print(f"  ✅ Found {len(inputs)} input field(s)")
+    
+    def attempt_login(self, login_url: str = None) -> bool:
+        """
+        Attempts to automatically log into the application.
+        Tries common credentials and detects login forms.
+        """
+        if not login_url:
+            login_url = self.base_url
+        
+        print(f"🔐 Attempting authentication at: {login_url}")
+        
+        try:
+            response = self.session.get(login_url)
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Find login forms
+            forms = soup.find_all('form')
+            for form in forms:
+                # Look for password fields (indicates login form)
+                password_fields = form.find_all('input', {'type': 'password'})
+                if not password_fields:
+                    continue
+                
+                print(f"  🔍 Found login form!")
+                
+                # Extract form details
+                action = form.get('action', '')
+                method = form.get('method', 'post').lower()
+                form_url = urljoin(login_url, action)
+                
+                # Common credential combinations
+                credentials = [
+                    ('admin', 'password'),
+                    ('admin', 'admin'),
+                    ('admin', ''),
+                    ('user', 'user'),
+                    ('test', 'test'),
+                    ('guest', 'guest'),
+                    # DVWA default
+                    ('admin', 'password'),
+                ]
+                
+                for username, password in credentials:
+                    # Build form data
+                    form_data = {}
+                    
+                    for input_field in form.find_all('input'):
+                        name = input_field.get('name')
+                        if not name:
+                            continue
+                        
+                        input_type = input_field.get('type', 'text').lower()
+                        
+                        if input_type == 'password':
+                            form_data[name] = password
+                        elif 'user' in name.lower() or 'login' in name.lower():
+                            form_data[name] = username
+                        elif input_type == 'hidden':
+                            form_data[name] = input_field.get('value', '')
+                        elif input_type == 'submit':
+                            form_data[name] = input_field.get('value', 'Login')
+                    
+                    # Attempt login
+                    print(f"  🔑 Trying credentials: {username}/*****")
+                    
+                    if method == 'post':
+                        login_response = self.session.post(form_url, data=form_data)
+                    else:
+                        login_response = self.session.get(form_url, params=form_data)
+                    
+                    # Check if login succeeded
+                    if self._check_login_success(login_response):
+                        print(f"  ✅ Login successful with: {username}/{password}")
+                        return True
+                
+                print(f"  ❌ All credential attempts failed")
+                return False
+        
+        except Exception as e:
+            print(f"  ❌ Login attempt error: {str(e)[:50]}")
+            return False
+        
+        return False
+    
+    def _check_login_success(self, response) -> bool:
+        """Check if login was successful based on response."""
+        # Success indicators
+        success_indicators = [
+            'logout', 'dashboard', 'welcome', 'profile',
+            'signed in', 'logged in', 'successfully'
+        ]
+        
+        # Failure indicators
+        failure_indicators = [
+            'invalid', 'incorrect', 'failed', 'error',
+            'wrong', 'denied', 'try again'
+        ]
+        
+        response_text = response.text.lower()
+        
+        # Check for failure first
+        for indicator in failure_indicators:
+            if indicator in response_text:
+                return False
+        
+        # Check for success
+        for indicator in success_indicators:
+            if indicator in response_text:
+                return True
+        
+        # If redirected away from login page, likely successful
+        if 'login' not in response.url.lower():
+            return True
+        
+        return False
 
     def probe_common_endpoints(self) -> None:
         """
         Guesses common hidden pages (like /admin or /login) that might not be linked.
         """
         common_paths = [
+            # Admin & Auth
             '/admin', '/login', '/dashboard', '/api', '/search',
             '/profile', '/user', '/upload', '/download', '/config',
             '/debug', '/test', '/dev', '/backup', '/files',
-            '/robots.txt', '/sitemap.xml', '/.git', '/phpinfo.php'
+            
+            # DVWA (Damn Vulnerable Web Application) Paths
+            '/vulnerabilities/brute/',
+            '/vulnerabilities/sqli/',
+            '/vulnerabilities/sqli_blind/',
+            '/vulnerabilities/xss_r/',
+            '/vulnerabilities/xss_s/',
+            '/vulnerabilities/csrf/',
+            '/vulnerabilities/fi/',
+            '/vulnerabilities/upload/',
+            '/vulnerabilities/captcha/',
+            '/vulnerabilities/exec/',
+            '/vulnerabilities/javascript/',
+            '/vulnerabilities/weak_id/',
+            '/setup.php',
+            '/security.php',
+            '/instructions.php',
+            '/dvwa/',
+            
+            # WebGoat Paths
+            '/WebGoat/login',
+            '/WebGoat/attack',
+            
+            # Juice Shop Paths
+            '/rest/user/login',
+            '/api/Users',
+            '/ftp',
+            
+            # Government/Corporate Common Pages
+            '/about', '/about-us', '/about-myanmar', '/about-government',
+            '/news', '/news-media', '/media', '/press', '/announcements',
+            '/services', '/contact', '/contact-us', '/help', '/support',
+            '/departments', '/ministries', '/agencies', '/offices',
+            '/policies', '/laws', '/regulations', '/documents',
+            '/gallery', '/photos', '/videos', '/events',
+            '/history', '/leadership', '/organization', '/structure',
+            
+            # Content Sections
+            '/home', '/index', '/main', '/portal',
+            '/en', '/mm', '/language',
+            
+            # Common Web App Paths
+            '/wp-admin', '/wp-login.php',  # WordPress
+            '/administrator', '/admin.php',  # Joomla/Generic
+            '/phpmyadmin', '/pma',  # phpMyAdmin
+            '/console', '/actuator',  # Spring Boot
+            
+            # Technical
+            '/robots.txt', '/sitemap.xml', '/sitemap', '/.git', 
+            '/phpinfo.php', '/info.php', '/.env', '/.htaccess',
+            '/web.config', '/composer.json', '/package.json'
         ]
         
-        print("🔍 Probing for hidden endpoints...")
+        print("🔍 Probing for common endpoints...")
         
+        found_count = 0
         for path in common_paths:
             url = self.base_url + path
             try:
                 response = self.session.get(url)
                 if response.status_code == 200:
-                    print(f"  ✅ Discovered hidden page: {path}")
+                    print(f"  ✅ Found: {path}")
                     self.discovered_urls.add(url)
+                    found_count += 1
                 elif response.status_code == 403:
-                    print(f"  🔒 Found protected page: {path}")
+                    print(f"  🔒 Forbidden: {path}")
                     self.discovered_urls.add(url)
+                    found_count += 1
             except:
                 pass
-        print()
+        
+        print(f"  📊 Found {found_count} additional endpoints\n")
     
     def __del__(self):
         if hasattr(self, 'session'):
@@ -297,15 +506,24 @@ class SecurityAuditor:
     def _map_action_to_vuln(self, action: int) -> str:
         """Translates the Agent's action ID into a human-readable vulnerability name."""
         vuln_map = {
+            0: "Navigation (Home)",
+            1: "Navigation (Login)",
+            2: "Navigation (Search)",
             3: "SQL Injection",
             4: "Cross-Site Scripting (XSS)",
+            5: "Navigation (Post)",
+            6: "Navigation (Profile)",
+            7: "Broken Access Control (BAC)",
             8: "Fuzzing / Anomaly",
             9: "Insecure Direct Object Reference (IDOR)",
             10: "Server-Side Request Forgery (SSRF)",
+            11: "Wait Action",
+            12: "Sensitive Data Exposure",
             13: "Time-Based SQL Injection",
             14: "Polyglot XSS"
         }
-        return vuln_map.get(action, "Unknown Vulnerability")
+        name = vuln_map.get(action, f"Unknown Action {action}")
+        return name
     
     def _generate_final_report(self, urls: List[str], findings: List[Finding]) -> None:
         """Compiles all findings into a readable report."""

