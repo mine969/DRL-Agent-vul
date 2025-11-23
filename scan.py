@@ -17,7 +17,7 @@ from autonomous_scan import SecurityAuditor
 def print_banner():
     """Display welcome banner"""
     print("\n" + "="*70)
-    print("🛡️  AI-POWERED WEB SECURITY SCANNER")
+    print("🛡️  DRL AI AGENT")
     print("="*70)
     print("\nThis tool will automatically:")
     print("  1. Crawl the website to discover all pages")

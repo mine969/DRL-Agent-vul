@@ -11,7 +11,7 @@ A realistic, modern web application combining:
 ⚠️ DELIBERATELY VULNERABLE - For AI Training Only!
 """
 
-from flask import Flask, request, render_template, redirect, url_for, session, flash, jsonify, make_response, render_template_string
+from flask import Flask, request, render_template, redirect, url_for, session, flash, jsonify, make_response, render_template_string, send_from_directory
 import sqlite3
 import jwt
 import datetime
@@ -376,6 +376,42 @@ def download_file():
             return f.read()
     except Exception as e:
         return jsonify({'error': str(e), 'vuln': 'Path Traversal'}), 500
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    """Unrestricted File Upload Vulnerability"""
+    if request.method == 'POST':
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
+        
+        # VULNERABILITY: No validation of file extension or content
+        upload_dir = os.path.join(os.getcwd(), 'uploads')
+        if not os.path.exists(upload_dir):
+            os.makedirs(upload_dir)
+            
+        filepath = os.path.join(upload_dir, file.filename)
+        file.save(filepath)
+        
+        return jsonify({
+            'message': f'File {file.filename} uploaded successfully!', 
+            'path': f'/uploads/{file.filename}',
+            'vuln': 'Unrestricted File Upload'
+        })
+        
+    return render_template_string('''
+        <h1>Upload File</h1>
+        <form method=post enctype=multipart/form-data>
+          <input type=file name=file>
+          <input type=submit value=Upload>
+        </form>
+    ''')
+
+@app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory('uploads', filename)
 
 # REST API Endpoints
 @app.route('/api/v1/users', methods=['GET', 'POST'])

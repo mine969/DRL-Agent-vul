@@ -165,7 +165,7 @@ else:
 class SecurityScannerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("🛡️ AI-Powered Web Security Scanner & Exploiter")
+        self.root.title("🛡️ DRL AI Agent - Security Scanner & Exploiter")
         self.root.geometry("1200x800")
         self.root.minsize(1000, 700)
         
@@ -204,7 +204,7 @@ class SecurityScannerGUI:
         
         title_label = tk.Label(
             header_frame,
-            text="🛡️ AI-Powered Web Security Scanner & Exploiter",
+            text="🛡️ DRL AI Agent",
             font=("Segoe UI", 18, "bold"),
             bg=self.bg_medium,
             fg=self.text_color

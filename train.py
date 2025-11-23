@@ -127,18 +127,28 @@ def start_training_session():
     
     # 2. Initialize Environment and Agent
     env = WebSecEnv()
-    state_size = 10 # The agent sees 10 features
-    action_size = env.action_space.n # The agent has 15 possible moves
+    state_size = 11 # The agent sees 11 features (Updated for Business Context)
+    action_size = env.action_space.n # The agent has 48 possible moves
     
     agent = DQNAgent(state_size, action_size)
     
     # 3. Check for previous progress
     checkpoint_path, start_episode = find_latest_checkpoint()
+    
+    # Try to load the main upgraded model first
+    if os.path.exists("dqn_web_sec_model.pth"):
+        print("🧠 Loading upgraded Deep Brain model...")
+        try:
+            agent.brain.load_state_dict(torch.load("dqn_web_sec_model.pth"))
+            agent.target_brain.load_state_dict(agent.brain.state_dict())
+            print("✅ Model loaded successfully!")
+        except Exception as e:
+            print(f"⚠️  Could not load model: {e}")
+            print("   Starting with fresh brain.")
+            
     if checkpoint_path:
-        print(f"\n📂 Found save file: {checkpoint_path}")
-        print(f"🔄 Resuming training from episode {start_episode}")
-        # agent.brain.load_state_dict(torch.load(checkpoint_path))
-        print("⚠️  Starting FRESH training with Rainbow DQN Architecture (Ignoring old checkpoints)")
+        print(f"\n📂 Found checkpoint history: {checkpoint_path}")
+        print(f"🔄 Resuming episode count from {start_episode}")
         
         # Adjust the agent's curiosity based on how much it has already learned
         # (Less curious if it's been training for a long time)
@@ -149,7 +159,8 @@ def start_training_session():
         start_episode = 0
     
     # Training Configuration
-    total_episodes = 500      # How long to train
+    total_episodes = 1000      # Extended training for Pentester Mode
+
     save_frequency = 20       # Save every 20 episodes
     eval_frequency = 20       # Test performance every 20 episodes
     

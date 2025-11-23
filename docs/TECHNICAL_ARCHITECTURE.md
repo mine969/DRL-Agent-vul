@@ -1,6 +1,6 @@
 # 🏗️ Technical Architecture & Engineering
 
-This document provides a deep dive into the engineering decisions, architecture, and algorithms powering the AI Security Scanner.
+This document provides a deep dive into the engineering decisions, architecture, and algorithms powering the DRL AI Agent.
 
 ## 📐 System Architecture
 

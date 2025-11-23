@@ -79,25 +79,30 @@ class NeuralNetworkBrain(nn.Module):
         super(NeuralNetworkBrain, self).__init__()
         
         # Common Feature Layer
+        # Common Feature Layer (Deep Brain Architecture)
         self.feature_layer = nn.Sequential(
-            nn.Linear(input_size, 512),
+            nn.Linear(input_size, 1024), # Wider: More capacity to understand details
             nn.ReLU(),
-            nn.Linear(512, 512),
+            nn.Dropout(0.2),             # Regularization: Prevents memorization
+            nn.Linear(1024, 1024),       # Deeper: Abstract thinking
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(1024, 512),        # Bottleneck: Condense knowledge
             nn.ReLU()
         )
         
         # Stream 1: Value (V) - How good is the current state?
         self.value_stream = nn.Sequential(
-            nn.Linear(512, 256),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(256, 1) # Output: Single value for the state
+            nn.Linear(512, 1) 
         )
         
         # Stream 2: Advantage (A) - How much better is this action than others?
         self.advantage_stream = nn.Sequential(
-            nn.Linear(512, 256),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(256, output_size) # Output: Score for each action
+            nn.Linear(512, output_size) 
         )
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:

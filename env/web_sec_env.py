@@ -45,8 +45,9 @@ class WebSecurityGym(gym.Env):
         # 28-32: SSRF & CSRF
         # 33-37: Authentication & Authorization (JWT, OAuth, IDOR, BAC)
         # 38-42: Deserialization, Business Logic, Race Conditions
-        # 43-44: Utility actions
-        self.action_space = spaces.Discrete(45)
+        # 43-45: Utility actions & File Upload
+        # 46-47: OSINT Skills
+        self.action_space = spaces.Discrete(48)
         
         # Observations: The agent sees 10 features about the current page
         # 1. Current Page ID
@@ -59,7 +60,8 @@ class WebSecurityGym(gym.Env):
         # 8. Response Time (How fast did the server reply?)
         # 9. Content Variance (Did the page change unexpectedly?)
         # 10. Input Count (How many forms/inputs are there?)
-        self.observation_space = spaces.Box(low=0, high=5, shape=(10,), dtype=np.float32)
+        # 11. Business Context (Is this a money/admin page?)
+        self.observation_space = spaces.Box(low=0, high=5, shape=(11,), dtype=np.float32)
         
         # Setup the "Browser" (HTTP Session)
         self._setup_browser_session()
@@ -78,7 +80,8 @@ class WebSecurityGym(gym.Env):
         self.input_count: int = 0
         self.baseline_page_size: int = 0
         
-        self.max_steps_per_episode: int = 30
+        # PENTESTER MODE: Longer episodes for full exploration
+        self.max_steps_per_episode: int = 100
         self.steps_taken: int = 0
         
         # Map Action IDs to Functions - OWASP Top 10 2025 Complete
@@ -143,6 +146,13 @@ class WebSecurityGym(gym.Env):
             # Utility Actions (43-44)
             43: self.action_login_valid,
             44: self.action_wait,
+            
+            # New Actions (45)
+            45: self.attack_file_upload,
+            
+            # OSINT Skills (46-47)
+            46: self.attack_osint_files,
+            47: self.attack_osint_fingerprint,
         }
     
     def _setup_browser_session(self) -> None:
@@ -181,10 +191,16 @@ class WebSecurityGym(gym.Env):
         self.content_variance = 0.0
         self.input_count = 0
         self.baseline_page_size = 0
+        self.business_context = 0 # Initialize to 0 (Neutral)
         
         # Clear cookies and headers (Logout)
         self.session.cookies.clear()
         self.session.headers.pop('Authorization', None)
+        
+        # PENTESTER MODE: Reset Tracking
+        self.discovered_vulns = set()
+        self.visited_pages = set()
+        self.visited_pages.add(0) # Start at home
         
         return self._get_observation(), {}
     
@@ -216,6 +232,11 @@ class WebSecurityGym(gym.Env):
                 # Execute action
                 response, action_reward = action_function()
                 reward += action_reward
+                
+                # PENTESTER MODE: Coverage Reward
+                # If we moved to a new page, get bonus points
+                if response:
+                    reward += self._update_coverage(self.current_page_id)
                 
                 # LOGGING FOR USER
                 status = response.status_code if response else "None"
@@ -277,6 +298,11 @@ class WebSecurityGym(gym.Env):
         
         # Count inputs (Attack Surface)
         self.input_count = response.text.count('<input') + response.text.count('name=')
+        
+        # BUSINESS LOGIC AWARENESS
+        # Detects if the page deals with money, quantities, or roles
+        keywords = ['price', 'balance', 'amount', 'quantity', 'total', 'cart', 'admin', 'role']
+        self.business_context = 1 if any(k in response.text.lower() for k in keywords) else 0
 
     def _get_observation(self, status_code: int = 200) -> np.ndarray:
         """
@@ -303,7 +329,8 @@ class WebSecurityGym(gym.Env):
             is_logged_in,
             time_norm,
             self.content_variance,
-            inputs_norm
+            inputs_norm,
+            self.business_context # New Feature (11th dimension)
         ], dtype=np.float32)
     
     # --- ACTIONS: NAVIGATION ---
@@ -636,6 +663,51 @@ class WebSecurityGym(gym.Env):
                              json={"__proto__": {"isAdmin": True}}, timeout=3)
         return r, self._calculate_reward(r, "PROTOTYPE_POLLUTION")
 
+    def attack_file_upload(self) -> Tuple[requests.Response, float]:
+        """Unrestricted File Upload attack."""
+        payload = self.payload_manager.get_file_upload()
+        files = {'file': (payload['name'], payload['content'])}
+        
+        # 1. Upload the file
+        r = self.session.post(f"{self.target_url}/upload", files=files, timeout=3)
+        
+        # 2. Verify execution (if successful)
+        if r.status_code == 200 and 'path' in r.json():
+            uploaded_path = r.json()['path']
+            # Try to access the uploaded file
+            r_verify = self.session.get(f"{self.target_url}{uploaded_path}", timeout=3)
+            
+            # If we get the content back, it's a win
+            if payload['content'] in r_verify.text:
+                return r, 100.0
+                
+        return r, self._calculate_reward(r, "FILE_UPLOAD")
+
+    def attack_osint_files(self) -> Tuple[requests.Response, float]:
+        """OSINT: Scan for sensitive files (.git, .env, etc.)"""
+        files = self.payload_manager.get_osint_files()
+        target_file = np.random.choice(files)
+        r = self.session.get(f"{self.target_url}{target_file}", timeout=3)
+        
+        # Check if we found something interesting
+        if r.status_code == 200:
+            if "git" in target_file and "repository" in r.text:
+                return r, 50.0 # Found git config
+            if "env" in target_file and "SECRET" in r.text:
+                return r, 75.0 # Found .env secrets
+            return r, 20.0 # Found other file
+            
+        return r, 0.0
+
+    def attack_osint_fingerprint(self) -> Tuple[requests.Response, float]:
+        """OSINT: Fingerprint server technology"""
+        r = self.session.get(f"{self.target_url}/server_info", timeout=3)
+        
+        # Reward for identifying technology
+        if r.status_code == 200 and "python" in r.text.lower():
+            return r, 15.0
+        return r, 0.0
+
     def action_wait(self) -> Tuple[None, float]:
         """Wait for a moment (to bypass rate limits)."""
         time.sleep(2)
@@ -647,6 +719,16 @@ class WebSecurityGym(gym.Env):
         """
         reward = 0.0
         
+        # COMPLEX CHAINING: Combo Multiplier
+        # Rewards are multiplied if the agent is in a "High Value" state
+        multiplier = 1.0
+        
+        if self.auth_token:
+            multiplier += 0.5 # +50% for being logged in (Authenticated Attack)
+            
+        if hasattr(self, 'business_context') and self.business_context == 1:
+            multiplier += 1.0 # +100% for attacking business logic pages (Money/Admin)
+            
         # 1. Penalty: Triggered the Firewall (WAF)
         if response.status_code == 403 and "WAF" in response.text:
             self.triggered_waf = 1
@@ -665,23 +747,45 @@ class WebSecurityGym(gym.Env):
             "XSS_REFLECTED": ["<script>alert(1)</script>", "onerror=alert(1)"],
             "BAC_API": ["DB_LEAK_SUCCESS", "admin", "password"],
             "IDOR": ["IDOR_MASTER", "ID: 1"],
-            "SSRF": ["Internal Admin Panel", "AWS_ACCESS_KEY"]
+            "SSRF": ["Internal Admin Panel", "AWS_ACCESS_KEY"],
+            "FILE_UPLOAD": ["File uploaded successfully", "Unrestricted File Upload"],
+            "MASS_ASSIGNMENT": ["credit_balance", "999999"],
+            "PROTOTYPE_POLLUTION": ["isAdmin", "true"]
         }
         
         indicators = success_indicators.get(vuln_type, [])
         for indicator in indicators:
             if indicator in response.text:
-                self.found_vulnerability = 1
-                reward = 100.0 # Big points!
+                # PENTESTER MODE: Diminishing Returns
+                # We only give full points for the FIRST time a specific vuln is found
+                vuln_id = f"{vuln_type}_{self.current_page_id}"
                 
-                # Bonus: Found a CTF Flag
-                if "CTF{" in response.text:
-                    self.found_sensitive_data = 1
-                    reward += 50.0
+                if vuln_id not in self.discovered_vulns:
+                    self.found_vulnerability = 1
+                    self.discovered_vulns.add(vuln_id)
+                    
+                    base_reward = 100.0 # Big points for NEW discovery!
+                    
+                    # Bonus: Found a CTF Flag
+                    if "CTF{" in response.text:
+                        self.found_sensitive_data = 1
+                        base_reward += 50.0
+                    
+                    reward = base_reward * multiplier
+                else:
+                    # We already found this. Small reward to say "Good job, but move on."
+                    reward = 1.0 
                 
                 break
         
         return reward
+
+    def _update_coverage(self, page_id: int):
+        """PENTESTER MODE: Track Code Coverage"""
+        if page_id not in self.visited_pages:
+            self.visited_pages.add(page_id)
+            return 5.0 # Reward for exploring a new page
+        return 0.0
     
     def close(self) -> None:
         """Clean up resources."""

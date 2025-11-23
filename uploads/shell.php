@@ -1,0 +1,1 @@
+<?php echo 'Vulnerable to RCE'; ?>
