@@ -223,10 +223,19 @@ class WebSecurityGym(gym.Env):
                 
                 # Try to extract payload from request body/params for display
                 payload_info = ""
-                if response and response.request.body:
-                    payload_info = f" | Body: {str(response.request.body)[:50]}..."
-                elif response and 'q=' in url:
-                    payload_info = f" | Query: {url.split('q=')[1][:50]}..."
+                if response:
+                    info['url'] = response.url
+                    info['method'] = response.request.method
+                    
+                    if response.request.body:
+                        info['payload'] = str(response.request.body)
+                        payload_info = f" | Body: {str(response.request.body)[:50]}..."
+                    elif '?' in response.url:
+                        info['payload'] = response.url.split('?', 1)[1]
+                        if 'q=' in response.url:
+                            payload_info = f" | Query: {response.url.split('q=')[1][:50]}..."
+                    else:
+                        info['payload'] = ""
                 
                 print(f"Action: {action_name:<25} | Status: {status:<3} | Reward: {action_reward:>5.1f} | URL: {url[-40:]:<40}{payload_info}")
             else:

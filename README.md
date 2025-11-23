@@ -32,6 +32,25 @@ Watch the AI learn to hack in real-time.
 
 ---
 
+## 🖥️ GUI & Exploit Generator
+
+The project now includes a powerful GUI for interactive scanning and exploitation.
+
+### Features
+
+- **One-Click Exploit Generator**: Automatically generates curl commands and Python scripts for found vulnerabilities.
+- **Real-Time Findings**: Watch as the AI discovers vulnerabilities live.
+- **Interactive Control**: Configure scan depth and intensity with ease.
+
+### Usage
+
+1. Run `python scanner_gui.py`
+2. Enter the target URL.
+3. Click "Start Autonomous Scan".
+4. Click on any finding to generate an exploit!
+
+---
+
 ## ✨ What Can It Do?
 
 - **🧠 It Learns**: Uses AI to get smarter every time it scans.
@@ -61,9 +80,9 @@ Watch the AI learn to hack in real-time.
 
 ---
 
-_**Note**: Only use this on websites you own. Hacking others is illegal._
-
 ## ⚠️ Legal & Ethical Use
+
+_**Note**: Only use this on websites you own. Hacking others is illegal._
 
 ### ✅ DO Use On:
 
@@ -145,7 +164,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 **Made with ❤️ for ethical security testing**
 
-**Version**: 1.0  
+**Version**: 1.1  
 **Last Updated**: 2025-11-23  
 **GPU Accelerated**: ✅  
 **Status**: Production Ready 🚀

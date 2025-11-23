@@ -41,6 +41,13 @@ class Finding:
     vuln_type: str
     confidence: str
     reward: float
+    payload: str = ""
+    method: str = "GET"
+    
+    def get(self, key, default=None):
+        """Allow dictionary-like access for GUI compatibility."""
+        if key == 'type': return self.vuln_type
+        return getattr(self, key, default)
 
 
 class OptimizedSession:
@@ -74,6 +81,11 @@ class OptimizedSession:
         """Send a GET request with our optimized settings."""
         kwargs.setdefault('timeout', self.timeout)
         return self.session.get(url, **kwargs)
+
+    def post(self, url: str, **kwargs) -> requests.Response:
+        """Send a POST request with our optimized settings."""
+        kwargs.setdefault('timeout', self.timeout)
+        return self.session.post(url, **kwargs)
     
     def close(self):
         """Hang up the phone (close connections)."""
@@ -95,13 +107,6 @@ class WebsiteExplorer:
     def explore(self, max_pages: int = 50, auto_login: bool = True) -> List[str]:
         """
         Crawls the website to discover pages.
-        
-        How it works:
-        1. Attempt to log in (if auto_login=True)
-        2. Start at the home page.
-        3. Find all links on that page.
-        4. Add new links to a 'to-do' list.
-        5. Repeat until we've seen enough pages.
         """
         print(f"🕷️  Starting reconnaissance on: {self.base_url}")
         print(f"🎯 Target domain: {self.domain}\n")
@@ -406,10 +411,14 @@ class SecurityAuditor:
         
         # Initialize the AI Brain
         # State Dim 10: The agent sees 10 different things about the page
-        # Action Dim 15: The agent can perform 15 different attacks/actions
-        self.ai_agent = DQNAgent(state_dim=10, action_dim=15)
+        # Action Dim 45: The agent can perform 45 different attacks/actions (Updated)
+        self.ai_agent = DQNAgent(state_dim=10, action_dim=45)
         
         self._load_ai_brain(model_path)
+    
+    def log_finding(self, finding):
+        """Callback for logging findings (can be overridden by GUI)"""
+        pass
     
     def _load_ai_brain(self, model_path):
         """Attempts to load the trained neural network."""
@@ -482,18 +491,24 @@ class SecurityAuditor:
                 # Let the agent interact with the page for up to 30 steps
                 while not done and steps < 30:
                     action = self.ai_agent.act(state)
-                    next_state, reward, terminated, truncated, _ = env.step(action)
+                    next_state, reward, terminated, truncated, info = env.step(action)
                     done = terminated or truncated
                     
                     # If the agent gets a big reward (>50), it means it found something!
                     if reward > 50:
                         vuln_name = self._map_action_to_vuln(action)
-                        findings.append(Finding(
-                            url=url,
+                        
+                        finding = Finding(
+                            url=info.get('url', url),
                             vuln_type=vuln_name,
                             confidence='High' if reward > 80 else 'Medium',
-                            reward=reward
-                        ))
+                            reward=reward,
+                            payload=info.get('payload', ''),
+                            method=info.get('method', 'GET')
+                        )
+                        
+                        findings.append(finding)
+                        self.log_finding(finding)
                     
                     state = next_state
                     steps += 1
@@ -509,7 +524,7 @@ class SecurityAuditor:
             0: "Navigation (Home)",
             1: "Navigation (Login)",
             2: "Navigation (Search)",
-            3: "SQL Injection",
+            3: "SQL Injection (Union)",
             4: "Cross-Site Scripting (XSS)",
             5: "Navigation (Post)",
             6: "Navigation (Profile)",
@@ -520,7 +535,37 @@ class SecurityAuditor:
             11: "Wait Action",
             12: "Sensitive Data Exposure",
             13: "Time-Based SQL Injection",
-            14: "Polyglot XSS"
+            14: "Polyglot XSS",
+            15: "SQL Injection (WAF Bypass)",
+            16: "Reflected XSS",
+            17: "Stored XSS",
+            18: "DOM-based XSS",
+            19: "Polyglot XSS",
+            20: "XSS (CSP Bypass)",
+            21: "API XSS",
+            22: "Server-Side Template Injection (SSTI)",
+            23: "Local File Inclusion (LFI)",
+            24: "Remote File Inclusion (RFI)",
+            25: "Path Traversal",
+            26: "XML External Entity (XXE)",
+            27: "Command Injection",
+            28: "SSRF (Internal Network)",
+            29: "SSRF (Cloud Metadata)",
+            30: "SSRF (Preview Feature)",
+            31: "CSRF (Transfer)",
+            32: "Open Redirect",
+            33: "JWT None Algorithm",
+            34: "OAuth Bypass",
+            35: "IDOR (Profile)",
+            36: "BAC (Admin Access)",
+            37: "Session Fixation",
+            38: "Insecure Deserialization",
+            39: "Business Logic Flaw",
+            40: "Race Condition",
+            41: "Mass Assignment",
+            42: "Prototype Pollution",
+            43: "Login (Valid)",
+            44: "Wait"
         }
         name = vuln_map.get(action, f"Unknown Action {action}")
         return name

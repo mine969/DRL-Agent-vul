@@ -167,8 +167,20 @@ def init_db():
         for product in products:
             c.execute("""INSERT INTO products (name, description, price, stock, category, image_url, seller_id) 
                         VALUES (?, ?, ?, ?, ?, ?, ?)""", product)
+    conn.commit()
+    conn.close()
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+        if 'Authorization' in request.headers:
             token = request.headers['Authorization'].replace('Bearer ', '')
-        # Check cookie (hybrid support)
         elif 'secure_sess_id_v2' in request.cookies:
             token = request.cookies['secure_sess_id_v2']
             
@@ -582,6 +594,7 @@ if __name__ == '__main__':
     print("   • REST API, GraphQL, OAuth")
     print("   • File inclusion, SSRF, XXE")
     print("   • All modern attack vectors")
+    init_db()
     print("\n🚀 Starting on http://localhost:5000\n")
     print("=" * 70)
     app.run(port=5000, debug=True)
