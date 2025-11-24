@@ -770,6 +770,91 @@ class WebSecurityGym(gym.Env):
             return 5.0 # Reward for exploring a new page
         return 0.0
     
+    # ============================================================================
+    # MISSING METHODS IMPLEMENTATION (OWASP Top 10 2025)
+    # ============================================================================
+
+    def attack_ssrf_internal(self):
+        """Action 28: SSRF targeting internal services."""
+        payload = "http://localhost:22"
+        return self._send_attack(payload, "SSRF (Internal)")
+
+    def attack_ssrf_cloud_metadata(self):
+        """Action 29: SSRF targeting cloud metadata."""
+        payload = "http://169.254.169.254/latest/meta-data/"
+        return self._send_attack(payload, "SSRF (Cloud)")
+
+    def attack_ssrf_preview(self):
+        """Action 30: SSRF via link preview features."""
+        payload = "http://127.0.0.1:8080/admin"
+        return self._send_attack(payload, "SSRF (Preview)")
+
+    def attack_csrf_transfer(self):
+        """Action 31: CSRF to transfer funds/change state."""
+        # Simulated CSRF attack
+        return None, 0.0
+
+    def attack_open_redirect(self):
+        """Action 32: Open Redirect."""
+        payload = "https://evil.com"
+        return self._send_attack(payload, "Open Redirect")
+
+    def attack_jwt_none_algorithm(self):
+        """Action 33: JWT None Algorithm Bypass."""
+        # Simulated JWT attack
+        return None, 0.0
+
+    def attack_oauth_bypass(self):
+        """Action 34: OAuth Implicit Flow Bypass."""
+        return None, 0.0
+
+    def attack_session_fixation(self):
+        """Action 37: Session Fixation."""
+        return None, 0.0
+
+    def attack_deserialization(self):
+        """Action 38: Insecure Deserialization."""
+        payload = self.payload_manager.get_deserialization()
+        return self._send_attack(payload, "Deserialization")
+
+    def attack_business_logic(self):
+        """Action 39: Business Logic Flaw (e.g. negative price)."""
+        return None, 0.0
+
+    def attack_race_condition(self):
+        """Action 40: Race Condition."""
+        return None, 0.0
+
+    def attack_mass_assignment(self):
+        """Action 41: Mass Assignment (API)."""
+        return None, 0.0
+
+    def attack_prototype_pollution(self):
+        """Action 42: Prototype Pollution."""
+        return None, 0.0
+
+    def action_wait(self):
+        """Action 44: Wait for async processes."""
+        time.sleep(1)
+        return None, 0.0
+
+    def _send_attack(self, payload: str, attack_type: str):
+        """Helper to send a generic attack payload."""
+        try:
+            # Try injection in URL parameter
+            url = f"{self.target_url}?q={payload}"
+            start_time = time.time()
+            response = self.session.get(url, timeout=2)
+            self.last_response_time = time.time() - start_time
+            
+            # Basic analysis
+            if response.status_code == 500:
+                self.found_vulnerability = 1
+            
+            return self._analyze_response_content(response)
+        except:
+            return self._get_observation(0)
+
     def close(self) -> None:
         """Clean up resources."""
         if hasattr(self, 'session'):

@@ -135,27 +135,38 @@ def start_training_session():
     # 3. Check for previous progress
     checkpoint_path, start_episode = find_latest_checkpoint()
     
-    # Try to load the main upgraded model first
-    if os.path.exists("dqn_web_sec_model.pth"):
+    model_loaded = False
+
+    # Priority 1: Resume from Checkpoint
+    if checkpoint_path:
+        print(f"\n📂 Found checkpoint history: {checkpoint_path}")
+        print(f"🔄 Resuming episode count from {start_episode}")
+        try:
+            agent.brain.load_state_dict(torch.load(checkpoint_path))
+            agent.target_brain.load_state_dict(agent.brain.state_dict())
+            print("✅ Checkpoint loaded successfully!")
+            model_loaded = True
+            
+            # Adjust curiosity
+            agent.epsilon = max(agent.epsilon_min, agent.epsilon * (agent.epsilon_decay ** start_episode))
+            print(f"   Curiosity level (Epsilon) adjusted to: {agent.epsilon:.4f}\n")
+        except Exception as e:
+            print(f"⚠️  Could not load checkpoint: {e}")
+            print("   Attempting to fall back to main model...\n")
+
+    # Priority 2: Load Main Model (if no checkpoint or checkpoint failed)
+    if not model_loaded and os.path.exists("dqn_web_sec_model.pth"):
         print("🧠 Loading upgraded Deep Brain model...")
         try:
             agent.brain.load_state_dict(torch.load("dqn_web_sec_model.pth"))
             agent.target_brain.load_state_dict(agent.brain.state_dict())
             print("✅ Model loaded successfully!")
+            model_loaded = True
         except Exception as e:
             print(f"⚠️  Could not load model: {e}")
-            print("   Starting with fresh brain.")
             
-    if checkpoint_path:
-        print(f"\n📂 Found checkpoint history: {checkpoint_path}")
-        print(f"🔄 Resuming episode count from {start_episode}")
-        
-        # Adjust the agent's curiosity based on how much it has already learned
-        # (Less curious if it's been training for a long time)
-        agent.epsilon = max(agent.epsilon_min, agent.epsilon * (agent.epsilon_decay ** start_episode))
-        print(f"   Curiosity level (Epsilon) adjusted to: {agent.epsilon:.4f}\n")
-    else:
-        print("\n🆕 No save file found. Starting fresh!\n")
+    if not model_loaded:
+        print("\n🆕 No valid save file found. Starting fresh!\n")
         start_episode = 0
     
     # Training Configuration
