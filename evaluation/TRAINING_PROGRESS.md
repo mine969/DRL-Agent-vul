@@ -53,3 +53,4 @@ Evaluations are performed automatically every 40 episodes.
 | 2025-11-24 09:32 | 700 | 2092.8 | 46 | 100.0% | 0.0382 | Automatic Eval |
 | 2025-11-24 11:05 | 720 | 1586.6 | 43 | 100.0% | 0.0158 | Automatic Eval |
 | 2025-11-24 12:46 | 740 | 2584.2 | 57 | 100.0% | 0.0100 | Automatic Eval |
+| 2025-11-24 14:24 | 760 | 1504.6 | 38 | 100.0% | 0.0100 | Automatic Eval |
