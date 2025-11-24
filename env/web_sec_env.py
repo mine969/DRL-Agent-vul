@@ -851,9 +851,10 @@ class WebSecurityGym(gym.Env):
             if response.status_code == 500:
                 self.found_vulnerability = 1
             
-            return self._analyze_response_content(response)
+            self._analyze_response_content(response)
+            return response, 0.0
         except:
-            return self._get_observation(0)
+            return None, 0.0
 
     def close(self) -> None:
         """Clean up resources."""
