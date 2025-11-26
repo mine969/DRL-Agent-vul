@@ -27,7 +27,7 @@ ENV/
 env/
 
 # IDEs
-.vscode/
+
 .idea/
 *.swp
 *.swo
@@ -35,7 +35,7 @@ env/
 
 # Model files (large)
 *.pth
-checkpoints/
+
 *.pkl
 
 # Database
@@ -56,10 +56,4 @@ Thumbs.db
 uploads/
 downloads/
 
-# Reports
-reports/
-*.html
-*.txt
-*.md
-!README.md
-!requirements.txt
+
