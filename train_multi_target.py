@@ -18,6 +18,12 @@ from agent.dqn_agent import DQNAgent
 from env.web_sec_env import WebSecurityGym
 import datetime
 import random
+import sys
+import io
+
+# Force UTF-8 encoding for Windows consoles
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 
 class MultiTargetTrainer:
     """Trains the agent across multiple target applications."""
