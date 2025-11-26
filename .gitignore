@@ -32,10 +32,7 @@ venv/
 *.swo
 *~
 
-# Model files (large)
-*.pth
 
-*.pkl
 
 # Database
 *.db
