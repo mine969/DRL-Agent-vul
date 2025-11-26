@@ -206,7 +206,7 @@ class SecurityScannerGUI:
         
         self.add_section_header(left_panel, "🎯 MISSION PARAMETERS")
         
-        self.create_input_field(left_panel, "TARGET URL:", self.target_url, "http://localhost:5000")
+        self.create_input_field(left_panel, "TARGET URL:", self.target_url, "localhost:5001")
         self.create_slider_field(left_panel, "CRAWL DEPTH:", self.crawl_depth, 1, 100, 30)
         self.create_slider_field(left_panel, "ATTACK INTENSITY:", self.test_episodes, 1, 10, 3)
         self.create_model_selector(left_panel)
@@ -354,7 +354,11 @@ Payload: {finding.get('payload')}
         if not target: return
         if not target.startswith(('http://', 'https://')): target = 'http://' + target
         
-        model = self.model_path.get().split(" (")[0]
+        model_selection = self.model_path.get()
+        if " (Final)" in model_selection:
+            model = model_selection.replace(" (Final)", "")
+        else:
+            model = model_selection
         
         self.scan_button.config(state=tk.DISABLED)
         self.flash_btn.config(state=tk.DISABLED)

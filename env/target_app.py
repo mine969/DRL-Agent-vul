@@ -617,6 +617,39 @@ def git_config():
     """Exposed .git"""
     return "[remote]\n  url = https://github.com/secret/repo.git", 200, {'Content-Type': 'text/plain'}
 
+@app.route('/cookie_test')
+def cookie_test():
+    """Cookie vulnerability testing endpoint"""
+    # Reflect cookie values (Cookie Injection)
+    user_cookie = request.cookies.get('user', 'guest')
+    role_cookie = request.cookies.get('role', 'user')
+    admin_cookie = request.cookies.get('admin', 'false')
+    
+    return jsonify({
+        'user': user_cookie,
+        'role': role_cookie,
+        'admin': admin_cookie,
+        'vuln': 'Cookie Injection' if 'admin=true' in str(request.cookies) else None
+    })
+
+@app.route('/admin')
+def admin_panel():
+    """Admin panel with cookie-based auth (Cookie Poisoning)"""
+    # VULN: No proper session validation
+    session_cookie = request.cookies.get('PHPSESSID', '')
+    user_role = request.cookies.get('user_role', 'guest')
+    access_level = request.cookies.get('access_level', '0')
+    
+    # Vulnerable: Trusts cookie values
+    if 'admin' in session_cookie.lower() or user_role == 'admin' or int(access_level) > 100:
+        return jsonify({
+            'message': 'Welcome to admin panel!',
+            'secret': 'FLAG{COOKIE_POISONING_SUCCESS}',
+            'vuln': 'Cookie Poisoning'
+        })
+    
+    return jsonify({'error': 'Access denied'}), 403
+
 if __name__ == '__main__':
     print("=" * 70)
     print("🎯 UNIFIED TRAINING ENVIRONMENT - OWASP Top 10 2025")
@@ -631,6 +664,6 @@ if __name__ == '__main__':
     print("   • File inclusion, SSRF, XXE")
     print("   • All modern attack vectors")
     init_db()
-    print("\n🚀 Starting on http://localhost:5000\n")
+    print("\n🚀 Starting on http://localhost:5001\n")
     print("=" * 70)
-    app.run(port=5000, debug=True)
+    app.run(port=5001, debug=True)
