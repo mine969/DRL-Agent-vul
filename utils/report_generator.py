@@ -71,6 +71,15 @@ class ReportGenerator:
         if not os.path.exists("reports"):
             os.makedirs("reports")
             
+        filename = f"reports/vulnerability_report_{self.timestamp}.md"
+        stats = self._calculate_stats(findings, vuln_db)
+        
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write(f"# 🛡️ Security Vulnerability Report\n\n")
+            f.write(f"**Target:** {self.base_url}\n")
+            f.write(f"**Date:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            
+            f.write(f"| **Pages Scanned** | {len(urls)} |\n")
             f.write(f"| **Total Issues** | {len(findings)} |\n\n")
             
             # Executive Summary

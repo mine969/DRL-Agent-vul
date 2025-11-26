@@ -410,9 +410,9 @@ class SecurityAuditor:
         self.explorer = WebsiteExplorer(base_url)
         
         # Initialize the AI Brain
-        # State Dim 10: The agent sees 10 different things about the page
-        # Action Dim 45: The agent can perform 45 different attacks/actions (Updated)
-        self.ai_agent = DQNAgent(state_dim=10, action_dim=45)
+        # State Dim 11: The agent sees 11 different things about the page (Updated from checkpoint)
+        # Action Dim 52: The agent can perform 52 different attacks/actions (Updated with cookie attacks)
+        self.ai_agent = DQNAgent(state_dim=11, action_dim=52)
         
         self._load_ai_brain(model_path)
     
@@ -423,12 +423,14 @@ class SecurityAuditor:
     def _load_ai_brain(self, model_path):
         """Attempts to load the trained neural network."""
         try:
-            self.ai_agent.brain.load_state_dict(torch.load(model_path))
+            device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+            self.ai_agent.brain.load_state_dict(torch.load(model_path, map_location=device))
             self.ai_agent.brain.eval() # Set to evaluation mode (no learning, just doing)
             self.ai_agent.epsilon = 0.0    # Stop exploring randomly, use learned skills
             print(f"✅ Loaded AI Brain from: {model_path}\n")
-        except:
+        except Exception as e:
             print(f"⚠️  Could not load model from {model_path}")
+            print(f"   Error details: {str(e)}")
             print("   The agent will act randomly (Untrained Mode)\n")
 
     def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3) -> List[Finding]:
@@ -476,12 +478,17 @@ class SecurityAuditor:
         """
         Deploys the AI Agent to test a specific page.
         It runs for a few 'episodes' (attempts) to see if it can break it.
+        
+        NOTE: The environment needs the BASE URL, not the full page URL.
+        The agent will navigate to different pages through its actions.
         """
         findings: List[Finding] = []
         
         try:
-            # Create a temporary environment for this page
-            env = WebSecEnv(target_url=url)
+            # CRITICAL FIX: Use base URL, not the full page URL
+            # The environment expects http://localhost:5001, not http://localhost:5001/profile
+            # The agent will navigate to specific pages through its navigation actions
+            env = WebSecEnv(target_url=self.base_url)
             
             for _ in range(attempts):
                 state, _ = env.reset()
@@ -568,7 +575,11 @@ class SecurityAuditor:
             44: "Wait",
             45: "Unrestricted File Upload",
             46: "OSINT (Sensitive Files)",
-            47: "OSINT (Server Fingerprint)"
+            47: "OSINT (Server Fingerprint)",
+            48: "Cookie Injection",
+            49: "Cookie Poisoning",
+            50: "HTTPOnly Bypass",
+            51: "SameSite Bypass"
         }
         name = vuln_map.get(action, f"Unknown Action {action}")
         return name
