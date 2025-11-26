@@ -127,14 +127,14 @@ class DQNAgent:
         self.state_dim = state_dim
         self.action_dim = action_dim
         
-        # Learning Settings
-        self.gamma = 0.99           # How much we care about future rewards
-        self.epsilon = 1.0          # Curiosity level (1.0 = 100% random)
-        self.epsilon_min = 0.01     # Minimum curiosity
-        self.epsilon_decay = 0.9995 # Slower decay = More exploration (Pro Mode)
-        self.batch_size = 64        # Larger batch = More stable gradients
-        self.learning_rate = 0.0005 # Lower LR = More precise convergence
-        self.tau = 0.005            # Soft update rate (how fast target brain follows main brain)
+        # Learning Settings (Optimized for Multi-Target Training)
+        self.gamma = 0.99           # Discount factor for future rewards
+        self.epsilon = 1.0          # Initial exploration rate
+        self.epsilon_min = 0.05     # Higher min for continued exploration on diverse targets
+        self.epsilon_decay = 0.9997 # Slower decay for better generalization
+        self.batch_size = 128       # Larger batch for stable learning across targets
+        self.learning_rate = 0.0003 # Lower LR for fine-grained learning
+        self.tau = 0.01             # Faster soft update for adapting to new targets
         
         # Hardware Setup
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

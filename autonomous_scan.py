@@ -411,8 +411,8 @@ class SecurityAuditor:
         
         # Initialize the AI Brain
         # State Dim 11: The agent sees 11 different things about the page (Updated from checkpoint)
-        # Action Dim 52: The agent can perform 52 different attacks/actions (Updated with cookie attacks)
-        self.ai_agent = DQNAgent(state_dim=11, action_dim=52)
+        # Action Dim 60: The agent can perform 60 different attacks/actions (Expanded with future-proof actions)
+        self.ai_agent = DQNAgent(state_dim=11, action_dim=60)
         
         self._load_ai_brain(model_path)
     
@@ -433,7 +433,7 @@ class SecurityAuditor:
             print(f"   Error details: {str(e)}")
             print("   The agent will act randomly (Untrained Mode)\n")
 
-    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3) -> List[Finding]:
+    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3, epsilon: float = 0.1) -> List[Finding]:
         """
         Runs the full security audit process.
         
@@ -461,7 +461,7 @@ class SecurityAuditor:
         
         for url in discovered_urls:
             print(f"\n🎯 Auditing: {url}")
-            findings = self._audit_page(url, attempts=test_intensity)
+            findings = self._audit_page(url, attempts=test_intensity, epsilon=epsilon)
             
             if findings:
                 all_findings.extend(findings)
@@ -474,7 +474,7 @@ class SecurityAuditor:
         
         return all_findings
     
-    def _audit_page(self, url: str, attempts: int = 3) -> List[Finding]:
+    def _audit_page(self, url: str, attempts: int = 3, epsilon: float = 0.1) -> List[Finding]:
         """
         Deploys the AI Agent to test a specific page.
         It runs for a few 'episodes' (attempts) to see if it can break it.
@@ -488,7 +488,12 @@ class SecurityAuditor:
             # CRITICAL FIX: Use base URL, not the full page URL
             # The environment expects http://localhost:5001, not http://localhost:5001/profile
             # The agent will navigate to specific pages through its navigation actions
-            env = WebSecEnv(target_url=self.base_url)
+            
+            # Enable exploration for research variants
+            self.ai_agent.epsilon = epsilon
+            
+            # Pass discovered endpoints so the environment knows where to go
+            env = WebSecEnv(target_url=self.base_url, discovered_endpoints=list(self.explorer.discovered_urls))
             
             for _ in range(attempts):
                 state, _ = env.reset()
