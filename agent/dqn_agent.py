@@ -80,29 +80,34 @@ class NeuralNetworkBrain(nn.Module):
         
         # Common Feature Layer
         # Common Feature Layer (Deep Brain Architecture)
+        # Common Feature Layer (MAX GPU MODE - RTX 2070 Optimized)
         self.feature_layer = nn.Sequential(
-            nn.Linear(input_size, 1024), # Wider: More capacity to understand details
-            nn.ReLU(),
-            nn.Dropout(0.2),             # Regularization: Prevents memorization
-            nn.Linear(1024, 1024),       # Deeper: Abstract thinking
+            nn.Linear(input_size, 8192), # MAXIMUM input layer
             nn.ReLU(),
             nn.Dropout(0.2),
-            nn.Linear(1024, 512),        # Bottleneck: Condense knowledge
+            nn.Linear(8192, 4096),       # Deep abstraction
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(4096, 2048),       # Intermediate
+            nn.ReLU(),
+            nn.Dropout(0.2),
+            nn.Linear(2048, 1024),       # Bottleneck
             nn.ReLU()
         )
         
         # Stream 1: Value (V) - How good is the current state?
+        # Stream 1: Value (V) - How good is the current state?
         self.value_stream = nn.Sequential(
-            nn.Linear(512, 512),
+            nn.Linear(1024, 1024),
             nn.ReLU(),
-            nn.Linear(512, 1) 
+            nn.Linear(1024, 1) 
         )
         
         # Stream 2: Advantage (A) - How much better is this action than others?
         self.advantage_stream = nn.Sequential(
-            nn.Linear(512, 512),
+            nn.Linear(1024, 1024),
             nn.ReLU(),
-            nn.Linear(512, output_size) 
+            nn.Linear(1024, output_size) 
         )
         
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -132,8 +137,8 @@ class DQNAgent:
         self.epsilon = 1.0          # Initial exploration rate
         self.epsilon_min = 0.05     # Higher min for continued exploration on diverse targets
         self.epsilon_decay = 0.9997 # Slower decay for better generalization
-        self.batch_size = 128       # Larger batch for stable learning across targets
-        self.learning_rate = 0.0003 # Lower LR for fine-grained learning
+        self.batch_size = 4096      # MAX BATCH for RTX 2070
+        self.learning_rate = 0.0002 # Lower LR for larger batch
         self.tau = 0.01             # Faster soft update for adapting to new targets
         
         # Hardware Setup
@@ -141,6 +146,12 @@ class DQNAgent:
         print(f"🚀 AI Brain initialized on: {self.device}")
         if self.device.type == 'cuda':
             print(f"   GPU Model: {torch.cuda.get_device_name(0)}")
+            torch.backends.cudnn.benchmark = True # Auto-tune for max speed
+            torch.backends.cuda.matmul.allow_tf32 = True # Enable TF32 for speed
+            print(f"   ⚡ CuDNN Benchmark: ENABLED")
+            print(f"   ⚡ TF32 Math: ENABLED (MAX Speed Mode)")
+            print(f"   📦 Batch Size: 4096 (MAX)")
+            print(f"   🧠 Network Size: 8192 neurons (MAX)")
         
         # Initialize Components
         self.memory = ExperienceMemory(state_dim, action_dim, capacity=10000)

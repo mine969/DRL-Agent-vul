@@ -37,8 +37,8 @@ class MultiTargetTrainer:
         self.targets = targets
         self.model_path = model_path
         
-        # Initialize agent (state_dim=11, action_dim=52)
-        self.agent = DQNAgent(state_dim=11, action_dim=52)
+        # Initialize agent (state_dim=11, action_dim=100)
+        self.agent = DQNAgent(state_dim=11, action_dim=100)
         
         # Try to load existing model
         try:
@@ -102,6 +102,7 @@ class MultiTargetTrainer:
             print(f"✅ Checkpoint saved: checkpoints/multi_target_ep{current_episode}.pth")
             print(f"\n💡 To resume training, run:")
             print(f"   python train_multi_target.py --episodes {total_episodes} --resume {current_episode}")
+            print(f"   (Checkpoint: multi_target_8k_ep{current_episode}.pth)")
             return
         
         # Final save
@@ -188,7 +189,9 @@ class MultiTargetTrainer:
     
     def _save_checkpoint(self, episode):
         """Save training checkpoint."""
-        checkpoint_path = f"checkpoints/multi_target_ep{episode}.pth"
+        # Add architecture identifier to filename
+        arch_size = "8k"  # 8192 neurons = MAX mode
+        checkpoint_path = f"checkpoints/multi_target_8k_ep{episode}.pth"
         torch.save(self.agent.brain.state_dict(), checkpoint_path)
         print(f"💾 Checkpoint saved: {checkpoint_path}")
     
@@ -251,7 +254,7 @@ if __name__ == "__main__":
     
     # Load checkpoint if resuming
     if args.resume > 0:
-        checkpoint_path = f"checkpoints/multi_target_ep{args.resume}.pth"
+        checkpoint_path = f"checkpoints/multi_target_8k_ep{args.resume}.pth"
         try:
             device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
             trainer.agent.brain.load_state_dict(torch.load(checkpoint_path, map_location=device))

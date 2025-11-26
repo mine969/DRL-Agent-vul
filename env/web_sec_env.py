@@ -85,6 +85,11 @@ class WebSecurityGym(gym.Env):
         self.max_steps_per_episode: int = 100
         self.steps_taken: int = 0
         
+        # KILL CHAIN: Phase-Based Progression Tracking
+        self.current_phase: int = 0  # 0=Recon, 1=Discovery, 2=Exploit, 3=Post-Exploit
+        self.phase_progress: Dict[int, int] = {0: 0, 1: 0, 2: 0, 3: 0}
+        self.phase_unlocked: Dict[int, bool] = {0: True, 1: False, 2: False, 3: False}
+        
         # Initialize tracking sets
         self.discovered_vulns = set()
         self.visited_pages = set()
@@ -224,7 +229,47 @@ class WebSecurityGym(gym.Env):
         self.visited_pages = set()
         self.visited_pages.add(0) # Start at home
         
+        # KILL CHAIN: Reset Phase Tracking
+        self.current_phase = 0
+        self.phase_progress = {0: 0, 1: 0, 2: 0, 3: 0}
+        self.phase_unlocked = {0: True, 1: False, 2: False, 3: False}
+        
         return self._get_observation(), {}
+    
+    def _validate_phase_action(self, action_id: int) -> Tuple[bool, float]:
+        """
+        EFFICIENT ALGORITHM: Phase-Based Reward Shaping
+        Guides agent through Kill Chain phases with progressive unlocking.
+        Returns: (is_valid, reward_modifier)
+        """
+        # Define action phases (0-29: Recon, 30-59: Discovery, 60-89: Exploit, 90-99: Post-Exploit)
+        if action_id < 30:
+            action_phase = 0  # Recon
+        elif action_id < 60:
+            action_phase = 1  # Discovery
+        elif action_id < 90:
+            action_phase = 2  # Exploit
+        else:
+            action_phase = 3  # Post-Exploit
+        
+        # Check if phase is unlocked
+        if not self.phase_unlocked[action_phase]:
+            # Penalty for skipping phases
+            return False, -5.0
+        
+        # Bonus for correct phase sequencing
+        bonus = 0.0
+        if action_phase == self.current_phase:
+            bonus = 10.0  # Reward for staying in current phase
+            self.phase_progress[action_phase] += 1
+            
+            # Unlock next phase after sufficient progress
+            if self.phase_progress[action_phase] >= 5 and action_phase < 3:
+                self.phase_unlocked[action_phase + 1] = True
+                self.current_phase = action_phase + 1
+                bonus += 20.0  # Big bonus for phase completion!
+        
+        return True, bonus
     
     def step(self, action_id: int) -> Tuple[np.ndarray, float, bool, bool, Dict]:
         """
@@ -250,6 +295,10 @@ class WebSecurityGym(gym.Env):
             action_function = self.action_book.get(action_id)
             if action_function:
                 action_name = action_function.__name__
+                
+                # EFFICIENT ALGORITHM: Phase-Based Reward Shaping
+                is_valid, phase_bonus = self._validate_phase_action(action_id)
+                reward += phase_bonus
                 
                 # Execute action
                 response, action_reward = action_function()

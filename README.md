@@ -1,170 +1,124 @@
-# 🛡️ DRL AI Agent
+# DRL Web Security Agent - Kill Chain Architecture
 
-**A smart robot that finds security holes in websites.**
+## Overview
 
----
+This project implements a Deep Reinforcement Learning agent that autonomously discovers web vulnerabilities using a **Kill Chain** approach. The agent progresses through 4 phases: Reconnaissance → Discovery → Exploitation → Post-Exploitation.
 
-## 🚀 How to Run It
+## Architecture
 
-### 1. The Easy Way (Visual)
+### Kill Chain Phases (100 Actions)
+
+**Phase 1: Reconnaissance (Actions 0-29)**
+
+- **Passive OSINT (10-19):** Whois, DNS History, GitHub Secrets, Shodan, Wayback Machine, Certificate Transparency
+- **Active OSINT (20-29):** Port Scanning, WAF Detection, Subdomain Takeover, Parameter Mining, API Discovery
+
+**Phase 2: Discovery & Probing (Actions 30-59)**
+
+- **Auth & Session (30-39):** SQL Injection (Login), Brute Force, JWT Attacks, IDOR, OAuth Bypass
+- **Injection Probing (40-49):** XSS (Reflected/Stored/DOM), SSTI, Command Injection, LFI, CSRF
+- **Logic & API (50-59):** Mass Assignment, Rate Limit Bypass, GraphQL, NoSQL, Business Logic Flaws
+
+**Phase 3: Exploitation (Actions 60-89)**
+
+- **Advanced Injection (60-69):** Blind SQLi (Boolean/Time), Blind XSS, RCE, Deserialization, Template Injection
+- **Cloud & Infrastructure (70-79):** AWS Metadata SSRF, Docker API, Kubernetes, GitLab CI, Jenkins RCE
+- **System Exploits (80-89):** Path Traversal, LFI/RFI, XXE, HTTP Smuggling, Cache Poisoning
+
+**Phase 4: Post-Exploitation (Actions 90-99)**
+
+- Database Dumping, Token Theft, Webshell Installation, Privilege Escalation, Data Exfiltration
+
+## Efficient Algorithm: Phase-Based Reward Shaping
+
+The agent uses **Progressive Phase Unlocking** to learn the correct attack sequence:
+
+1. **Phase Validation:** Actions are validated against the current phase
+2. **Progressive Unlocking:** Next phase unlocks after 5 successful actions in current phase
+3. **Reward Bonuses:**
+   - +10 points for correct phase actions
+   - +20 points for phase completion
+   - -5 points for skipping phases
+
+This ensures the agent learns to:
+
+- **Recon first** (find attack surface)
+- **Discover vulnerabilities** (probe for weaknesses)
+- **Exploit** (gain access)
+- **Post-Exploit** (maximize impact)
+
+## Training Configuration
+
+**MAX GPU Settings (RTX 2070):**
+
+- Neural Network: 8192 neurons
+- Batch Size: 4096
+- TF32 Math: Enabled
+- Expected Speedup: 35-40%
+
+**Training Command:**
+
+```bash
+python train_multi_target.py --episodes 1000
+```
+
+**Resume Training:**
+
+```bash
+python train_multi_target.py --episodes 1000 --resume <episode_number>
+```
+
+## Target Applications
+
+The agent trains against 3 vulnerable web applications:
+
+1. **target_app.py** - Core vulnerabilities (SQLi, XSS, IDOR)
+2. **target_app_ecommerce.py** - E-commerce logic flaws
+3. **target_app_social.py** - Social media vulnerabilities
+
+## Deployment
+
+**Autonomous Scanning:**
+
+```bash
+python autonomous_scan.py --target http://example.com
+```
+
+**Interactive GUI:**
 
 ```bash
 python scanner_gui.py
 ```
 
-Just type a URL and click "Scan".
+## Project Structure
 
-### 2. The Fast Way (Terminal)
-
-```bash
-python scan.py
+```
+RL/
+├── agent/                  # DQN Agent implementation
+├── env/                    # Gym environment & target apps
+│   ├── web_sec_env.py     # Main environment (100 actions)
+│   ├── target_app*.py     # Training targets
+├── checkpoints/            # Saved models
+├── docs/                   # Documentation
+├── train_multi_target.py   # Training script
+└── autonomous_scan.py      # Deployment script
 ```
 
-Answer a few questions and watch it go.
+## Key Features
 
-### 3. Train the AI (Make it Smarter)
+✅ **100 Real-World Actions** (32 OSINT + 68 Attacks)  
+✅ **Phase-Based Learning** (Kill Chain progression)  
+✅ **MAX GPU Optimization** (8192 neurons, 4096 batch)  
+✅ **Multi-Target Training** (3 vulnerable apps)  
+✅ **Autonomous Deployment** (Scan any target)
 
-```bash
-python train.py
-```
+## Performance
 
-Watch the AI learn to hack in real-time.
+- **Training Speed:** ~35-40% faster with MAX GPU settings
+- **Action Space:** 100 actions (optimized for real-world)
+- **Episode Length:** 100 steps
+- **Checkpoint Frequency:** Every 10 episodes
 
----
+## License
 
-## 🖥️ GUI & Exploit Generator
-
-The project now includes a powerful GUI for interactive scanning and exploitation.
-
-### Features
-
-- **One-Click Exploit Generator**: Automatically generates curl commands and Python scripts for found vulnerabilities.
-- **Real-Time Findings**: Watch as the AI discovers vulnerabilities live.
-- **Interactive Control**: Configure scan depth and intensity with ease.
-
-### Usage
-
-1. Run `python scanner_gui.py`
-2. Enter the target URL.
-3. Click "Start Autonomous Scan".
-4. Click on any finding to generate an exploit!
-
----
-
-## ✨ What Can It Do?
-
-- **🧠 It Learns**: Uses AI to get smarter every time it scans.
-- **⚔️ It Attacks**: Tries SQL Injection, XSS, and more (safely).
-- **⚡ It's Fast**: Uses your Graphics Card (GPU) to think quickly.
-- **📊 It Reports**: Gives you a clear report of what it found.
-
----
-
-## 📂 Files You Need to Know
-
-- `scanner_gui.py`: The main app. Run this first!
-- `train.py`: The school. Run this to teach the AI.
-- `agent/`: The Brain. Where the AI logic lives.
-- `env/`: The World. A fake website for the AI to practice on.
-
----
-
-## 🔧 Setup
-
-1.  **Install Python** (3.10 or newer).
-2.  **Install Libraries**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3.  **Run it!**
-
----
-
-## ⚠️ Legal & Ethical Use
-
-_**Note**: Only use this on websites you own. Hacking others is illegal._
-
-### ✅ DO Use On:
-
-- Your own websites
-- Systems you have written permission to test
-- Lab environments (DVWA, WebGoat, etc.)
-
-### ❌ DON'T Use On:
-
-- Websites you don't own
-- Production systems without authorization
-- Any system without explicit permission
-
-**Unauthorized security testing is illegal in most countries!**
-
----
-
-## 🏆 Performance
-
-### Training Metrics
-
-- **Episodes**: 500 (best quality)
-- **Training Time**: ~1-2 hours (with GPU)
-- **Checkpoints**: 25 saved models
-- **Success Rate**: ~85% (at episode 500)
-
-### Scanning Speed
-
-- **Pages/Minute**: ~5-10 (depends on depth)
-- **Average Scan**: 5-15 minutes
-- **Report Generation**: Instant
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Submit a pull request
-
----
-
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
----
-
-## 🙏 Acknowledgments
-
-- Built with PyTorch and Gymnasium
-- Inspired by OWASP Top 10
-- Tested against DVWA
-
----
-
-## 📞 Support
-
-- 📚 Check the [Documentation](docs/)
-- 🐛 Report issues on GitHub
-- 💬 Ask questions in discussions
-
----
-
-## 🎉 Quick Reference
-
-| Task              | Command                                       |
-| ----------------- | --------------------------------------------- |
-| **Launch GUI**    | `python scanner_gui.py`                       |
-| **Quick Scan**    | `python scan.py`                              |
-| **Train Agent**   | `python train.py`                             |
-| **Advanced Scan** | `python autonomous_scan.py http://target.com` |
-| **View Docs**     | Open `docs/BEGINNER_GUIDE.md`                 |
-
----
-
-**Made with ❤️ for ethical security testing**
-
-**Version**: 1.1  
-**Last Updated**: 2025-11-23  
-**GPU Accelerated**: ✅  
-**Status**: Production Ready 🚀
+MIT License - See LICENSE file for details
