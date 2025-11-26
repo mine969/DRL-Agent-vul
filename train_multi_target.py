@@ -46,7 +46,7 @@ class MultiTargetTrainer:
         self.episode_rewards = {name: [] for name, _ in targets}
         self.episode_vulns_found = {name: [] for name, _ in targets}
         
-    def train_curriculum(self, total_episodes=1000):
+    def train_curriculum(self, total_episodes=1000, start_episode=1):
         """
         Curriculum Learning Strategy (6 Targets):
         
@@ -59,30 +59,44 @@ class MultiTargetTrainer:
         print("🎓 MULTI-TARGET CURRICULUM TRAINING (6 TARGETS)")
         print("=" * 70)
         print(f"Total Episodes: {total_episodes}")
+        if start_episode > 1:
+            print(f"Resuming from Episode: {start_episode}")
         print(f"Targets: {len(self.targets)}")
         for name, url in self.targets:
             print(f"  - {name}: {url}")
         print("=" * 70)
         print()
         
-        for episode in range(1, total_episodes + 1):
-            # Determine which target to use based on curriculum phase
-            target_name, target_url = self._select_target(episode, total_episodes)
-            
-            # Train one episode on selected target
-            reward, vulns_found = self._train_episode(target_name, target_url, episode)
-            
-            # Track metrics
-            self.episode_rewards[target_name].append(reward)
-            self.episode_vulns_found[target_name].append(vulns_found)
-            
-            # Print progress
-            if episode % 10 == 0:
-                self._print_progress(episode, total_episodes)
-            
-            # Save checkpoint every 100 episodes
-            if episode % 100 == 0:
-                self._save_checkpoint(episode)
+        current_episode = start_episode
+        try:
+            for episode in range(start_episode, total_episodes + 1):
+                current_episode = episode
+                # Determine which target to use based on curriculum phase
+                target_name, target_url = self._select_target(episode, total_episodes)
+                
+                # Train one episode on selected target
+                reward, vulns_found = self._train_episode(target_name, target_url, episode)
+                
+                # Track metrics
+                self.episode_rewards[target_name].append(reward)
+                self.episode_vulns_found[target_name].append(vulns_found)
+                
+                # Print progress
+                if episode % 10 == 0:
+                    self._print_progress(episode, total_episodes)
+                
+                # Save checkpoint every 100 episodes
+                if episode % 100 == 0:
+                    self._save_checkpoint(episode)
+        
+        except KeyboardInterrupt:
+            print("\n\n⚠️  Training interrupted by user!")
+            print(f"💾 Saving checkpoint at episode {current_episode}...")
+            self._save_checkpoint(current_episode)
+            print(f"✅ Checkpoint saved: checkpoints/multi_target_ep{current_episode}.pth")
+            print(f"\n💡 To resume training, run:")
+            print(f"   python train_multi_target.py --episodes {total_episodes} --resume {current_episode}")
+            return
         
         # Final save
         torch.save(self.agent.brain.state_dict(), self.model_path)
@@ -196,6 +210,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Multi-Target DRL Security Scanner Training')
     parser.add_argument('--episodes', type=int, default=1000, help='Total training episodes')
     parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Model save path')
+    parser.add_argument('--resume', type=int, default=0, help='Resume from episode number (loads checkpoint)')
     
     args = parser.parse_args()
     
@@ -227,4 +242,19 @@ if __name__ == "__main__":
     
     # Create trainer and start
     trainer = MultiTargetTrainer(targets, model_path=args.model)
-    trainer.train_curriculum(total_episodes=args.episodes)
+    
+    # Load checkpoint if resuming
+    if args.resume > 0:
+        checkpoint_path = f"checkpoints/multi_target_ep{args.resume}.pth"
+        try:
+            device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+            trainer.agent.brain.load_state_dict(torch.load(checkpoint_path, map_location=device))
+            trainer.agent.target_brain.load_state_dict(trainer.agent.brain.state_dict())
+            print(f"✅ Loaded checkpoint from episode {args.resume}")
+        except Exception as e:
+            print(f"❌ Failed to load checkpoint: {e}")
+            print(f"   Starting from scratch instead")
+            args.resume = 0
+    
+    trainer.train_curriculum(total_episodes=args.episodes, start_episode=args.resume + 1 if args.resume > 0 else 1)
+
