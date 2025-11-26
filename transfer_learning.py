@@ -25,8 +25,7 @@ def expand_model_48_to_52(old_model_path: str = "dqn_web_sec_model.pth",
     print("=" * 70)
     
     # 1. Load old model (48 actions)
-    print("\n📂 Loading existing 48-action model...")
-    old_agent = DQNAgent(state_dim=11, action_dim=48)
+    print("\n📂 Loading existing model to check dimensions...")
     
     if not os.path.exists(old_model_path):
         print(f"❌ Error: Model not found at {old_model_path}")
@@ -35,8 +34,29 @@ def expand_model_48_to_52(old_model_path: str = "dqn_web_sec_model.pth",
     
     device = torch.device("cuda" if torch.cuda.is_available() else 
                          "mps" if torch.backends.mps.is_available() else "cpu")
-    old_agent.brain.load_state_dict(torch.load(old_model_path, map_location=device))
-    print(f"✅ Loaded model from {old_model_path}")
+    
+    # Load state dict first to check dimensions
+    state_dict = torch.load(old_model_path, map_location=device)
+    
+    # Check output layer size (advantage_stream.2.bias is a good indicator)
+    # It should be 48 for old model, 52 for new model
+    output_bias = state_dict.get('advantage_stream.2.bias')
+    
+    if output_bias is not None and output_bias.shape[0] == 52:
+        print(f"✅ Model {old_model_path} is ALREADY expanded to 52 actions!")
+        print("   Skipping brain surgery...")
+        
+        # If the target file doesn't exist, copy the source to target so fine-tuning works
+        if not os.path.exists(new_model_path):
+            print(f"   Copying to {new_model_path} for consistency...")
+            torch.save(state_dict, new_model_path)
+            
+        return True
+        
+    print(f"ℹ️  Model has {output_bias.shape[0]} actions. Proceeding with expansion...")
+    old_agent = DQNAgent(state_dim=11, action_dim=48)
+    old_agent.brain.load_state_dict(state_dict)
+    print(f"✅ Loaded 48-action model from {old_model_path}")
     
     # 2. Create new model (52 actions)
     print("\n🔧 Creating expanded 52-action model...")
