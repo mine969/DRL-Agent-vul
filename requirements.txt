@@ -4,3 +4,5 @@ flask
 requests
 numpy
 pyjwt
+beautifulsoup4
+tkinter
