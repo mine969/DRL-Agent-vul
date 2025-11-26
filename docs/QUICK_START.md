@@ -1,137 +1,119 @@
-# 🚀 Super Simple Scanner - Quick Start
+# Quick Start Guide
 
-## The Easiest Way to Scan!
+## Prerequisites
 
-Just run **one command** and answer the questions:
+- Python 3.8+
+- CUDA-capable GPU (recommended: RTX 2070 or better)
+- 2GB+ free disk space
 
-```bash
-python scan.py
-```
-
-That's it! No complicated commands to remember!
-
-## What It Does
-
-The script will ask you:
-
-1. **"Enter website URL or IP"**
-
-   - Type: `http://localhost/dvwa`
-   - Or: `192.168.1.100`
-   - Or: `example.com` (it adds http:// automatically)
-
-2. **"Is this correct?"**
-
-   - Type: `y` and press Enter
-
-3. **"Customize scan options?"**
-   - Type: `n` for default settings (recommended)
-   - Or `y` to customize depth and episodes
-
-Then it automatically:
-
-- 🕷️ Crawls the website
-- 🔍 Finds all pages
-- 🔴 Tests for vulnerabilities
-- 📊 Creates 3 reports (HTML, TXT, MD)
-
-## Example Session
-
-```
-🛡️  AI-POWERED WEB SECURITY SCANNER
-======================================================================
-
-🎯 Enter website URL or IP: localhost/dvwa
-ℹ️  Adding 'http://' prefix...
-
-📍 Target: http://localhost/dvwa
-Is this correct? (y/n): y
-
-Would you like to customize scan options?
-(y/n) [default: n]: n
-
-======================================================================
-SCAN CONFIGURATION
-======================================================================
-Target URL:       http://localhost/dvwa
-Max Pages:        30
-Episodes/Page:    3
-Model:            dqn_web_sec_model.pth
-======================================================================
-
-⚠️  Ready to start scanning!
-Press Enter to begin (or Ctrl+C to cancel)...
-
-🚀 Starting scan...
-```
-
-## Reports Generated
-
-After scanning, you'll get **3 files**:
-
-1. **`vulnerability_report_[timestamp].html`**
-
-   - Beautiful report with colors
-   - Open in Chrome/Firefox
-   - Best for presentations
-
-2. **`vulnerability_report_[timestamp].txt`**
-
-   - Plain text format
-   - Easy to read in Notepad
-   - Good for quick review
-
-3. **`vulnerability_report_[timestamp].md`**
-   - Markdown format
-   - Good for documentation
-
-## Comparison
-
-### Old Way ❌
+## Installation
 
 ```bash
-python autonomous_scan.py --target http://localhost/dvwa --depth 30 --episodes 3 --model dqn_web_sec_model.pth
+# Clone the repository
+git clone https://github.com/yourusername/DRL-Agent-vul.git
+cd DRL-Agent-vul
+
+# Create virtual environment
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+# source .venv/bin/activate  # Linux/Mac
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-Too complicated to remember!
+## Training the Agent
 
-### New Way ✅
+### Start Fresh Training
 
 ```bash
-python scan.py
+python train_multi_target.py --episodes 2000
 ```
 
-Just answer simple questions!
+### Resume Training
 
-## Tips
+```bash
+python train_multi_target.py --episodes 2000 --resume 1000
+```
 
-- **First time?** Just press Enter for all questions (uses defaults)
-- **Want more pages?** Say `y` to customize, then enter a higher number
-- **Wrong URL?** Press Ctrl+C and start again
-- **No model found?** Train first: `python train.py`
+### Training Features
+
+- **Checkpoints:** Saved every 10 episodes
+- **Auto-save:** Press Ctrl+C to save and stop
+- **GPU Acceleration:** Automatic CUDA detection
+- **Progress Tracking:** Real-time metrics in terminal
+
+## Using the Trained Agent
+
+### Autonomous Scanning
+
+```bash
+python autonomous_scan.py --target http://example.com
+```
+
+### Interactive GUI
+
+```bash
+python scanner_gui.py
+```
+
+## Architecture Overview
+
+**Kill Chain (100 Actions):**
+
+1. **Reconnaissance (0-29):** OSINT, port scanning, subdomain enumeration
+2. **Discovery (30-59):** Vulnerability probing, injection testing
+3. **Exploitation (60-89):** Advanced attacks, RCE, cloud exploits
+4. **Post-Exploitation (90-99):** Data exfiltration, privilege escalation
+
+**Phase-Based Reward Shaping:**
+
+- Progressive unlocking of attack phases
+- +10 bonus for correct phase actions
+- +20 bonus for phase completion
+- -5 penalty for skipping phases
+
+## Training Targets
+
+The agent trains against 6 targets:
+
+1. localhost:5001 - Core vulnerabilities
+2. localhost:5002 - E-commerce platform
+3. localhost:5003 - Social media app
+4. levelup.melivecode.com - LMS platform
+5. rsuip.org - University portal
+6. dit.rsu.ac.th - Department site
+
+## Expected Results
+
+- **Training Time:** 16-20 hours (2000 episodes)
+- **Checkpoints:** 200 files (~1.7 GB)
+- **GPU Usage:** 90-95% utilization
+- **Success Rate:** Improves progressively
 
 ## Troubleshooting
 
-**"Model file not found"**
+**GPU Not Detected:**
 
-- Run `python train.py` first to train the AI
-- Or use a checkpoint: when asked for model, type `checkpoints/dqn_checkpoint_ep100.pth`
+```bash
+python -c "import torch; print(torch.cuda.is_available())"
+```
 
-**"Connection refused"**
+**Training Crashes:**
 
-- Make sure the target website is running
-- Check if you typed the URL correctly
+- Check target apps are running
+- Verify sufficient disk space
+- Review last checkpoint
 
-**Want to stop?**
+**Slow Training:**
 
-- Press `Ctrl+C` anytime
+- Ensure TF32 is enabled
+- Check GPU temperature
+- Reduce batch size if OOM
 
-## All Available Scanners
+## Next Steps
 
-| Script               | Usage                        | Best For       |
-| -------------------- | ---------------------------- | -------------- |
-| `scan.py`            | Interactive (asks questions) | **Beginners**  |
-| `autonomous_scan.py` | Command-line with arguments  | Advanced users |
-| `deploy_agent.py`    | Test specific URLs           | Quick tests    |
-
-**Recommendation**: Start with `scan.py` - it's the easiest!
+1. Monitor training progress
+2. Evaluate checkpoints at ep500, ep1000, ep1500
+3. Deploy best checkpoint for real-world scanning
+4. Review `docs/` for advanced usage

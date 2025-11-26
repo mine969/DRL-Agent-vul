@@ -1,81 +1,180 @@
-# 🏗️ Technical Architecture & Engineering
+# Technical Architecture
 
-This document provides a deep dive into the engineering decisions, architecture, and algorithms powering the DRL AI Agent.
+## System Overview
 
-## 📐 System Architecture
+The DRL Web Security Agent uses a **Deep Q-Network (DQN)** with **Phase-Based Reward Shaping** to learn autonomous web vulnerability discovery through a Kill Chain approach.
 
-The system follows a modular architecture separating the **Agent** (Brain), **Environment** (World), and **Scanner** (Body).
+## Core Components
 
-```mermaid
-graph TD
-    A[Security Auditor] -->|Controls| B(Website Explorer)
-    A -->|Controls| C(DQN Agent)
+### 1. Environment (`env/web_sec_env.py`)
 
-    B -->|Crawls| D[Target Website]
-    C -->|Attacks| D
+**Gymnasium-based environment** simulating a web browser interacting with vulnerable applications.
 
-    subgraph "AI Core (GPU Accelerated)"
-    C -->|State| E[NeuralNetworkBrain]
-    E -->|Q-Values| C
-    C -->|Experience| F[ExperienceMemory O(1)]
-    end
+**State Space (11 dimensions):**
 
-    subgraph "Environment"
-    D -->|Response| G[WebSecurityGym]
-    G -->|Reward/State| C
-  1.  `page_id`: Current page identifier.
-  2.  `status_code`: Normalized HTTP status.
-  3.  `found_vulnerability`: Boolean flag.
-  4.  `found_sensitive_data`: Boolean flag (CTF flags).
-  5.  `triggered_waf`: Boolean flag.
-  6.  `got_rate_limited`: Boolean flag.
-  7.  `auth_token`: JWT token presence.
-  8.  `last_response_time`: Normalized latency (for Time-Based SQLi).
-  9.  `content_variance`: Anomaly detection metric.
-  10. `input_count`: Complexity metric.
-- **Action Space (15 Actions)**:
-  - Navigation (Home, Login, Search...)
-  - Attacks (SQLi, XSS, IDOR, SSRF...)
-  - Advanced (Time-Based SQLi, Polyglot XSS, Fuzzing)
-- **Optimization**:
-  - **Session Pooling**: Uses `requests.Session` with `HTTPAdapter` to reuse TCP connections, reducing latency by ~50%.
+- Current page ID
+- HTTP status code
+- Vulnerability detected flag
+- Sensitive data flag
+- WAF triggered flag
+- Rate limit flag
+- Authentication status
+- Response time
+- Content variance
+- Input count
+- Business context
 
-### 3. The Payload Manager (`agent/payload_manager.py`)
+**Action Space (100 discrete actions):**
 
-- **Purpose**: Centralized management of attack vectors.
-- **Capabilities**:
-  - **Polyglots**: Complex payloads designed to bypass multiple filters.
-  - **Fuzzing**: Random data generation for stress testing.
-  - **Context-Aware**: Delivers specific payloads based on attack type.
+- Phase 1: Reconnaissance (0-29)
+- Phase 2: Discovery (30-59)
+- Phase 3: Exploitation (60-89)
+- Phase 4: Post-Exploitation (90-99)
 
-## ⚡ Algorithms & Data Structures
+**Reward Function:**
 
-### 1. O(1) Experience Replay
+- Base penalty: -1 per step
+- Vulnerability found: +100
+- Phase bonus: +10 (correct phase)
+- Phase completion: +20
+- Phase skip penalty: -5
+- WAF trigger: -10
+- Rate limit: -20
 
-Instead of a standard Python list `[]` or `deque`, we use fixed-size Numpy arrays.
+### 2. Agent (`agent/dqn_agent.py`)
 
-- **Insertion**: `buffer[ptr] = data` -> **O(1)**
-- **Sampling**: `buffer[indices]` -> **O(1)** (Vectorized)
-- **Memory**: Pre-allocated, no GC overhead.
+**Neural Network Architecture:**
 
-### 2. BFS Crawling (Scanner)
-
-The `WebsiteExplorer` uses Breadth-First Search (BFS) to map the website.
-
-- **Queue**: `collections.deque` for **O(1)** pops/appends.
-- **Visited Set**: `set()` for **O(1)** lookup of visited URLs.
-- **Complexity**: O(V+E) where V is pages and E is links.
-
-### 3. Epsilon-Greedy Exploration
-
-The agent balances exploration (trying new things) and exploitation (using what works).
-
-- **Formula**: `epsilon = max(min_epsilon, epsilon * decay_rate)`
-- **Logic**: Starts curious (100% random), becomes professional (99% optimal).
-
-## 🖥️ Hardware Utilization
-
-- **GPU**: PyTorch tensors are moved to `cuda:0`.
-- **CPU**: Handles environment interaction and HTTP requests.
-- **RAM**: Efficiently managed via fixed-size buffers.
 ```
+Input (11) → FC1 (8192) → ReLU → FC2 (8192) → ReLU → FC3 (100)
+```
+
+**Hyperparameters:**
+
+- Learning rate: 0.0001
+- Gamma (discount): 0.99
+- Epsilon (exploration): 1.0 → 0.01
+- Epsilon decay: 0.995
+- Batch size: 4096
+- Memory size: 100,000
+
+**Optimization:**
+
+- Optimizer: Adam
+- Loss: MSE (Mean Squared Error)
+- TF32 Math: Enabled
+- GPU: CUDA with cuDNN benchmark
+
+### 3. Phase-Based Reward Shaping
+
+**Algorithm:**
+
+```python
+def _validate_phase_action(action_id):
+    # Determine action phase
+    phase = action_id // 30 if action_id < 90 else 3
+
+    # Check if unlocked
+    if not phase_unlocked[phase]:
+        return -5.0  # Penalty
+
+    # Reward correct sequencing
+    if phase == current_phase:
+        bonus = 10.0
+        progress[phase] += 1
+
+        # Unlock next phase after 5 actions
+        if progress[phase] >= 5:
+            phase_unlocked[phase + 1] = True
+            bonus += 20.0
+
+        return bonus
+
+    return 0.0
+```
+
+**Benefits:**
+
+- Guides exploration through logical attack sequence
+- Prevents random action selection
+- Accelerates convergence
+- Mimics real-world pentesting workflow
+
+### 4. Training Loop (`train_multi_target.py`)
+
+**Curriculum Learning:**
+
+- Rotates through 6 target applications
+- Each episode: 100 steps
+- Checkpoint every 10 episodes
+
+**Experience Replay:**
+
+- Store transitions: (state, action, reward, next_state, done)
+- Sample random batches for training
+- Break correlation between consecutive samples
+
+**Target Network:**
+
+- Separate network for stable Q-value estimation
+- Updated periodically to reduce oscillation
+
+### 5. Transfer Learning (`ensemble_transfer_learning.py`)
+
+**Smart Weight Transfer:**
+
+- Old architecture: 52 actions
+- New architecture: 100 actions
+- Hidden layers: Fully transferred
+- Output layer: Partially transferred (first 52 actions)
+- New actions: Randomly initialized
+
+## Performance Optimizations
+
+### GPU Acceleration
+
+**MAX Settings:**
+
+- 8192 neurons per layer
+- 4096 batch size
+- TF32 tensor cores
+- cuDNN benchmark mode
+
+**Expected Speedup:** 35-40% vs standard settings
+
+### Memory Management
+
+- Replay buffer: Circular queue (100K transitions)
+- Checkpoint compression: PyTorch state_dict
+- Gradient clipping: Prevents exploding gradients
+
+## Deployment Architecture
+
+### Autonomous Scanning
+
+```
+User Input → Agent → Environment → Target Website
+     ↑                                    ↓
+     └──────── Vulnerability Report ──────┘
+```
+
+### GUI Mode
+
+```
+User → GUI → Agent → Environment → Target
+  ↑                                    ↓
+  └────── Real-time Visualization ─────┘
+```
+
+## Scalability
+
+- **Horizontal:** Multiple agents on different targets
+- **Vertical:** Larger neural networks (16K+ neurons)
+- **Distributed:** Multi-GPU training (future)
+
+## Security Considerations
+
+- **Sandboxed environment:** Isolated from production
+- **Rate limiting:** Respects target server limits
+- **Ethical use:** Educational purposes only
+- **Logging:** All actions recorded for audit
