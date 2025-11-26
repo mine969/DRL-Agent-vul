@@ -23,7 +23,6 @@ wheels/
 # Virtual Environment
 .venv/
 venv/
-ENV/
 # Don't block env/ directory - it contains source code
 
 # IDEs
