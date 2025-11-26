@@ -14,6 +14,12 @@ import hashlib
 import os
 import uuid
 from werkzeug.utils import secure_filename
+import sys
+import io
+
+# Force UTF-8 encoding for Windows consoles
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 
 app = Flask(__name__)
 app.secret_key = 'social_secret_2025'

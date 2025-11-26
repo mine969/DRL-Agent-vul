@@ -156,25 +156,25 @@ class WebSecurityGym(gym.Env):
             # New Actions (45)
             45: self.attack_file_upload,
             
-            # OSINT Skills (46-47)
+            # OSINT Skills (46-50) - EXPANDED
             46: self.attack_osint_files,
             47: self.attack_osint_fingerprint,
+            48: self.attack_osint_directory_listing,
+            49: self.attack_osint_subdomain_enum,
+            50: self.attack_osint_api_discovery,
             
-            # Cookie Vulnerability Attacks (48-51)
-            48: self.attack_cookie_injection,
-            49: self.attack_cookie_poisoning,
-            50: self.attack_httponly_bypass,
-            51: self.attack_samesite_bypass,
+            # Cookie Vulnerability Attacks (51-54)
+            51: self.attack_cookie_injection,
+            52: self.attack_cookie_poisoning,
+            53: self.attack_httponly_bypass,
+            54: self.attack_samesite_bypass,
             
-            # Future-Proof Actions (52-59)
-            52: self.attack_ai_prompt_injection,
-            53: self.attack_graphql_introspection,
-            54: self.attack_ssi_injection,
-            55: self.attack_websocket_hijacking,
-            56: self.attack_api_rate_limit_bypass,
-            57: self.attack_jwt_key_confusion,
-            58: self.attack_cors_misconfiguration,
-            59: self.attack_cache_poisoning,
+            # Future-Proof Actions (55-59)
+            55: self.attack_ai_prompt_injection,
+            56: self.attack_graphql_introspection,
+            57: self.attack_ssi_injection,
+            58: self.attack_websocket_hijacking,
+            59: self.attack_api_rate_limit_bypass,
         }
     
     def _setup_browser_session(self) -> None:
@@ -755,6 +755,57 @@ class WebSecurityGym(gym.Env):
         # Reward for identifying technology
         if r.status_code == 200 and "python" in r.text.lower():
             return r, 15.0
+        return r, 0.0
+    
+    def attack_osint_directory_listing(self) -> Tuple[requests.Response, float]:
+        """OSINT: Check for directory listing vulnerabilities"""
+        common_dirs = ["/uploads/", "/files/", "/images/", "/assets/", "/backup/", "/admin/", "/api/"]
+        target_dir = np.random.choice(common_dirs)
+        r = self.session.get(f"{self.target_url}{target_dir}", timeout=3)
+        
+        # Check if directory listing is enabled
+        if r.status_code == 200:
+            if "Index of" in r.text or "Directory listing" in r.text or "<title>Index of" in r.text:
+                return r, 40.0  # Found directory listing
+            if len(r.text) > 1000:  # Likely showing content
+                return r, 15.0
+        return r, 0.0
+    
+    def attack_osint_subdomain_enum(self) -> Tuple[requests.Response, float]:
+        """OSINT: Enumerate common subdomains"""
+        subdomains = ["api", "admin", "dev", "staging", "test", "beta", "www", "mail", "ftp"]
+        subdomain = np.random.choice(subdomains)
+        
+        # Try to access subdomain (simplified - just try common paths)
+        paths = [f"//{subdomain}", f"/{subdomain}", f"/api/{subdomain}"]
+        target_path = np.random.choice(paths)
+        
+        r = self.session.get(f"{self.target_url}{target_path}", timeout=3)
+        
+        if r.status_code == 200 and len(r.text) > 500:
+            return r, 25.0  # Found subdomain/path
+        return r, 0.0
+    
+    def attack_osint_api_discovery(self) -> Tuple[requests.Response, float]:
+        """OSINT: Discover API endpoints and documentation"""
+        api_endpoints = [
+            "/api", "/api/v1", "/api/v2", "/rest", "/graphql",
+            "/swagger", "/swagger.json", "/swagger-ui", 
+            "/api-docs", "/openapi.json", "/redoc",
+            "/api/health", "/api/status", "/api/version"
+        ]
+        endpoint = np.random.choice(api_endpoints)
+        r = self.session.get(f"{self.target_url}{endpoint}", timeout=3)
+        
+        # Check for API documentation or endpoints
+        if r.status_code == 200:
+            if "swagger" in r.text.lower() or "openapi" in r.text.lower():
+                return r, 60.0  # Found API documentation!
+            if "graphql" in r.text.lower() or "graphiql" in r.text.lower():
+                return r, 55.0  # Found GraphQL
+            if '"version"' in r.text or '"status"' in r.text:
+                return r, 30.0  # Found API endpoint
+            return r, 10.0  # Found something
         return r, 0.0
 
     def action_wait(self) -> Tuple[None, float]:

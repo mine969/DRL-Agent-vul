@@ -13,6 +13,12 @@ import sqlite3
 import hashlib
 import datetime
 import jwt
+import sys
+import io
+
+# Force UTF-8 encoding for Windows consoles
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 
 app = Flask(__name__)
 app.secret_key = 'ecommerce_secret_2025'

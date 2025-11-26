@@ -314,18 +314,136 @@ class PayloadManager:
             {"name": "shell.php%00.jpg", "content": "<?php phpinfo(); ?>"},
         ]
         
-        # 2025: OSINT / Recon Payloads
+        # 2025: OSINT / Recon Payloads (EXPANDED - 50+ files)
         self.osint_files = [
+            # Git exposure
             "/.git/config",
+            "/.git/HEAD",
+            "/.git/index",
+            "/.git/logs/HEAD",
+            "/.gitignore",
+            
+            # Environment files
             "/.env",
+            "/.env.local",
+            "/.env.production",
+            "/.env.development",
+            "/.env.backup",
+            
+            # Database files
             "/backup.sql",
+            "/database.sql",
+            "/db_backup.sql",
+            "/dump.sql",
             "/database.sqlite",
+            "/database.db",
+            "/db.sqlite3",
+            
+            # Configuration files
+            "/config.php",
+            "/config.json",
+            "/config.yml",
+            "/config.yaml",
+            "/settings.json",
+            "/app.config",
+            "/web.config",
+            "/application.properties",
+            
+            # IDE/Editor files
+            "/.vscode/settings.json",
+            "/.vscode/launch.json",
+            "/.idea/workspace.xml",
             "/ds_store",
+            "/.DS_Store",
+            
+            # Server info
             "/robots.txt",
             "/sitemap.xml",
-            "/.vscode/settings.json",
             "/server-status",
-            "/phpinfo.php"
+            "/server-info",
+            "/phpinfo.php",
+            "/info.php",
+            "/test.php",
+            
+            # Admin panels
+            "/admin",
+            "/admin.php",
+            "/administrator",
+            "/wp-admin",
+            "/phpmyadmin",
+            "/adminer.php",
+            
+            # Backup files
+            "/backup.zip",
+            "/backup.tar.gz",
+            "/site-backup.zip",
+            "/www.zip",
+            "/backup.rar",
+            "/old.zip",
+            
+            # Log files
+            "/error.log",
+            "/access.log",
+            "/debug.log",
+            "/application.log",
+            "/error_log",
+            "/logs/error.log",
+            
+            # API documentation
+            "/swagger",
+            "/swagger.json",
+            "/swagger-ui",
+            "/api-docs",
+            "/openapi.json",
+            "/graphql",
+            "/graphiql",
+            
+            # Common sensitive files
+            "/composer.json",
+            "/package.json",
+            "/package-lock.json",
+            "/yarn.lock",
+            "/Gemfile",
+            "/requirements.txt",
+            "/Pipfile",
+            
+            # Docker/Container
+            "/Dockerfile",
+            "/docker-compose.yml",
+            "/.dockerignore",
+            "/kubernetes.yaml",
+            
+            # CI/CD
+            "/.gitlab-ci.yml",
+            "/.travis.yml",
+            "/Jenkinsfile",
+            "/.github/workflows/main.yml",
+            
+            # Cloud config
+            "/.aws/credentials",
+            "/.azure/config",
+            "/gcp-key.json",
+            
+            # WordPress specific
+            "/wp-config.php",
+            "/wp-config.php.bak",
+            "/wp-content/debug.log",
+            
+            # Framework specific
+            "/.htaccess",
+            "/web.config",
+            "/nginx.conf",
+            "/apache.conf",
+            
+            # Misc sensitive
+            "/readme.md",
+            "/README.md",
+            "/CHANGELOG.md",
+            "/TODO.txt",
+            "/credentials.txt",
+            "/passwords.txt",
+            "/users.txt",
+            "/secrets.txt"
         ]
 
     def get_file_upload(self) -> Dict[str, str]:

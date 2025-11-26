@@ -22,7 +22,13 @@ import string
 import time
 import pickle
 import base64
+import sys
+import io
 from functools import wraps
+
+# Force UTF-8 encoding for Windows consoles
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 
 app = Flask(__name__)
 app.secret_key = 'modern_platform_2025_secret'
