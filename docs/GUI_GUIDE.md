@@ -1,4 +1,4 @@
-# 🖥️ GUI Scanner - User Guide
+# 🖥️ GUI Scanner - User Guide (2025 Edition)
 
 ## Quick Start
 
@@ -8,38 +8,87 @@
 python scanner_gui.py
 ```
 
-**That's it!** A beautiful window will open.
+**That's it!** A beautiful cyberpunk-themed window will open.
+
+---
+
+## 🚀 Latest Features (2025)
+
+### New Scan Modes
+
+- **🤖 AUTO MODE** - AI agent decides actions (balanced)
+- **🔥 AGGRESSIVE MODE** - 1.5x depth, 2x intensity (deep testing)
+- **🕵️ OSINT MODE** - Reconnaissance only (silent)
+- **🎯 SPECIFIC ATTACK** - Target single vulnerability type
+- **💀 ZERO-DAY HUNTER** - Fuzzing, CVEs, and config checks
+
+### Proxy System
+
+- **🔄 Auto-Fetch Proxies** - Click button to fetch from 6 sources
+- **📂 Manual Upload** - Browse for custom proxy files
+- **200+ Proxies** - Automatically fetched and validated
+
+### Exploit Factory
+
+- **📋 Full Exploit URLs** - Ready-to-paste URLs with payloads
+- **💻 CURL Commands** - Copy-paste ready
+- **🐍 Python Scripts** - Auto-generated exploit code
+- **💡 Suggested Payloads** - 200+ attack vectors
+
+### Enhanced UX
+
+- **💡 Tooltips** - Hover over elements for hints
+- **📊 Status Bar** - Real-time feedback at bottom
+- **📜 Scrollable Controls** - Responsive left panel for all screens
+- **🎨 Resizable Layout** - Adjustable panels (PanedWindow)
 
 ---
 
 ## 🎨 GUI Features
 
-### Modern Dark Theme
+### Modern Cyberpunk Theme
 
-- Professional cybersecurity aesthetic
-- Easy on the eyes for long sessions
+- Professional red team aesthetic
+- Hacker green on black background
 - High contrast for accessibility
+- Easy on the eyes for long sessions
 
-### Easy Configuration
+### Mission Parameters
 
-- **Target URL**: Just type or paste
+- **Target URL**: Type or paste
 - **Crawl Depth**: Slider (1-100 pages)
 - **Test Episodes**: Slider (1-10 per page)
-- **AI Model**: Dropdown with all available models
+- **AI Model**: Dropdown with all checkpoints
+
+### Scan Modes
+
+- **AUTO** - Balanced AI-driven scan
+- **AGGRESSIVE** - Deep penetration testing
+- **OSINT** - Reconnaissance only
+- **SPECIFIC** - Single attack type
+- **ZERO-DAY HUNTER** - Advanced fuzzing & CVEs
+
+### Stealth Configuration
+
+- **Stealth Level**: Low/Medium/High/Paranoid
+- **Proxy File**: Auto-fetch or manual upload
+- **Request Delays**: Automatic based on stealth level
 
 ### Real-Time Feedback
 
 - Live progress bar
-- Status updates
+- Status updates in status bar
 - Scrolling log output
 - Timestamp for each event
+- Color-coded messages
 
 ### One-Click Actions
 
-- 🚀 **Start Scan**: Begin scanning
-- ⏹️ **Stop Scan**: Cancel anytime
-- 📄 **View Report**: Open HTML report in browser
-- 🗑️ **Clear Log**: Clean output window
+- ⚡ **FLASH ATTACK**: Quick one-click scan
+- 🚀 **LAUNCH SCAN**: Begin scanning
+- 🛑 **ABORT MISSION**: Cancel anytime
+- 📄 **OPEN REPORT**: View HTML report
+- 🔄 **FETCH PROXIES**: Auto-download proxies
 
 ---
 
@@ -52,30 +101,41 @@ cd d:\github\RL
 python scanner_gui.py
 ```
 
-### 2. Configure Scan
+### 2. Configure Mission
 
-- **Target URL**: Enter `http://localhost/dvwa`
+- **Target URL**: Enter `http://target.com`
 - **Crawl Depth**: Adjust slider (default: 30)
 - **Test Episodes**: Adjust slider (default: 3)
-- **AI Model**: Select from dropdown (use latest for best results)
+- **Scan Mode**: Select AUTO/AGGRESSIVE/OSINT/SPECIFIC/ZERO-DAY
+- **AI Model**: Select from dropdown (use latest)
 
-### 3. Start Scan
+### 3. Configure Stealth (Optional)
 
-- Click **🚀 Start Scan**
-- Confirm the settings
+- **Stealth Level**: Choose Low/Medium/High/Paranoid
+- **Proxy File**: Click 🔄 to auto-fetch or 📂 to browse
+
+### 4. Start Scan
+
+- Click **⚡ FLASH ATTACK** for quick scan, OR
+- Click **🚀 LAUNCH SCAN** for configured scan
 - Watch real-time progress!
 
-### 4. Monitor Progress
+### 5. Monitor Progress
 
 - Progress bar shows activity
-- Status label shows current phase
+- Status bar shows current phase
 - Log shows detailed output
+- Findings list populates in real-time
 
-### 5. View Results
+### 6. View Results
 
-- Click **📄 View HTML Report** when done
-- Report opens in your browser
-- Beautiful, professional format!
+- Click on a finding in the list
+- **Exploit Factory** shows:
+  - Full exploit URLs
+  - CURL commands
+  - Python scripts
+  - Suggested payloads
+- Click **📄 OPEN REPORT** for full HTML report
 
 ---
 
@@ -87,7 +147,8 @@ python scanner_gui.py
 - ✅ You want to see real-time progress
 - ✅ You're new to command line
 - ✅ You want easy model selection
-- ✅ You like clicking buttons
+- ✅ You need exploit code generation
+- ✅ You want to test different modes quickly
 
 ### Use Command Line When:
 
@@ -106,88 +167,129 @@ python scanner_gui.py
 ### Header
 
 ```
-🛡️ AI-Powered Web Security Scanner
+💀 DRL AI RED TEAM - AUTONOMOUS ATTACKER
 ```
 
-- Shows app name and icon
-- Professional branding
+- Cyberpunk branding
+- Professional red team theme
 
-### Left Panel - Configuration
-
-```
-⚙️ Configuration
-├── 🎯 Target URL
-├── 🕷️ Crawl Depth (slider)
-├── 🔄 Test Episodes (slider)
-├── 🤖 AI Model (dropdown)
-├── 🚀 Start Scan (button)
-└── ⏹️ Stop Scan (button)
-```
-
-### Right Panel - Output
+### Left Panel - Mission Control (Scrollable)
 
 ```
-📊 Scan Output
-├── Progress Bar
-├── Status Label
-├── Log Output (scrollable)
-├── 📄 View HTML Report (button)
-└── 🗑️ Clear Log (button)
+🎯 MISSION PARAMETERS
+├── Target URL
+├── Crawl Depth (slider)
+├── Test Episodes (slider)
+└── AI Model (dropdown)
+
+⚙️ SCAN MODE
+├── 🤖 AUTO MODE
+├── 🔥 AGGRESSIVE MODE
+├── 🕵️ OSINT MODE
+├── 🎯 SPECIFIC ATTACK
+└── 💀 ZERO-DAY HUNTER
+
+🥷 STEALTH CONFIGURATION
+├── Stealth Level (dropdown)
+└── Proxy File (auto-fetch/browse)
+
+⚡ FLASH ATTACK (button)
+🚀 LAUNCH SCAN (button)
+🛑 ABORT MISSION (button)
+```
+
+### Middle Panel - Intelligence
+
+```
+📊 SCAN OUTPUT
+├── Real-time log (scrollable)
+└── Status updates
+
+🎯 DETECTED VULNERABILITIES
+└── Findings list (scrollable)
+```
+
+### Right Panel - Exploit Factory
+
+```
+💣 EXPLOIT FACTORY
+├── Vulnerability details
+├── Full exploit URLs
+├── CURL commands
+├── Python scripts
+└── Suggested payloads
+
+📋 COPY PAYLOAD (button)
+📄 OPEN REPORT (button)
 ```
 
 ### Footer
 
 ```
-⚠️ For Authorized Security Testing Only
+⚠️ For Authorized Security Testing Only | Status: Ready
 ```
 
 - Safety reminder
-- Version info
+- Real-time status
 
 ---
 
 ## 🔧 Advanced Features
 
+### Aggressive Mode
+
+When enabled:
+
+- Crawl depth × 1.5
+- Test intensity × 2
+- Epsilon = 0.3 (more exploration)
+- Higher noise level
+
+### Auto-Fetch Proxies
+
+Click 🔄 button to:
+
+1. Fetch from 6 sources
+2. Remove duplicates
+3. Save to `proxies.txt`
+4. Auto-load into scanner
+
+Sources:
+
+- free-proxy-list.net
+- proxyscrape.com
+- geonode.com
+- proxy-list.download
+- pubproxy.com
+- GitHub proxy lists
+
+### Exploit Factory
+
+When you click a finding:
+
+- **Full URLs**: `http://target.com?id=1' OR 1=1--`
+- **CURL**: Ready-to-run commands
+- **Python**: Auto-generated scripts
+- **Payloads**: 200+ attack vectors
+
 ### Model Selection
 
-The dropdown shows all available models:
+Dropdown shows:
 
-- `dqn_web_sec_model.pth (Final - Best Quality)`
-- `checkpoints/dqn_checkpoint_ep500.pth (Episode 500)`
-- `checkpoints/dqn_checkpoint_ep400.pth (Episode 400)`
+- `dqn_web_sec_model.pth (Final)`
+- `checkpoints/multi_target_ep800.pth`
+- `checkpoints/multi_target_ep700.pth`
 - ... and more
 
-**Tip**: Models are sorted newest first!
-
-### Real-Time Logging
-
-Log entries show:
-
-- `[12:34:56] ℹ️ Info message`
-- `[12:34:57] ✅ Success message`
-- `[12:34:58] ⚠️ Warning message`
-- `[12:34:59] ❌ Error message`
-
-Color-coded icons for quick scanning!
-
-### Progress Tracking
-
-- **Animated progress bar** during scan
-- **Status updates** for each phase:
-  - "Ready to scan"
-  - "Scanning in progress..."
-  - "Scan complete - X vulnerabilities found"
+**Tip**: Models sorted newest first!
 
 ---
 
 ## 🎮 Keyboard Shortcuts
 
-While the GUI is focused:
-
 - **Tab**: Navigate between fields
-- **Enter**: Start scan (when Start button focused)
+- **Enter**: Start scan (when button focused)
 - **Esc**: Stop scan (when scanning)
-- **Ctrl+L**: Clear log (custom shortcut)
 
 ---
 
@@ -199,7 +301,7 @@ While the GUI is focused:
 
 ```bash
 # Train a model first
-python train.py
+python train_multi_target.py --episodes 100
 # Then restart GUI
 python scanner_gui.py
 ```
@@ -209,163 +311,148 @@ python scanner_gui.py
 **Solution:**
 
 ```bash
-# Make sure tkinter is installed (usually comes with Python)
+# Make sure tkinter is installed
 python -m tkinter
 # Should open a test window
 ```
 
-### "Model file not found"
+### Proxy fetch fails
 
 **Solution:**
 
-- Check that the model file exists
-- Refresh model list (restart GUI)
-- Train a new model if needed
+- Check internet connection
+- Some sources may be down
+- Try manual proxy file upload
 
 ---
 
 ## 💡 Tips & Tricks
 
-### Tip 1: Use Sliders
+### Tip 1: Flash Attack
 
-- Drag sliders for quick adjustments
-- Current value shown on the right
-- Instant visual feedback
+For quick scans:
 
-### Tip 2: Monitor Logs
+1. Enter target URL
+2. Click **⚡ FLASH ATTACK**
+3. Done! (uses AUTO mode, depth=10, episodes=1)
 
-- Scroll through logs during scan
-- Auto-scrolls to latest entry
-- Clear when needed for fresh view
+### Tip 2: Aggressive Testing
 
-### Tip 3: Compare Models
+For deep scans:
 
-```
-1. Scan with ep100
-2. Note results
-3. Scan with ep500
-4. Compare reports
-```
+1. Select **🔥 AGGRESSIVE MODE**
+2. Increase depth to 50+
+3. Increase episodes to 5+
+4. Enable proxies for stealth
 
-### Tip 4: Save Configuration
+### Tip 3: OSINT Only
 
-The GUI remembers your last settings!
+For reconnaissance:
 
-- Target URL
-- Depth
-- Episodes
-- Model selection
+1. Select **🕵️ OSINT MODE**
+2. No attacks will be performed
+3. Only information gathering
 
----
+### Tip 4: Exploit Generation
 
-## 🎯 Example Workflow
-
-### Scanning DVWA with GUI
-
-**Step 1: Launch**
-
-```bash
-python scanner_gui.py
-```
-
-**Step 2: Configure**
-
-- Target: `http://localhost/dvwa`
-- Depth: `30` (slider)
-- Episodes: `3` (slider)
-- Model: `dqn_web_sec_model.pth (Final - Best Quality)`
-
-**Step 3: Scan**
-
-- Click **🚀 Start Scan**
-- Confirm dialog: **Yes**
-- Watch progress!
-
-**Step 4: Results**
-
-- Wait for "Scan complete" message
-- Click **📄 View HTML Report**
-- Review findings in browser
-
-**Step 5: Next Scan**
-
-- Change target URL
-- Click **🚀 Start Scan** again
-- That's it!
+1. Run scan
+2. Click on finding
+3. Copy full URLs from Exploit Factory
+4. Paste in browser/Burp Suite
 
 ---
 
-## 🎨 Accessibility Features
+## 🎯 Example Workflows
 
-### Visual
+### Quick Scan (Flash Attack)
 
-- ✅ High contrast dark theme
-- ✅ Large, readable fonts
-- ✅ Color-coded status icons
-- ✅ Clear button labels
+```
+1. Enter: http://target.com
+2. Click: ⚡ FLASH ATTACK
+3. Wait: ~2 minutes
+4. Review: Findings list
+```
 
-### Interaction
+### Deep Penetration Test
 
-- ✅ Keyboard navigation (Tab)
-- ✅ Mouse-friendly buttons
-- ✅ Slider controls
-- ✅ Confirmation dialogs
+```
+1. Enter: http://target.com
+2. Mode: 🔥 AGGRESSIVE
+3. Depth: 50
+4. Episodes: 5
+5. Stealth: High
+6. Proxies: Auto-fetch
+7. Click: 🚀 LAUNCH SCAN
+8. Wait: ~15 minutes
+9. Review: Full report
+```
 
-### Feedback
+### OSINT Reconnaissance
 
-- ✅ Real-time status updates
-- ✅ Progress indicators
-- ✅ Success/error messages
-- ✅ Timestamped logs
+```
+1. Enter: http://target.com
+2. Mode: 🕵️ OSINT
+3. Depth: 30
+4. Click: 🚀 LAUNCH SCAN
+5. Review: Discovered endpoints
+```
 
 ---
 
 ## 📊 Comparison
 
-| Feature            | GUI        | Command Line |
+| Feature            | GUI (2025) | Command Line |
 | ------------------ | ---------- | ------------ |
 | Ease of Use        | ⭐⭐⭐⭐⭐ | ⭐⭐⭐       |
 | Visual Feedback    | ⭐⭐⭐⭐⭐ | ⭐⭐         |
 | Real-time Progress | ⭐⭐⭐⭐⭐ | ⭐⭐⭐       |
+| Exploit Generation | ⭐⭐⭐⭐⭐ | ⭐⭐⭐       |
+| Proxy Management   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐       |
 | Automation         | ⭐⭐       | ⭐⭐⭐⭐⭐   |
 | Resource Usage     | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐   |
 | Learning Curve     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐       |
 
-**Recommendation**: Start with GUI, use CLI for automation!
+**Recommendation**: GUI for testing, CLI for automation!
 
 ---
 
 ## 🚀 Quick Reference
 
-| Action       | How To                      |
-| ------------ | --------------------------- |
-| Launch GUI   | `python scanner_gui.py`     |
-| Start scan   | Click "🚀 Start Scan"       |
-| Stop scan    | Click "⏹️ Stop Scan"        |
-| View report  | Click "📄 View HTML Report" |
-| Clear log    | Click "🗑️ Clear Log"        |
-| Change model | Select from dropdown        |
-| Adjust depth | Drag slider                 |
+| Action        | How To                        |
+| ------------- | ----------------------------- |
+| Launch GUI    | `python scanner_gui.py`       |
+| Quick scan    | Click "⚡ FLASH ATTACK"       |
+| Full scan     | Click "🚀 LAUNCH SCAN"        |
+| Stop scan     | Click "🛑 ABORT MISSION"      |
+| Fetch proxies | Click "🔄" next to proxy file |
+| View exploit  | Click finding in list         |
+| Copy payload  | Click "📋 COPY PAYLOAD"       |
+| View report   | Click "📄 OPEN REPORT"        |
+| Change mode   | Select radio button           |
+| Adjust depth  | Drag slider                   |
 
 ---
 
 ## 🎉 Summary
 
-The GUI provides:
+The 2025 GUI provides:
 
-- ✅ Beautiful, modern interface
-- ✅ Easy configuration
+- ✅ Cyberpunk red team interface
+- ✅ 4 scan modes (Auto/Aggressive/OSINT/Specific)
+- ✅ Auto-fetch proxies (6 sources)
+- ✅ Full exploit URLs (copy-paste ready)
+- ✅ 200+ attack payloads
 - ✅ Real-time feedback
-- ✅ One-click scanning
-- ✅ Professional results
+- ✅ One-click Flash Attack
+- ✅ Professional reports
 
 **Perfect for:**
 
-- Beginners
-- Visual learners
-- Quick scans
-- Demonstrations
-- Non-technical users
+- Penetration testers
+- Security researchers
+- Bug bounty hunters
+- Red team operations
+- Security training
 
 **Launch it now:**
 
@@ -373,4 +460,4 @@ The GUI provides:
 python scanner_gui.py
 ```
 
-Enjoy the beautiful interface! 🎨
+Enjoy the ultimate hacking interface! 💀🔥

@@ -4,6 +4,50 @@
 
 This project implements a Deep Reinforcement Learning agent that autonomously discovers web vulnerabilities using a **Kill Chain** approach. The agent progresses through 4 phases: Reconnaissance → Discovery → Exploitation → Post-Exploitation.
 
+## 🚀 Latest Features (2025)
+
+### GUI Enhancements
+
+- **🔥 Aggressive Scan Mode** - 1.5x deeper crawling, 2x attack intensity
+- **📋 Full Exploit URLs** - Ready-to-paste URLs with payloads (e.g., `http://target.com?id=1' OR 1=1--`)
+- **🔄 Auto-Fetch Proxies** - Automatically fetch from 6 sources (200+ proxies)
+- **💡 Tooltips & Status Bar** - Improved UX with hover hints and real-time status
+- **📊 Responsive Layout** - Panels resize correctly with window
+
+### Payload Database
+
+- **200+ Attack Payloads** - Comprehensive coverage for all attack types
+- **15+ SQL Injection** variants (time-based, union, blind)
+- **18+ XSS** payloads (CSP bypass, polyglots, DOM-based)
+- **14+ LFI/Path Traversal** techniques
+- **13+ Command Injection** methods
+- **12+ SSTI** (Jinja2, Freemarker, Ruby)
+- **11+ SSRF** (AWS, Azure, GCP metadata)
+- **8+ Prototype Pollution** payloads
+- **5+ XXE** (file disclosure, SSRF)
+- **NoSQL, LDAP, OAuth** injection payloads
+
+### Proxy System
+
+- **6 Proxy Sources:**
+  - free-proxy-list.net
+  - proxyscrape.com
+  - geonode.com
+  - proxy-list.download
+  - pubproxy.com
+  - GitHub proxy lists
+- **Auto-Validation** - Removes duplicates
+- **Manual Upload** - Browse for custom proxy files
+
+### Enhanced Reports
+
+- **📝 Description** - Detailed vulnerability explanation
+- **💥 Real-World Impact** - Business consequences
+- **⚔️ Exploitation Steps** - Step-by-step attack guide
+- **💣 Potential Damage** - What attackers can achieve
+- **🛠️ Remediation** - How to fix the vulnerability
+- **Severity & CVSS** - Risk scoring
+
 ## Architecture
 
 ### Kill Chain Phases (100 Actions)
@@ -29,24 +73,6 @@ This project implements a Deep Reinforcement Learning agent that autonomously di
 
 - Database Dumping, Token Theft, Webshell Installation, Privilege Escalation, Data Exfiltration
 
-## Efficient Algorithm: Phase-Based Reward Shaping
-
-The agent uses **Progressive Phase Unlocking** to learn the correct attack sequence:
-
-1. **Phase Validation:** Actions are validated against the current phase
-2. **Progressive Unlocking:** Next phase unlocks after 5 successful actions in current phase
-3. **Reward Bonuses:**
-   - +10 points for correct phase actions
-   - +20 points for phase completion
-   - -5 points for skipping phases
-
-This ensures the agent learns to:
-
-- **Recon first** (find attack surface)
-- **Discover vulnerabilities** (probe for weaknesses)
-- **Exploit** (gain access)
-- **Post-Exploit** (maximize impact)
-
 ## Training Configuration
 
 **MAX GPU Settings (RTX 2070):**
@@ -62,7 +88,13 @@ This ensures the agent learns to:
 python train_multi_target.py --episodes 1000
 ```
 
-**Resume Training:**
+**Auto-Resume from Latest Checkpoint:**
+
+```bash
+python train_multi_target.py --latest --episodes 1000
+```
+
+**Resume from Specific Episode:**
 
 ```bash
 python train_multi_target.py --episodes 1000 --resume <episode_number>
@@ -70,19 +102,29 @@ python train_multi_target.py --episodes 1000 --resume <episode_number>
 
 ## Target Applications
 
-The agent trains against 3 vulnerable web applications:
+The agent trains against 6 vulnerable web applications:
 
 1. **target_app.py** - Core vulnerabilities (SQLi, XSS, IDOR)
 2. **target_app_ecommerce.py** - E-commerce logic flaws
 3. **target_app_social.py** - Social media vulnerabilities
+4. **target_app_lms.py** - Learning Management System
+5. **target_app_rsu.py** - University portal
+6. **target_app_dit_rsu.py** - Department portal
 
 ## Deployment
 
 **Autonomous Scanning:**
 
 ```bash
-python autonomous_scan.py --target http://example.com
+python autonomous_scan.py --target http://example.com --crawl-depth 30 --intensity 3
 ```
+
+**Scan Modes:**
+
+- `--mode auto` - AI agent decides actions (default)
+- `--mode aggressive` - 1.5x depth, 2x intensity, more noise
+- `--mode osint` - Only reconnaissance, no attacks
+- `--mode specific --attack "SQL Injection"` - Single attack type
 
 **Interactive GUI:**
 
@@ -90,18 +132,34 @@ python autonomous_scan.py --target http://example.com
 python scanner_gui.py
 ```
 
+**GUI Features:**
+
+- 🎯 Mission Parameters (URL, depth, intensity)
+- ⚙️ Scan Modes (Auto, Aggressive, OSINT, Specific)
+- 🥷 Stealth Configuration (Low/Medium/High/Paranoid)
+- 🔄 Auto-Fetch Proxies (6 sources)
+- ⚡ Flash Attack (One-click quick scan)
+- 💣 Exploit Factory (Auto-generate payloads)
+- 📄 Report Generation (HTML/Markdown/Text)
+
 ## Project Structure
 
 ```
 RL/
 ├── agent/                  # DQN Agent implementation
+│   └── payload_manager.py  # 200+ attack payloads
 ├── env/                    # Gym environment & target apps
 │   ├── web_sec_env.py     # Main environment (100 actions)
-│   ├── target_app*.py     # Training targets
+│   └── target_app*.py     # Training targets (6 apps)
+├── utils/                  # Utilities
+│   ├── proxy_fetcher.py   # Auto-fetch proxies (6 sources)
+│   ├── vulnerability_database.py  # Vuln descriptions
+│   └── report_generator.py  # Report creation
 ├── checkpoints/            # Saved models
-├── docs/                   # Documentation
+├── reports/                # Scan reports
 ├── train_multi_target.py   # Training script
-└── autonomous_scan.py      # Deployment script
+├── autonomous_scan.py      # CLI scanner
+└── scanner_gui.py          # GUI application
 ```
 
 ## Key Features
@@ -109,8 +167,15 @@ RL/
 ✅ **100 Real-World Actions** (32 OSINT + 68 Attacks)  
 ✅ **Phase-Based Learning** (Kill Chain progression)  
 ✅ **MAX GPU Optimization** (8192 neurons, 4096 batch)  
-✅ **Multi-Target Training** (3 vulnerable apps)  
-✅ **Autonomous Deployment** (Scan any target)
+✅ **Multi-Target Training** (6 vulnerable apps)  
+✅ **Autonomous Deployment** (Scan any target)  
+✅ **200+ Attack Payloads** (SQL, XSS, SSRF, LFI, etc.)  
+✅ **Auto-Proxy Fetching** (6 sources, 200+ proxies)  
+✅ **Aggressive Scan Mode** (High-intensity scanning)  
+✅ **Full Exploit URLs** (Copy-paste ready)  
+✅ **Comprehensive Reports** (Impact, remediation, CVSS)  
+✅ **Stealth Options** (Proxy rotation, delays)  
+✅ **Auto-Resume Training** (`--latest` flag)
 
 ## Performance
 
@@ -118,7 +183,22 @@ RL/
 - **Action Space:** 100 actions (optimized for real-world)
 - **Episode Length:** 100 steps
 - **Checkpoint Frequency:** Every 10 episodes
+- **Proxy Sources:** 6 (auto-fetch 200+ proxies)
+- **Payload Database:** 200+ attack vectors
+
+## Scan Modes Comparison
+
+| Mode           | Speed  | Noise Level | Use Case                  |
+| -------------- | ------ | ----------- | ------------------------- |
+| **OSINT**      | Fast   | Silent      | Reconnaissance only       |
+| **Auto**       | Medium | Low         | Balanced AI-driven scan   |
+| **Aggressive** | Slow   | High        | Deep penetration testing  |
+| **Specific**   | Fast   | Low         | Test single vulnerability |
 
 ## License
 
 MIT License - See LICENSE file for details
+
+## ⚠️ Legal Disclaimer
+
+This tool is for **authorized security testing only**. Unauthorized use against systems you don't own or have permission to test is **illegal**. Always obtain written permission before scanning.

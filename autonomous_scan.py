@@ -35,6 +35,8 @@ from agent.dqn_agent import DQNAgent
 from env.web_sec_env import WebSecEnv
 from utils.report_generator import ReportGenerator
 from utils.vulnerability_database import VULNERABILITY_DATABASE
+from utils.zero_day_hunter import ZeroDayHunter
+from utils.target_hunter import TargetHunter
 
 @dataclass
 class Finding:
@@ -620,6 +622,12 @@ class SecurityAuditor:
         self.use_proxies = use_proxies
         self.proxy_count = len(proxy_list) if proxy_list else 0
         self.stealth_level = stealth_level
+        self.stop_requested = False
+
+    def stop(self):
+        """Signal the auditor to stop scanning."""
+        self.stop_requested = True
+
 
     def log_finding(self, finding):
         """Callback for logging findings (can be overridden by GUI)"""
@@ -644,6 +652,9 @@ class SecurityAuditor:
         
         Scan Modes:
         - "auto": Use AI Agent to decide actions (Default)
+        Scan Modes:
+        - "auto": Use AI Agent to decide actions (Default)
+        - "aggressive": High intensity, deeper crawl, more noise
         - "osint": Only perform OSINT actions
         - "specific": Only perform a specific type of attack
         """
@@ -657,6 +668,13 @@ class SecurityAuditor:
             print(f"⚠️  WARNING: No proxy rotation - Your IP is exposed!")
         print(f"🥷 STEALTH LEVEL: {self.stealth_level.upper()}")
         print("=" * 70)
+        
+        if scan_mode == "aggressive":
+            print(f"🔥 AGGRESSIVE MODE ENGAGED: Boosting intensity and depth!")
+            crawl_depth = int(crawl_depth * 1.5)
+            test_intensity = int(test_intensity * 2)
+            epsilon = 0.3 # More random exploration
+            
         print()
         
         # --- Phase 1: Reconnaissance ---
@@ -672,6 +690,9 @@ class SecurityAuditor:
         all_findings: List[Finding] = []
         
         for url in discovered_urls:
+            if self.stop_requested:
+                print("\n🛑 Scan aborted by user.")
+                break
             print(f"\n🎯 Auditing: {url}")
             findings = self._audit_page(url, attempts=test_intensity, epsilon=epsilon, scan_mode=scan_mode, specific_attack=specific_attack)
             
@@ -729,8 +750,67 @@ class SecurityAuditor:
                         self.log_finding(finding)
                 return findings
 
+            # Zero-Day Hunter Mode
+            if scan_mode == "zeroday":
+                print(f"  💀 Running Zero-Day Hunter on {url}...")
+                hunter = ZeroDayHunter()
+                
+                # 1. Check Weak Configurations
+                print("    🔍 Checking for weak configurations...")
+                config_findings = hunter.check_weak_configuration(url)
+                for f in config_findings:
+                    finding = Finding(
+                        url=url + f['endpoint'],
+                        vuln_type=f['type'],
+                        confidence='High',
+                        reward=50.0,
+                        payload=f.get('description', ''),
+                        method='GET'
+                    )
+                    findings.append(finding)
+                    self.log_finding(finding)
+                    print(f"      🚨 Found: {f['type']}")
+
+                # 2. Fuzzing
+                print("    💣 Fuzzing for anomalies...")
+                # Simple fuzzing integration (sending payloads to URL params)
+                if "?" in url:
+                    base_url_only = url.split("?")[0]
+                    params = url.split("?")[1]
+                    # Very basic param parsing for demo
+                    for param in params.split("&"):
+                        if "=" in param:
+                            key = param.split("=")[0]
+                            
+                            # Try a few fuzzing payloads
+                            fuzz_payloads = hunter.generate_fuzzing_payloads('buffer_overflow')[:5] # Limit to 5 for speed
+                            for payload in fuzz_payloads:
+                                try:
+                                    # Construct fuzzed URL
+                                    fuzzed_url = f"{base_url_only}?{key}={payload}"
+                                    # We use the session from explorer if possible, but here we just use requests for simplicity
+                                    # In a real integration, we'd use self.explorer.session
+                                    resp = requests.get(fuzzed_url, timeout=3)
+                                    if resp.status_code >= 500 or resp.elapsed.total_seconds() > 2:
+                                        finding = Finding(
+                                            url=fuzzed_url,
+                                            vuln_type="Potential Zero-Day (Anomaly)",
+                                            confidence='Medium',
+                                            reward=100.0,
+                                            payload=payload,
+                                            method='GET'
+                                        )
+                                        findings.append(finding)
+                                        self.log_finding(finding)
+                                        print(f"      🚨 Anomaly detected: {resp.status_code} / {resp.elapsed.total_seconds()}s")
+                                except:
+                                    pass
+                return findings
+
             # Default AUTO mode (AI Agent)
             for _ in range(attempts):
+                if self.stop_requested:
+                    break
                 state, _ = env.reset()
                 done = False
                 steps = 0
@@ -777,35 +857,109 @@ class SecurityAuditor:
         generator.generate_md_report(urls, findings, VULNERABILITY_DATABASE)
 
 
+
+
+
 if __name__ == "__main__":
-    # Parse command line arguments
-    parser = argparse.ArgumentParser(description='AI-Powered Autonomous Security Scanner')
-    parser.add_argument('url', help='Target URL to scan (e.g., http://localhost:5000)')
-    parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl')
-    parser.add_argument('--intensity', type=int, default=3, help='How many times to test each page')
-    parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Path to the trained AI model')
-    parser.add_argument('--proxies', help='Path to file containing proxy list (one per line)')
-    parser.add_argument('--stealth', choices=['low', 'medium', 'high', 'paranoid'], default='medium',
-                        help='Stealth level: low (fast), medium (balanced), high (slow), paranoid (very slow)')
-    
-    args = parser.parse_args()
-    
-    # Load proxies if provided
-    proxy_list = None
-    if args.proxies:
-        try:
-            with open(args.proxies, 'r') as f:
-                proxy_list = [line.strip() for line in f if line.strip()]
-            print(f"✅ Loaded {len(proxy_list)} proxies from {args.proxies}\n")
-        except Exception as e:
-            print(f"❌ Error loading proxies: {e}\n")
-    
-    # Start the auditor
-    auditor = SecurityAuditor(
-        args.url, 
-        args.model,
-        use_proxies=bool(proxy_list),
-        proxy_list=proxy_list,
-        stealth_level=args.stealth
-    )
-    auditor.start_audit(crawl_depth=args.depth, test_intensity=args.intensity)
+    def main():
+        # Parse command line arguments
+        parser = argparse.ArgumentParser(description='AI-Powered Autonomous Security Scanner')
+        parser.add_argument('url', nargs='?', help='Target URL to scan (e.g., http://localhost:5000)')
+        parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl')
+        parser.add_argument('--intensity', type=int, default=3, help='How many times to test each page')
+        parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Path to the trained AI model')
+        parser.add_argument("--mode", type=str, default="auto", choices=["auto", "aggressive", "osint", "specific", "zeroday"], help="Scan mode")
+        parser.add_argument("--attack", type=str, help="Specific attack type (e.g., SQL, XSS)")
+        parser.add_argument("--proxy-file", type=str, help="Path to proxy list file")
+        parser.add_argument("--stealth", type=str, default="medium", choices=["low", "medium", "high", "paranoid"], help="Stealth level")
+        
+        # Hunting Arguments
+        parser.add_argument("--dork", type=str, help="Google Dork query to find targets")
+        parser.add_argument("--shodan-query", type=str, help="Shodan query to find targets")
+        parser.add_argument("--shodan-key", type=str, help="Shodan API Key")
+        parser.add_argument("--crtsh", type=str, help="Domain to search in CRT.sh")
+        parser.add_argument("--duckduckgo", type=str, help="DuckDuckGo query")
+        parser.add_argument("--censys-query", type=str, help="Censys query")
+        parser.add_argument("--censys-id", type=str, help="Censys API ID")
+        parser.add_argument("--censys-secret", type=str, help="Censys API Secret")
+        parser.add_argument("--limit", type=int, default=5, help="Max targets to hunt per source")
+
+        args = parser.parse_args()
+        
+        # --- TARGET HUNTING LOGIC ---
+        targets = []
+        if args.url:
+            targets.append(args.url)
+        
+        if args.dork or args.shodan_query or args.crtsh or args.duckduckgo or args.censys_query:
+            print(f"\n🌍 STARTING TARGET HUNTING...")
+            hunter = TargetHunter(shodan_api_key=args.shodan_key)
+            
+            if args.dork:
+                found = hunter.dork_google(args.dork, num_results=args.limit)
+                print(f"  🔍 Google Dork found {len(found)} targets")
+                targets.extend(found)
+                
+            if args.shodan_query:
+                found = hunter.search_shodan(args.shodan_query, limit=args.limit)
+                print(f"  🌐 Shodan found {len(found)} targets")
+                targets.extend(found)
+            
+            if args.crtsh:
+                found = hunter.search_crtsh(args.crtsh)
+                print(f"  📜 CRT.sh found {len(found)} subdomains")
+                targets.extend(found)
+                
+            if args.duckduckgo:
+                found = hunter.search_duckduckgo(args.duckduckgo, num_results=args.limit)
+                print(f"  🦆 DuckDuckGo found {len(found)} targets")
+                targets.extend(found)
+                
+            if args.censys_query:
+                found = hunter.search_censys(args.censys_query, args.censys_id, args.censys_secret, limit=args.limit)
+                print(f"  👁️ Censys found {len(found)} targets")
+                targets.extend(found)
+                
+            targets = list(set(targets)) # Remove duplicates
+            print(f"✅ Total unique targets found: {len(targets)}\n")
+            
+        if not targets:
+            print("❌ No targets specified. Use --url or hunting arguments (--dork, --shodan-query, etc.)")
+            return
+
+        # Load proxies if provided
+        proxies = []
+        if args.proxy_file:
+            try:
+                with open(args.proxy_file, 'r') as f:
+                    proxies = [line.strip() for line in f if line.strip()]
+                print(f"✅ Loaded {len(proxies)} proxies from {args.proxy_file}")
+            except Exception as e:
+                print(f"❌ Error loading proxies: {e}")
+
+        # --- SCANNING LOOP ---
+        for i, target in enumerate(targets):
+            print(f"\n{'='*60}")
+            print(f"🚀 TARGET {i+1}/{len(targets)}: {target}")
+            print(f"{'='*60}")
+            
+            try:
+                auditor = SecurityAuditor(
+                    base_url=target,
+                    model_path=args.model,
+                    use_proxies=bool(proxies),
+                    proxy_list=proxies,
+                    stealth_level=args.stealth
+                )
+                
+                auditor.start_audit(
+                    crawl_depth=args.depth,
+                    test_intensity=args.intensity, # Changed from args.episodes to args.intensity
+                    scan_mode=args.mode,
+                    specific_attack=args.attack
+                )
+            except Exception as e:
+                print(f"❌ Error scanning {target}: {e}")
+                continue
+
+    main()

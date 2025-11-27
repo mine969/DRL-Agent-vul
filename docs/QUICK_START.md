@@ -1,119 +1,379 @@
-# Quick Start Guide
-
-## Prerequisites
-
-- Python 3.8+
-- CUDA-capable GPU (recommended: RTX 2070 or better)
-- 2GB+ free disk space
+# 🚀 Quick Start Guide (2025 Edition)
 
 ## Installation
 
+### 1. Clone Repository
+
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/DRL-Agent-vul.git
-cd DRL-Agent-vul
+git clone https://github.com/yourusername/RL.git
+cd RL
+```
 
-# Create virtual environment
-python -m venv .venv
-.venv\Scripts\activate  # Windows
-# source .venv/bin/activate  # Linux/Mac
+### 2. Install Dependencies
 
-# Install dependencies
+```bash
 pip install -r requirements.txt
 ```
 
-## Training the Agent
+### 3. Verify Installation
 
-### Start Fresh Training
+```bash
+python -c "import torch; print(torch.cuda.is_available())"
+# Should print: True (if you have GPU)
+```
+
+---
+
+## Training Your First Agent
+
+### Option 1: Quick Training (2000 episodes)
 
 ```bash
 python train_multi_target.py --episodes 2000
 ```
 
-### Resume Training
+**Time**: ~32 hours  
+**Result**: Decent agent for testing
+
+### Option 2: Production Agent (5000 episodes)
 
 ```bash
-python train_multi_target.py --episodes 2000 --resume 1000
+python train_multi_target.py --episodes 5000
 ```
 
-### Training Features
+**Time**: ~80 hours  
+**Result**: Professional-grade agent
 
-- **Checkpoints:** Saved every 10 episodes
-- **Auto-save:** Press Ctrl+C to save and stop
-- **GPU Acceleration:** Automatic CUDA detection
-- **Progress Tracking:** Real-time metrics in terminal
-
-## Using the Trained Agent
-
-### Autonomous Scanning
+### Option 3: Resume Training
 
 ```bash
-python autonomous_scan.py --target http://example.com
+# Auto-resume from latest checkpoint
+python train_multi_target.py --latest --episodes 5000
+
+# Resume from specific episode
+python train_multi_target.py --resume 2000 --episodes 5000
 ```
 
-### Interactive GUI
+---
+
+## Using the Scanner
+
+### GUI Mode (Recommended for Beginners)
 
 ```bash
 python scanner_gui.py
 ```
 
-## Architecture Overview
+**Features**:
 
-**Kill Chain (100 Actions):**
+- 🎯 Visual interface
+- 🔥 Aggressive scan mode
+- 🔄 Auto-fetch proxies (6 sources)
+- 📋 Full exploit URLs
+- ⚡ One-click Flash Attack
 
-1. **Reconnaissance (0-29):** OSINT, port scanning, subdomain enumeration
-2. **Discovery (30-59):** Vulnerability probing, injection testing
-3. **Exploitation (60-89):** Advanced attacks, RCE, cloud exploits
-4. **Post-Exploitation (90-99):** Data exfiltration, privilege escalation
+**Quick Workflow**:
 
-**Phase-Based Reward Shaping:**
+1. Enter target URL
+2. Click "⚡ FLASH ATTACK"
+3. Review findings
+4. Click finding for exploit code
 
-- Progressive unlocking of attack phases
-- +10 bonus for correct phase actions
-- +20 bonus for phase completion
-- -5 penalty for skipping phases
+### Command Line Mode
 
-## Training Targets
+```bash
+# Basic scan
+python autonomous_scan.py --target http://example.com
 
-The agent trains against 6 targets:
+# Aggressive scan
+python autonomous_scan.py --target http://example.com --mode aggressive
 
-1. localhost:5001 - Core vulnerabilities
-2. localhost:5002 - E-commerce platform
-3. localhost:5003 - Social media app
-4. levelup.melivecode.com - LMS platform
-5. rsuip.org - University portal
-6. dit.rsu.ac.th - Department site
+# OSINT only
+python autonomous_scan.py --target http://example.com --mode osint
 
-## Expected Results
+# Specific attack
+python autonomous_scan.py --target http://example.com --mode specific --attack "SQL Injection"
+```
 
-- **Training Time:** 16-20 hours (2000 episodes)
-- **Checkpoints:** 200 files (~1.7 GB)
-- **GPU Usage:** 90-95% utilization
-- **Success Rate:** Improves progressively
+---
+
+## Scan Modes
+
+### AUTO Mode (Default)
+
+```bash
+python autonomous_scan.py --target http://example.com --mode auto
+```
+
+- AI agent decides actions
+- Balanced approach
+- Low noise level
+
+### AGGRESSIVE Mode
+
+```bash
+python autonomous_scan.py --target http://example.com --mode aggressive
+```
+
+- 1.5x crawl depth
+- 2x test intensity
+- More exploration (epsilon=0.3)
+- Higher noise level
+
+### OSINT Mode
+
+```bash
+python autonomous_scan.py --target http://example.com --mode osint
+```
+
+- Reconnaissance only
+- No attacks performed
+- Silent operation
+
+### SPECIFIC Mode
+
+```bash
+python autonomous_scan.py --target http://example.com --mode specific --attack "XSS"
+```
+
+- Test single vulnerability
+- Faster execution
+- Focused testing
+
+---
+
+## Using Proxies
+
+### Auto-Fetch (GUI)
+
+1. Open GUI
+2. Click 🔄 button next to proxy file
+3. Wait for fetch (200+ proxies)
+4. Proxies auto-loaded
+
+### Manual (CLI)
+
+```bash
+# Create proxy file
+echo "http://proxy1.com:8080" > proxies.txt
+echo "http://proxy2.com:3128" >> proxies.txt
+
+# Use in scan
+python autonomous_scan.py --target http://example.com --proxy-file proxies.txt
+```
+
+### Proxy Sources
+
+The auto-fetch pulls from:
+
+- free-proxy-list.net
+- proxyscrape.com
+- geonode.com
+- proxy-list.download
+- pubproxy.com
+- GitHub proxy lists
+
+---
+
+## Stealth Levels
+
+```bash
+# Low stealth (fast)
+python autonomous_scan.py --target http://example.com --stealth low
+
+# Medium stealth (balanced)
+python autonomous_scan.py --target http://example.com --stealth medium
+
+# High stealth (slow, careful)
+python autonomous_scan.py --target http://example.com --stealth high
+
+# Paranoid (very slow, maximum stealth)
+python autonomous_scan.py --target http://example.com --stealth paranoid
+```
+
+**Stealth affects**:
+
+- Request delays
+- User-Agent rotation
+- Proxy usage
+- Request patterns
+
+---
+
+## Viewing Reports
+
+### HTML Report (Best)
+
+```bash
+# Auto-opens in browser after scan
+# Or manually:
+start reports/vulnerability_report_TIMESTAMP.html  # Windows
+open reports/vulnerability_report_TIMESTAMP.html   # Mac
+xdg-open reports/vulnerability_report_TIMESTAMP.html  # Linux
+```
+
+### Markdown Report
+
+```bash
+# View in editor
+code reports/vulnerability_report_TIMESTAMP.md
+```
+
+### Text Report
+
+```bash
+# View in terminal
+cat reports/vulnerability_report_TIMESTAMP.txt
+```
+
+---
+
+## Common Workflows
+
+### Workflow 1: Quick Bug Bounty Scan
+
+```bash
+# 1. GUI Flash Attack
+python scanner_gui.py
+# Enter target, click ⚡ FLASH ATTACK
+
+# 2. Review findings
+# Click on finding for exploit URLs
+
+# 3. Test manually
+# Copy full URL, paste in browser/Burp
+```
+
+### Workflow 2: Deep Penetration Test
+
+```bash
+# 1. Aggressive scan with proxies
+python autonomous_scan.py \
+  --target http://target.com \
+  --mode aggressive \
+  --crawl-depth 50 \
+  --intensity 5 \
+  --stealth high \
+  --proxy-file proxies.txt
+
+# 2. Review comprehensive report
+start reports/vulnerability_report_*.html
+
+# 3. Exploit findings
+# Use generated CURL/Python scripts
+```
+
+### Workflow 3: OSINT Reconnaissance
+
+```bash
+# 1. Silent information gathering
+python autonomous_scan.py \
+  --target http://target.com \
+  --mode osint \
+  --crawl-depth 100
+
+# 2. Analyze discovered endpoints
+# Check report for sensitive files
+
+# 3. Plan attack strategy
+# Based on discovered attack surface
+```
+
+---
 
 ## Troubleshooting
 
-**GPU Not Detected:**
+### "No models found"
 
 ```bash
-python -c "import torch; print(torch.cuda.is_available())"
+# Train a model first
+python train_multi_target.py --episodes 1000
 ```
 
-**Training Crashes:**
+### "CUDA out of memory"
 
-- Check target apps are running
-- Verify sufficient disk space
-- Review last checkpoint
+```bash
+# Reduce batch size in train_multi_target.py
+# Change: batch_size = 4096
+# To: batch_size = 2048
+```
 
-**Slow Training:**
+### "Connection refused"
 
-- Ensure TF32 is enabled
-- Check GPU temperature
-- Reduce batch size if OOM
+```bash
+# Make sure target is running
+# Check firewall settings
+# Try with http:// instead of https://
+```
+
+### "No vulnerabilities found"
+
+```bash
+# Try aggressive mode
+python autonomous_scan.py --target http://target.com --mode aggressive
+
+# Or increase depth/intensity
+python autonomous_scan.py --target http://target.com --crawl-depth 50 --intensity 5
+```
+
+---
 
 ## Next Steps
 
-1. Monitor training progress
-2. Evaluate checkpoints at ep500, ep1000, ep1500
-3. Deploy best checkpoint for real-world scanning
-4. Review `docs/` for advanced usage
+### After Your First Scan
+
+1. ✅ Review the HTML report
+2. ✅ Test exploit URLs manually
+3. ✅ Try different scan modes
+4. ✅ Experiment with stealth levels
+
+### Improve Your Agent
+
+1. ✅ Train longer (5000+ episodes)
+2. ✅ Test on multiple targets
+3. ✅ Compare checkpoint performance
+4. ✅ Fine-tune hyperparameters
+
+### Advanced Usage
+
+1. ✅ Read `DEPLOYMENT_GUIDE.md`
+2. ✅ Check `REAL_WORLD_USAGE.md`
+3. ✅ Study `TRAINING_RECOMMENDATIONS.md`
+4. ✅ Explore `GUI_GUIDE.md`
+
+---
+
+## Quick Reference
+
+| Task            | Command                                                           |
+| --------------- | ----------------------------------------------------------------- |
+| Train agent     | `python train_multi_target.py --episodes 5000`                    |
+| Resume training | `python train_multi_target.py --latest --episodes 5000`           |
+| GUI scan        | `python scanner_gui.py`                                           |
+| CLI scan        | `python autonomous_scan.py --target URL`                          |
+| Aggressive scan | `python autonomous_scan.py --target URL --mode aggressive`        |
+| OSINT only      | `python autonomous_scan.py --target URL --mode osint`             |
+| With proxies    | `python autonomous_scan.py --target URL --proxy-file proxies.txt` |
+| High stealth    | `python autonomous_scan.py --target URL --stealth high`           |
+
+---
+
+## Getting Help
+
+- 📖 Read the docs in `docs/` folder
+- 🐛 Check `TROUBLESHOOTING.md`
+- 💬 Open an issue on GitHub
+- 📧 Contact the maintainers
+
+---
+
+## ⚠️ Legal Notice
+
+**This tool is for authorized security testing only.**
+
+- ✅ Get written permission before scanning
+- ✅ Only test systems you own or have authorization for
+- ❌ Unauthorized scanning is illegal
+- ❌ You are responsible for your actions
+
+**Use responsibly!** 🛡️
