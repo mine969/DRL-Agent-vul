@@ -28,14 +28,16 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 class MultiTargetTrainer:
     """Trains the agent across multiple target applications."""
     
-    def __init__(self, targets, model_path="dqn_web_sec_model.pth"):
+    def __init__(self, targets, model_path="dqn_web_sec_model.pth", verbose=False):
         """
         Args:
             targets: List of (name, url) tuples for each target
             model_path: Path to save/load the model
+            verbose: Enable detailed logging
         """
         self.targets = targets
         self.model_path = model_path
+        self.verbose = verbose
         
         # Initialize agent (state_dim=11, action_dim=100)
         self.agent = DQNAgent(state_dim=11, action_dim=100)
@@ -80,6 +82,13 @@ class MultiTargetTrainer:
                 # Determine which target to use based on curriculum phase
                 target_name, target_url = self._select_target(episode, total_episodes)
                 
+                # Verbose: Print episode header
+                if self.verbose:
+                    print(f"\n{'='*70}", flush=True)
+                    print(f"🎯 Episode {episode}/{total_episodes} | Target: {target_name}", flush=True)
+                    print(f"🌐 URL: {target_url}", flush=True)
+                    print(f"{'='*70}", flush=True)
+                
                 # Train one episode on selected target
                 reward, vulns_found = self._train_episode(target_name, target_url, episode)
                 
@@ -112,9 +121,10 @@ class MultiTargetTrainer:
     
     def _select_target(self, episode, total_episodes):
         """Curriculum learning: gradually introduce more targets (6 total)."""
-        phase_1_end = int(total_episodes * 0.2)  # 20% - Local only
-        phase_2_end = int(total_episodes * 0.4)  # 40% - Add LMS
-        phase_3_end = int(total_episodes * 0.7)  # 70% - Add RSU sites
+        # ACCELERATED CURRICULUM: Introduce real targets much sooner
+        phase_1_end = 50   # Ep 1-50: Local only (Warmup)
+        phase_2_end = 100  # Ep 51-100: Add LMS
+        # Ep 101+: All targets (Real-World)
         
         if episode <= phase_1_end:
             # Phase 1: Local targets only (0-2)
@@ -124,15 +134,13 @@ class MultiTargetTrainer:
             # Phase 2: Local + LMS (0-3)
             return random.choice(self.targets[:4])
         
-        elif episode <= phase_3_end:
-            # Phase 3: All 6 targets
-            return random.choice(self.targets)
-        
         else:
-            # Phase 4: Focus on weakest target
-            weakest = min(self.targets, 
-                         key=lambda t: np.mean(self.episode_rewards[t[0]][-50:]) if self.episode_rewards[t[0]] else 0)
-            return weakest
+            # Phase 3: All 6 targets (Local + Real World)
+            # 70% chance to pick a Real-World target to prioritize them
+            if random.random() < 0.7:
+                return random.choice(self.targets[3:]) # Real-world only
+            else:
+                return random.choice(self.targets[:3]) # Local fallback
     
     def _train_episode(self, target_name, target_url, episode_num):
         """Train one episode on a specific target."""
@@ -149,21 +157,29 @@ class MultiTargetTrainer:
             # Agent selects action
             action = self.agent.act(state)
             
-            # Execute action
-            next_state, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
+            # Environment step
+            next_state, reward, done, truncated, info = env.step(action)
             
-            # Store experience and learn
+            # Store experience
             self.agent.remember(state, action, reward, next_state, done)
-            self.agent.replay()
             
-            # Track metrics
-            total_reward += reward
-            if reward > 50:  # Found a vulnerability
-                vulns_found += 1
+            # Train agent
+            self.agent.replay()  # MAX GPU batch size configured in agent init
             
             state = next_state
+            total_reward += reward
             steps += 1
+            
+            if reward > 50:  # Vulnerability found threshold
+                vulns_found += 1
+            
+            # Verbose logging
+            if self.verbose:
+                try:
+                    action_name = env.action_book.get(action).__name__
+                except:
+                    action_name = f"Action_{action}"
+                print(f"    Step {steps}: Action={action_name} | Reward={reward:.1f} | Vuln={reward>50}", flush=True)
         
         env.close()
         return total_reward, vulns_found
@@ -186,7 +202,6 @@ class MultiTargetTrainer:
                 print(f"  {name:20} | Avg Reward: {avg_reward:6.1f} | Avg Vulns: {avg_vulns:.1f}")
         
         print(f"  Epsilon: {self.agent.epsilon:.3f}")
-    
     def _save_checkpoint(self, episode):
         """Save training checkpoint."""
         # Add architecture identifier to filename
@@ -220,6 +235,7 @@ if __name__ == "__main__":
     parser.add_argument('--episodes', type=int, default=1000, help='Total training episodes')
     parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Model save path')
     parser.add_argument('--resume', type=int, default=0, help='Resume from episode number (loads checkpoint)')
+    parser.add_argument('--verbose', action='store_true', help='Enable detailed step-by-step logging')
     
     args = parser.parse_args()
     
@@ -250,7 +266,7 @@ if __name__ == "__main__":
     print()
     
     # Create trainer and start
-    trainer = MultiTargetTrainer(targets, model_path=args.model)
+    trainer = MultiTargetTrainer(targets, model_path=args.model, verbose=args.verbose)
     
     # Load checkpoint if resuming
     if args.resume > 0:
