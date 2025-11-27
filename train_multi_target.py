@@ -25,6 +25,10 @@ import io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
 
+import os
+import re
+import glob
+
 class MultiTargetTrainer:
     """Trains the agent across multiple target applications."""
     
@@ -97,7 +101,10 @@ class MultiTargetTrainer:
                 self.episode_vulns_found[target_name].append(vulns_found)
                 
                 # Print progress
-                if episode % 10 == 0:
+                if self.verbose:
+                    print(f"    Episode {episode} Complete | Reward: {reward:.1f} | Vulns: {vulns_found}")
+                
+                if episode % 1 == 0:  # Log every episode for better visibility
                     self._print_progress(episode, total_episodes)
                 
                 # Save checkpoint every 100 episodes
@@ -228,14 +235,38 @@ class MultiTargetTrainer:
                 print(f"  Avg Vulnerabilities Found: {avg_vulns:.1f}")
 
 
+
+def find_latest_checkpoint():
+    """Find the checkpoint with the highest episode number."""
+    checkpoints = glob.glob("checkpoints/multi_target_8k_ep*.pth")
+    if not checkpoints:
+        return 0
+    
+    latest_ep = 0
+    for cp in checkpoints:
+        try:
+            # Extract number from filename like 'multi_target_8k_ep700.pth'
+            match = re.search(r'ep(\d+)\.pth', cp)
+            if match:
+                ep = int(match.group(1))
+                if ep > latest_ep:
+                    latest_ep = ep
+        except:
+            continue
+            
+    return latest_ep
+
+
 if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser(description='Multi-Target DRL Security Scanner Training')
     parser.add_argument('--episodes', type=int, default=1000, help='Total training episodes')
     parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Model save path')
-    parser.add_argument('--resume', type=int, default=0, help='Resume from episode number (loads checkpoint)')
-    parser.add_argument('--verbose', action='store_true', help='Enable detailed step-by-step logging')
+    parser.add_argument('--resume', type=int, default=0, help='Resume from episode number')
+    parser.add_argument('--latest', action='store_true', help='Automatically resume from latest checkpoint')
+    parser.add_argument('--no-verbose', dest='verbose', action='store_false', help='Disable detailed step-by-step logging')
+    parser.set_defaults(verbose=True)
     
     args = parser.parse_args()
     
@@ -268,6 +299,15 @@ if __name__ == "__main__":
     # Create trainer and start
     trainer = MultiTargetTrainer(targets, model_path=args.model, verbose=args.verbose)
     
+    # Handle auto-resume
+    if args.latest:
+        latest_ep = find_latest_checkpoint()
+        if latest_ep > 0:
+            print(f"🔎 Found latest checkpoint: Episode {latest_ep}")
+            args.resume = latest_ep
+        else:
+            print("⚠️ No checkpoints found to resume from. Starting fresh.")
+
     # Load checkpoint if resuming
     if args.resume > 0:
         checkpoint_path = f"checkpoints/multi_target_8k_ep{args.resume}.pth"
