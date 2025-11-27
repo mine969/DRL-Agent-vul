@@ -600,9 +600,10 @@ class SecurityAuditor:
     """
     
     def __init__(self, base_url: str, model_path: str = "dqn_web_sec_model.pth", 
-                 use_proxies: bool = False, proxy_list: List[str] = None):
+                 use_proxies: bool = False, proxy_list: List[str] = None,
+                 stealth_level: str = "medium"):
         self.base_url = base_url
-        self.explorer = WebsiteExplorer(base_url, use_proxies=use_proxies, proxy_list=proxy_list)
+        self.explorer = WebsiteExplorer(base_url, use_proxies=use_proxies, proxy_list=proxy_list, stealth_level=stealth_level)
         
         # Initialize the AI Brain
         # State Dim 11: The agent sees 11 different things about the page
@@ -615,9 +616,10 @@ class SecurityAuditor:
         temp_env = WebSecEnv(target_url=base_url)
         self.action_map = {k: v.__name__ for k, v in temp_env.action_book.items()}
         
-        # Store proxy config for logging
+        # Store config for logging
         self.use_proxies = use_proxies
         self.proxy_count = len(proxy_list) if proxy_list else 0
+        self.stealth_level = stealth_level
 
     def log_finding(self, finding):
         """Callback for logging findings (can be overridden by GUI)"""
@@ -653,6 +655,7 @@ class SecurityAuditor:
             print(f"🔒 STEALTH MODE: IP Rotation Enabled ({self.proxy_count} proxies)")
         else:
             print(f"⚠️  WARNING: No proxy rotation - Your IP is exposed!")
+        print(f"🥷 STEALTH LEVEL: {self.stealth_level.upper()}")
         print("=" * 70)
         print()
         
@@ -781,9 +784,28 @@ if __name__ == "__main__":
     parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl')
     parser.add_argument('--intensity', type=int, default=3, help='How many times to test each page')
     parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Path to the trained AI model')
+    parser.add_argument('--proxies', help='Path to file containing proxy list (one per line)')
+    parser.add_argument('--stealth', choices=['low', 'medium', 'high', 'paranoid'], default='medium',
+                        help='Stealth level: low (fast), medium (balanced), high (slow), paranoid (very slow)')
     
     args = parser.parse_args()
     
+    # Load proxies if provided
+    proxy_list = None
+    if args.proxies:
+        try:
+            with open(args.proxies, 'r') as f:
+                proxy_list = [line.strip() for line in f if line.strip()]
+            print(f"✅ Loaded {len(proxy_list)} proxies from {args.proxies}\n")
+        except Exception as e:
+            print(f"❌ Error loading proxies: {e}\n")
+    
     # Start the auditor
-    auditor = SecurityAuditor(args.url, args.model)
+    auditor = SecurityAuditor(
+        args.url, 
+        args.model,
+        use_proxies=bool(proxy_list),
+        proxy_list=proxy_list,
+        stealth_level=args.stealth
+    )
     auditor.start_audit(crawl_depth=args.depth, test_intensity=args.intensity)

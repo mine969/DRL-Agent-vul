@@ -202,6 +202,8 @@ class SecurityScannerGUI:
         self.model_path = tk.StringVar(value="dqn_web_sec_model.pth")
         self.scan_mode = tk.StringVar(value="auto")
         self.specific_attack_type = tk.StringVar()
+        self.stealth_level = tk.StringVar(value="medium")
+        self.proxy_file = tk.StringVar()
         
         self.setup_ui()
         self.load_available_models()
@@ -271,6 +273,26 @@ class SecurityScannerGUI:
         self.attack_combo.current(0)
         self.attack_combo.pack(fill=tk.X)
         self.attack_combo.config(state=tk.DISABLED)
+        
+        # STEALTH CONFIGURATION
+        self.add_section_header(left_panel, "🥷 STEALTH CONFIGURATION")
+        
+        stealth_frame = tk.Frame(left_panel, bg=self.colors["bg_panel"])
+        stealth_frame.pack(fill=tk.X, padx=15, pady=5)
+        
+        tk.Label(stealth_frame, text="STEALTH LEVEL:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
+        stealth_combo = ttk.Combobox(stealth_frame, textvariable=self.stealth_level, state="readonly", width=15)
+        stealth_combo['values'] = ["low", "medium", "high", "paranoid"]
+        stealth_combo.current(1)  # Default to medium
+        stealth_combo.pack(fill=tk.X)
+        
+        tk.Label(stealth_frame, text="PROXY FILE (Optional):", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W, pady=(10, 0))
+        proxy_frame = tk.Frame(stealth_frame, bg=self.colors["bg_panel"])
+        proxy_frame.pack(fill=tk.X)
+        proxy_entry = tk.Entry(proxy_frame, textvariable=self.proxy_file, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white")
+        proxy_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=3)
+        proxy_browse_btn = tk.Button(proxy_frame, text="📂", font=("Consolas", 8), command=self.browse_proxy_file, bg=self.colors["highlight"], fg="white", relief=tk.FLAT, width=3)
+        proxy_browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
         
         tk.Frame(left_panel, bg=self.colors["bg_panel"], height=10).pack() # Spacer
         
@@ -363,6 +385,11 @@ class SecurityScannerGUI:
         filename = filedialog.askopenfilename(initialdir="checkpoints", title="Select Model File", filetypes=(("PyTorch Models", "*.pth"), ("All Files", "*.*")))
         if filename:
             self.model_path.set(filename)
+    
+    def browse_proxy_file(self):
+        filename = filedialog.askopenfilename(title="Select Proxy List File", filetypes=(("Text Files", "*.txt"), ("All Files", "*.*")))
+        if filename:
+            self.proxy_file.set(filename)
 
     def load_available_models(self):
         models = []
@@ -477,7 +504,27 @@ Payload: {finding.get('payload')}
             self.log(f"INITIATING ATTACK SEQUENCE ON {target}", "INFO")
             self.log(f"MODE: {mode.upper()} | MODEL: {os.path.basename(model)}", "INFO")
             
-            auditor = SecurityAuditor(target, model)
+            # Load proxies if provided
+            proxy_list = None
+            proxy_file = self.proxy_file.get().strip()
+            if proxy_file and os.path.exists(proxy_file):
+                try:
+                    with open(proxy_file, 'r') as f:
+                        proxy_list = [line.strip() for line in f if line.strip()]
+                    self.log(f"LOADED {len(proxy_list)} PROXIES", "SUCCESS")
+                except Exception as e:
+                    self.log(f"PROXY LOAD ERROR: {e}", "ERROR")
+            
+            stealth = self.stealth_level.get()
+            self.log(f"STEALTH LEVEL: {stealth.upper()}", "INFO")
+            
+            auditor = SecurityAuditor(
+                target, 
+                model,
+                use_proxies=bool(proxy_list),
+                proxy_list=proxy_list,
+                stealth_level=stealth
+            )
             
             # Hook the log_finding callback
             original_log_finding = auditor.log_finding

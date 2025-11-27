@@ -52,4 +52,11 @@ Thumbs.db
 uploads/
 downloads/
 
+# LARGE FILES - Checkpoints and Models
+*.pth
+checkpoints/
+models/
+*.h5
+*.pkl
+*.model
 
