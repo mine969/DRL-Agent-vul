@@ -407,6 +407,9 @@ Payload: {finding.get('payload')}
 # 🛠️ ATTACK VECTOR
 {ExploitGenerator.get_steps(finding)}
 
+# 💡 SUGGESTED PAYLOADS (Try these manually)
+{ExploitGenerator.get_suggested_payloads(finding.get('type', ''))}
+
 # 💻 CURL EXPLOIT
 {ExploitGenerator.generate_curl(finding)}
 

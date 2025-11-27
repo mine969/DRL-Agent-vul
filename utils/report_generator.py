@@ -74,6 +74,10 @@ class ReportGenerator:
         filename = f"reports/vulnerability_report_{self.timestamp}.md"
         stats = self._calculate_stats(findings, vuln_db)
         
+        # Separate findings into Confirmed (Red) and Suspicious (Yellow)
+        confirmed_findings = [f for f in findings if f.reward > 50]
+        suspicious_findings = [f for f in findings if f.reward <= 50]
+        
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(f"# 🛡️ Security Vulnerability Report\n\n")
             f.write(f"**Target:** {self.base_url}\n")
@@ -91,9 +95,10 @@ class ReportGenerator:
             f.write(f"| 🟡 **MEDIUM** | {stats['medium']} | {'⚠️ Review' if stats['medium'] > 0 else '✅ Clean'} |\n")
             f.write(f"| 🟢 **LOW** | {stats['low']} | {'ℹ️ Info' if stats['low'] > 0 else '✅ Clean'} |\n\n")
             
-            if findings:
-                f.write(f"## 🔴 Detailed Findings\n\n")
-                for idx, finding in enumerate(findings, 1):
+            # --- CONFIRMED VULNERABILITIES ---
+            if confirmed_findings:
+                f.write(f"## 🔴 Confirmed Vulnerabilities\n\n")
+                for idx, finding in enumerate(confirmed_findings, 1):
                     vuln_info = vuln_db.get(finding.vuln_type, {})
                     impact = vuln_info.get('impact', 'UNKNOWN')
                     emoji = "🔴" if impact == "CRITICAL" else "🟠" if impact == "HIGH" else "🟡"
@@ -186,7 +191,19 @@ class ReportGenerator:
                     for fix in vuln_info.get('remediation', []):
                         f.write(f"- {fix}\n")
                     f.write(f"\n---\n\n")
-            else:
+            
+            # --- SUSPICIOUS FINDINGS (YELLOW) ---
+            if suspicious_findings:
+                f.write(f"## ⚠️ Suspicious Activity / Warnings\n")
+                f.write(f"> These findings are not confirmed exploits but indicate suspicious behavior or potential attack surfaces. Manual verification is recommended.\n\n")
+                
+                for idx, finding in enumerate(suspicious_findings, 1):
+                    f.write(f"### {idx}. 🟡 {finding.vuln_type}\n")
+                    f.write(f"- **URL**: `{finding.url}`\n")
+                    f.write(f"- **Confidence**: Low/Medium\n")
+                    f.write(f"- **Note**: The agent detected an anomaly here. Check manually.\n\n")
+            
+            if not confirmed_findings and not suspicious_findings:
                 f.write(f"## ✅ No Vulnerabilities Found\n")
                 f.write(f"Great job! No security issues were detected during this scan.\n\n")
                 
