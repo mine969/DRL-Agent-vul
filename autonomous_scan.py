@@ -410,12 +410,16 @@ class SecurityAuditor:
         self.explorer = WebsiteExplorer(base_url)
         
         # Initialize the AI Brain
-        # State Dim 11: The agent sees 11 different things about the page (Updated from checkpoint)
-        # Action Dim 60: The agent can perform 60 different attacks/actions (Expanded with future-proof actions)
-        self.ai_agent = DQNAgent(state_dim=11, action_dim=60)
+        # State Dim 11: The agent sees 11 different things about the page
+        # Action Dim 100: The agent can perform 100 different actions (Kill Chain Architecture)
+        self.ai_agent = DQNAgent(state_dim=11, action_dim=100)
         
         self._load_ai_brain(model_path)
-    
+        
+        # Initialize environment once to get the action book
+        temp_env = WebSecEnv(target_url=base_url)
+        self.action_map = {k: v.__name__ for k, v in temp_env.action_book.items()}
+
     def log_finding(self, finding):
         """Callback for logging findings (can be overridden by GUI)"""
         pass
@@ -433,17 +437,19 @@ class SecurityAuditor:
             print(f"   Error details: {str(e)}")
             print("   The agent will act randomly (Untrained Mode)\n")
 
-    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3, epsilon: float = 0.1) -> List[Finding]:
+    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3, epsilon: float = 0.1, scan_mode: str = "auto", specific_attack: str = None) -> List[Finding]:
         """
         Runs the full security audit process.
         
-        Steps:
-        1. Explore the website to find pages.
-        2. Send the AI to attack each page.
-        3. Generate a report of findings.
+        Scan Modes:
+        - "auto": Use AI Agent to decide actions (Default)
+        - "osint": Only perform OSINT actions
+        - "specific": Only perform a specific type of attack
         """
         print("=" * 70)
-        print("🤖 AUTONOMOUS AI SECURITY AUDITOR")
+        print(f"🤖 AUTONOMOUS AI SECURITY AUDITOR | MODE: {scan_mode.upper()}")
+        if specific_attack:
+            print(f"🎯 TARGETING: {specific_attack}")
         print("=" * 70)
         print()
         
@@ -461,7 +467,7 @@ class SecurityAuditor:
         
         for url in discovered_urls:
             print(f"\n🎯 Auditing: {url}")
-            findings = self._audit_page(url, attempts=test_intensity, epsilon=epsilon)
+            findings = self._audit_page(url, attempts=test_intensity, epsilon=epsilon, scan_mode=scan_mode, specific_attack=specific_attack)
             
             if findings:
                 all_findings.extend(findings)
@@ -474,42 +480,62 @@ class SecurityAuditor:
         
         return all_findings
     
-    def _audit_page(self, url: str, attempts: int = 3, epsilon: float = 0.1) -> List[Finding]:
+    def _audit_page(self, url: str, attempts: int = 3, epsilon: float = 0.1, scan_mode: str = "auto", specific_attack: str = None) -> List[Finding]:
         """
         Deploys the AI Agent to test a specific page.
-        It runs for a few 'episodes' (attempts) to see if it can break it.
-        
-        NOTE: The environment needs the BASE URL, not the full page URL.
-        The agent will navigate to different pages through its actions.
         """
         findings: List[Finding] = []
         
         try:
-            # CRITICAL FIX: Use base URL, not the full page URL
-            # The environment expects http://localhost:5001, not http://localhost:5001/profile
-            # The agent will navigate to specific pages through its navigation actions
-            
             # Enable exploration for research variants
             self.ai_agent.epsilon = epsilon
             
             # Pass discovered endpoints so the environment knows where to go
             env = WebSecEnv(target_url=self.base_url, discovered_endpoints=list(self.explorer.discovered_urls))
             
+            # Identify allowed actions based on mode
+            allowed_actions = []
+            if scan_mode == "osint":
+                allowed_actions = [k for k, v in self.action_map.items() if "osint" in v.lower() or "recon" in v.lower()]
+                print(f"  🕵️ Running OSINT Scan ({len(allowed_actions)} actions)...")
+            elif scan_mode == "specific" and specific_attack:
+                allowed_actions = [k for k, v in self.action_map.items() if specific_attack.lower() in v.lower()]
+                print(f"  🎯 Running Specific Attack: {specific_attack} ({len(allowed_actions)} actions)...")
+            
+            # If specific mode, we iterate through allowed actions instead of using the agent loop
+            if scan_mode in ["osint", "specific"] and allowed_actions:
+                state, _ = env.reset()
+                for action in allowed_actions:
+                    print(f"    👉 Executing: {self.action_map.get(action)}")
+                    next_state, reward, terminated, truncated, info = env.step(action)
+                    
+                    if reward > 0: # Any positive reward is good in specific modes
+                        vuln_name = self._map_action_to_vuln(action)
+                        finding = Finding(
+                            url=info.get('url', url),
+                            vuln_type=vuln_name,
+                            confidence='High',
+                            reward=reward,
+                            payload=info.get('payload', ''),
+                            method=info.get('method', 'GET')
+                        )
+                        findings.append(finding)
+                        self.log_finding(finding)
+                return findings
+
+            # Default AUTO mode (AI Agent)
             for _ in range(attempts):
                 state, _ = env.reset()
                 done = False
                 steps = 0
                 
-                # Let the agent interact with the page for up to 30 steps
                 while not done and steps < 30:
                     action = self.ai_agent.act(state)
                     next_state, reward, terminated, truncated, info = env.step(action)
                     done = terminated or truncated
                     
-                    # If the agent gets a big reward (>50), it means it found something!
                     if reward > 50:
                         vuln_name = self._map_action_to_vuln(action)
-                        
                         finding = Finding(
                             url=info.get('url', url),
                             vuln_type=vuln_name,
@@ -518,76 +544,19 @@ class SecurityAuditor:
                             payload=info.get('payload', ''),
                             method=info.get('method', 'GET')
                         )
-                        
                         findings.append(finding)
                         self.log_finding(finding)
                     
                     state = next_state
                     steps += 1
         except Exception as e:
-            # If the page crashes or errors out, just move on
             pass
         
         return findings
     
     def _map_action_to_vuln(self, action: int) -> str:
         """Translates the Agent's action ID into a human-readable vulnerability name."""
-        vuln_map = {
-            0: "Navigation (Home)",
-            1: "Navigation (Login)",
-            2: "Navigation (Search)",
-            3: "SQL Injection (Union)",
-            4: "Cross-Site Scripting (XSS)",
-            5: "Navigation (Post)",
-            6: "Navigation (Profile)",
-            7: "Broken Access Control (BAC)",
-            8: "Fuzzing / Anomaly",
-            9: "Insecure Direct Object Reference (IDOR)",
-            10: "Server-Side Request Forgery (SSRF)",
-            11: "Wait Action",
-            12: "Sensitive Data Exposure",
-            13: "Time-Based SQL Injection",
-            14: "Polyglot XSS",
-            15: "SQL Injection (WAF Bypass)",
-            16: "Reflected XSS",
-            17: "Stored XSS",
-            18: "DOM-based XSS",
-            19: "Polyglot XSS",
-            20: "XSS (CSP Bypass)",
-            21: "API XSS",
-            22: "Server-Side Template Injection (SSTI)",
-            23: "Local File Inclusion (LFI)",
-            24: "Remote File Inclusion (RFI)",
-            25: "Path Traversal",
-            26: "XML External Entity (XXE)",
-            27: "Command Injection",
-            28: "SSRF (Internal Network)",
-            29: "SSRF (Cloud Metadata)",
-            30: "SSRF (Preview Feature)",
-            31: "CSRF (Transfer)",
-            32: "Open Redirect",
-            33: "JWT None Algorithm",
-            34: "OAuth Bypass",
-            35: "IDOR (Profile)",
-            36: "BAC (Admin Access)",
-            37: "Session Fixation",
-            38: "Insecure Deserialization",
-            39: "Business Logic Flaw",
-            40: "Race Condition",
-            41: "Mass Assignment",
-            42: "Prototype Pollution",
-            43: "Login (Valid)",
-            44: "Wait",
-            45: "Unrestricted File Upload",
-            46: "OSINT (Sensitive Files)",
-            47: "OSINT (Server Fingerprint)",
-            48: "Cookie Injection",
-            49: "Cookie Poisoning",
-            50: "HTTPOnly Bypass",
-            51: "SameSite Bypass"
-        }
-        name = vuln_map.get(action, f"Unknown Action {action}")
-        return name
+        return self.action_map.get(action, f"Unknown Action {action}")
     
     def _generate_final_report(self, urls: List[str], findings: List[Finding]) -> None:
         """Compiles all findings into a readable report."""

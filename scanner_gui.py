@@ -159,8 +159,8 @@ class SecurityScannerGUI:
         self.crawl_depth = tk.IntVar(value=30)
         self.test_episodes = tk.IntVar(value=3)
         self.model_path = tk.StringVar(value="dqn_web_sec_model.pth")
-        self.is_scanning = False
-        self.findings = []
+        self.scan_mode = tk.StringVar(value="auto")
+        self.specific_attack_type = tk.StringVar()
         
         self.setup_ui()
         self.load_available_models()
@@ -211,13 +211,33 @@ class SecurityScannerGUI:
         self.create_slider_field(left_panel, "ATTACK INTENSITY:", self.test_episodes, 1, 10, 3)
         self.create_model_selector(left_panel)
         
-        tk.Frame(left_panel, bg=self.colors["bg_panel"], height=20).pack() # Spacer
+        # SCAN MODES
+        self.add_section_header(left_panel, "⚙️ SCAN MODE")
+        
+        modes_frame = tk.Frame(left_panel, bg=self.colors["bg_panel"])
+        modes_frame.pack(fill=tk.X, padx=15, pady=5)
+        
+        tk.Radiobutton(modes_frame, text="🤖 FULL AUTO (AI AGENT)", variable=self.scan_mode, value="auto", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="🕵️ SUPER OSINT MODE", variable=self.scan_mode, value="osint", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="🎯 SPECIFIC ATTACK", variable=self.scan_mode, value="specific", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        
+        # Attack Selector (Hidden by default)
+        self.attack_frame = tk.Frame(left_panel, bg=self.colors["bg_panel"])
+        self.attack_frame.pack(fill=tk.X, padx=15, pady=5)
+        tk.Label(self.attack_frame, text="ATTACK TYPE:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
+        self.attack_combo = ttk.Combobox(self.attack_frame, textvariable=self.specific_attack_type, state="readonly")
+        self.attack_combo['values'] = ["SQL Injection", "XSS", "SSRF", "Command Injection", "LFI", "RFI", "Broken Access Control", "XXE"]
+        self.attack_combo.current(0)
+        self.attack_combo.pack(fill=tk.X)
+        self.attack_combo.config(state=tk.DISABLED)
+        
+        tk.Frame(left_panel, bg=self.colors["bg_panel"], height=10).pack() # Spacer
         
         # ONE CLICK BUTTONS
         self.flash_btn = tk.Button(left_panel, text="⚡ FLASH ATTACK (ONE-CLICK)", font=("Courier New", 12, "bold"), bg=self.colors["accent"], fg="black", activebackground="white", activeforeground="black", relief=tk.FLAT, cursor="hand2", command=self.flash_attack, height=2)
         self.flash_btn.pack(pady=5, padx=15, fill=tk.X)
         
-        self.scan_button = tk.Button(left_panel, text="🚀 CUSTOM SCAN", font=("Courier New", 11, "bold"), bg=self.colors["highlight"], fg=self.colors["accent"], relief=tk.FLAT, cursor="hand2", command=self.start_scan, height=2)
+        self.scan_button = tk.Button(left_panel, text="🚀 LAUNCH SCAN", font=("Courier New", 11, "bold"), bg=self.colors["highlight"], fg=self.colors["accent"], relief=tk.FLAT, cursor="hand2", command=self.start_scan, height=2)
         self.scan_button.pack(pady=5, padx=15, fill=tk.X)
         
         self.stop_button = tk.Button(left_panel, text="⏹️ ABORT MISSION", font=("Courier New", 11, "bold"), bg=self.colors["danger"], fg="white", relief=tk.FLAT, cursor="hand2", command=self.stop_scan, height=2, state=tk.DISABLED)
@@ -227,12 +247,12 @@ class SecurityScannerGUI:
         middle_panel = tk.Frame(main_pane, bg=self.colors["bg_panel"])
         main_pane.add(middle_panel, minsize=400)
         
-        self.add_section_header(middle_panel, "📟 LIVE TERMINAL")
+        self.add_section_header(middle_panel, "📟 LIVE TERMINAL LOGS")
         
         self.progress = ttk.Progressbar(middle_panel, mode='indeterminate', style="Horizontal.TProgressbar")
         self.progress.pack(pady=5, padx=15, fill=tk.X)
         
-        self.output_text = scrolledtext.ScrolledText(middle_panel, wrap=tk.WORD, font=("Consolas", 10), bg="black", fg=self.colors["text"], relief=tk.FLAT, height=15, insertbackground=self.colors["accent"])
+        self.output_text = scrolledtext.ScrolledText(middle_panel, wrap=tk.WORD, font=("Consolas", 9), bg="black", fg=self.colors["text"], relief=tk.FLAT, height=15, insertbackground=self.colors["accent"])
         self.output_text.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
         
         self.add_section_header(middle_panel, "🚨 DETECTED VULNERABILITIES")
@@ -260,6 +280,12 @@ class SecurityScannerGUI:
         self.view_report_btn = tk.Button(btn_frame, text="📄 OPEN REPORT", bg=self.colors["highlight"], fg="white", relief=tk.FLAT, command=self.view_report, state=tk.DISABLED)
         self.view_report_btn.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(5, 0))
 
+    def toggle_attack_selector(self):
+        if self.scan_mode.get() == "specific":
+            self.attack_combo.config(state="readonly")
+        else:
+            self.attack_combo.config(state=tk.DISABLED)
+
     def add_section_header(self, parent, text):
         tk.Label(parent, text=text, font=("Courier New", 12, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text_dim"]).pack(pady=(15, 5), padx=15, anchor=tk.W)
 
@@ -282,14 +308,26 @@ class SecurityScannerGUI:
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
         frame.pack(pady=5, padx=15, fill=tk.X)
         tk.Label(frame, text="BRAIN MODEL:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
-        self.model_combo = ttk.Combobox(frame, textvariable=self.model_path, state="readonly")
-        self.model_combo.pack(fill=tk.X)
+        
+        combo_frame = tk.Frame(frame, bg=self.colors["bg_panel"])
+        combo_frame.pack(fill=tk.X)
+        
+        self.model_combo = ttk.Combobox(combo_frame, textvariable=self.model_path, state="readonly")
+        self.model_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
+        
+        browse_btn = tk.Button(combo_frame, text="📂", font=("Consolas", 8), command=self.browse_model, bg=self.colors["highlight"], fg="white", relief=tk.FLAT, width=3)
+        browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
+
+    def browse_model(self):
+        filename = filedialog.askopenfilename(initialdir="checkpoints", title="Select Model File", filetypes=(("PyTorch Models", "*.pth"), ("All Files", "*.*")))
+        if filename:
+            self.model_path.set(filename)
 
     def load_available_models(self):
         models = []
         if os.path.exists("dqn_web_sec_model.pth"):
             models.append("dqn_web_sec_model.pth (Final)")
-        checkpoints = glob.glob("checkpoints/dqn_checkpoint_ep*.pth")
+        checkpoints = glob.glob("checkpoints/dqn_checkpoint_ep*.pth") + glob.glob("checkpoints/multi_target_*.pth")
         for cp in sorted(checkpoints, reverse=True):
             models.append(cp)
         if models:
@@ -347,6 +385,7 @@ Payload: {finding.get('payload')}
         """One-Click Attack Mode"""
         self.crawl_depth.set(10)
         self.test_episodes.set(1)
+        self.scan_mode.set("auto")
         self.start_scan()
 
     def start_scan(self):
@@ -359,6 +398,9 @@ Payload: {finding.get('payload')}
             model = model_selection.replace(" (Final)", "")
         else:
             model = model_selection
+            
+        mode = self.scan_mode.get()
+        specific_attack = self.specific_attack_type.get() if mode == "specific" else None
         
         self.scan_button.config(state=tk.DISABLED)
         self.flash_btn.config(state=tk.DISABLED)
@@ -371,13 +413,29 @@ Payload: {finding.get('payload')}
         self.exploit_text.delete(1.0, tk.END)
         self.exploit_text.insert(tk.END, "// Scanning target... Awaiting findings...")
         
-        threading.Thread(target=self.run_scan, args=(target, model), daemon=True).start()
+        threading.Thread(target=self.run_scan, args=(target, model, mode, specific_attack), daemon=True).start()
 
-    def run_scan(self, target, model):
+    def run_scan(self, target, model, mode, specific_attack):
+        # Redirect stdout to GUI
+        class StdoutRedirector:
+            def __init__(self, text_widget):
+                self.text_widget = text_widget
+            def write(self, string):
+                self.text_widget.after(0, lambda: self.text_widget.insert(tk.END, string))
+                self.text_widget.after(0, lambda: self.text_widget.see(tk.END))
+            def flush(self):
+                pass
+                
+        old_stdout = sys.stdout
+        sys.stdout = StdoutRedirector(self.output_text)
+        
         try:
             self.log(f"INITIATING ATTACK SEQUENCE ON {target}", "INFO")
+            self.log(f"MODE: {mode.upper()} | MODEL: {os.path.basename(model)}", "INFO")
+            
             auditor = SecurityAuditor(target, model)
             
+            # Hook the log_finding callback
             original_log_finding = auditor.log_finding
             def gui_log_finding(finding):
                 original_log_finding(finding)
@@ -386,12 +444,20 @@ Payload: {finding.get('payload')}
             
             auditor.log_finding = gui_log_finding
             
-            findings = auditor.start_audit(crawl_depth=self.crawl_depth.get(), test_intensity=self.test_episodes.get())
+            findings = auditor.start_audit(
+                crawl_depth=self.crawl_depth.get(), 
+                test_intensity=self.test_episodes.get(),
+                scan_mode=mode,
+                specific_attack=specific_attack
+            )
+            
             self.root.after(0, lambda: self.scan_complete(len(findings)))
             
         except Exception as e:
             self.root.after(0, lambda: self.log(f"SYSTEM ERROR: {str(e)}", "ERROR"))
             self.root.after(0, lambda: self.stop_scan())
+        finally:
+            sys.stdout = old_stdout
 
     def scan_complete(self, count):
         self.log(f"MISSION COMPLETE. {count} TARGETS COMPROMISED.", "SUCCESS")
