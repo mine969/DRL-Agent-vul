@@ -9,6 +9,8 @@ This project implements a Deep Reinforcement Learning agent that autonomously di
 ### GUI Enhancements
 
 - **🔥 Aggressive Scan Mode** - 1.5x deeper crawling, 2x attack intensity
+- **💀 Zero-Day Hunter** - Fuzzing, CVE Intelligence, and Config Scanning
+- **🌍 Targetless Hunter** - Auto-discover targets via Google Dorks, Shodan, CRT.sh, DuckDuckGo, and Censys
 - **📋 Full Exploit URLs** - Ready-to-paste URLs with payloads (e.g., `http://target.com?id=1' OR 1=1--`)
 - **🔄 Auto-Fetch Proxies** - Automatically fetch from 6 sources (200+ proxies)
 - **💡 Tooltips & Status Bar** - Improved UX with hover hints and real-time status

@@ -60,6 +60,14 @@ python autonomous_scan.py --mode targetless --duckduckgo "site:example.com filet
 
 # Censys Search
 python autonomous_scan.py --mode targetless --censys-query "services.port: 80" --censys-id YOUR_ID --censys-secret YOUR_SECRET
+
+# Combined Hunting (All Sources)
+python autonomous_scan.py --mode targetless \
+    --dork "inurl:php?id=" \
+    --shodan-query "product:nginx" --shodan-key KEY \
+    --crtsh "example.com" \
+    --duckduckgo "site:example.com" \
+    --limit 10
 ```
 
 ## 🖥️ GUI Usage

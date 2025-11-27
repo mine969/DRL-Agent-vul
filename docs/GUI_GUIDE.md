@@ -14,18 +14,6 @@ python scanner_gui.py
 
 ## 🚀 Latest Features (2025)
 
-### New Scan Modes
-
-- **🤖 AUTO MODE** - AI agent decides actions (balanced)
-- **🔥 AGGRESSIVE MODE** - 1.5x depth, 2x intensity (deep testing)
-- **🕵️ OSINT MODE** - Reconnaissance only (silent)
-- **🎯 SPECIFIC ATTACK** - Target single vulnerability type
-- **💀 ZERO-DAY HUNTER** - Fuzzing, CVEs, and config checks
-
-### Proxy System
-
-- **🔄 Auto-Fetch Proxies** - Click button to fetch from 6 sources
-- **📂 Manual Upload** - Browse for custom proxy files
 - **200+ Proxies** - Automatically fetched and validated
 
 ### Exploit Factory
