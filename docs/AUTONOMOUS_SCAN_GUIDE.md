@@ -29,6 +29,34 @@ python autonomous_scan.py http://localhost/dvwa --depth 50 --episodes 5
 python autonomous_scan.py http://your-site.com --model checkpoints/dqn_checkpoint_ep100.pth
 ```
 
+### Zero-Day Hunting Mode
+
+```bash
+python autonomous_scan.py http://your-site.com --mode zeroday --depth 30 --episodes 5
+```
+
+### Targetless Mode (Auto-discover targets)
+
+```bash
+# Using Google Dorks
+python autonomous_scan.py --mode targetless --google-dork "inurl:admin.php"
+
+# Using Shodan
+python autonomous_scan.py --mode targetless --shodan-query "apache 2.4" --shodan-key YOUR_API_KEY
+
+# Using CRT.sh (Certificate Transparency)
+python autonomous_scan.py --mode targetless --crtsh example.com
+
+# Using DuckDuckGo
+python autonomous_scan.py --mode targetless --duckduckgo "site:example.com login"
+
+# Using Censys
+python autonomous_scan.py --mode targetless --censys-query "services.http.response.body:admin" --censys-id YOUR_ID --censys-secret YOUR_SECRET
+
+# Combine multiple sources
+python autonomous_scan.py --mode targetless --google-dork "inurl:login" --shodan-query "apache" --shodan-key YOUR_KEY --crtsh example.com
+```
+
 ## What It Does
 
 ### Phase 1: Reconnaissance 🕷️
@@ -115,10 +143,29 @@ Vulnerabilities Found: 3
 
 ## Parameters
 
-- `url` - **Required**: Target homepage URL
+### Basic Parameters
+
+- `url` - **Required** (except for targetless mode): Target homepage URL
 - `--model` - Path to trained model (default: `dqn_web_sec_model.pth`)
 - `--depth` - Max pages to crawl (default: 30)
 - `--episodes` - Test episodes per URL (default: 3)
+
+### Scan Modes
+
+- `--mode auto` - AI-driven balanced scanning (default)
+- `--mode aggressive` - 1.5x depth, 2x intensity
+- `--mode osint` - Reconnaissance only, no attacks
+- `--mode specific --attack "TYPE"` - Test single vulnerability type
+- `--mode zeroday` - Fuzzing, CVE intelligence, config scanning
+- `--mode targetless` - Auto-discover targets via OSINT
+
+### Targetless Mode Discovery Sources
+
+- `--google-dork "QUERY"` - Google Dork search
+- `--shodan-query "QUERY" --shodan-key KEY` - Shodan search
+- `--crtsh DOMAIN` - Certificate Transparency lookup
+- `--duckduckgo "QUERY"` - DuckDuckGo search
+- `--censys-query "QUERY" --censys-id ID --censys-secret SECRET` - Censys search
 
 ## Features
 

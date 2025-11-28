@@ -109,6 +109,32 @@ python autonomous_scan.py http://your-site.com --model checkpoints/dqn_checkpoin
 
 Uses a model saved after 100 training episodes
 
+### Zero-Day Hunter Mode (Find Unknown Vulnerabilities)
+
+```bash
+python autonomous_scan.py http://your-site.com --mode zeroday
+```
+
+**What this does**: Uses fuzzing and CVE intelligence to find unknown vulnerabilities
+
+**When to use**: When you want to discover new, undocumented security issues
+
+### Targetless Mode (Auto-Find Targets)
+
+```bash
+# Find targets using Google
+python autonomous_scan.py --mode targetless --google-dork "inurl:admin.php"
+
+# Find targets using Shodan (requires API key)
+python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key YOUR_KEY
+```
+
+**What this does**: Automatically discovers vulnerable websites to test
+
+**When to use**: Bug bounty hunting, security research
+
+**Note**: Only use on targets you have permission to test!
+
 ---
 
 ## 📊 Understanding the Report

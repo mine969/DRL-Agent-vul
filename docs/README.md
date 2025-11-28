@@ -1,162 +1,159 @@
-# Kill Chain Agent - Documentation Index
+# 📚 Documentation Index
 
-## Current Status
+Welcome to the DRL Web Security Agent documentation! This index will help you find the right guide for your needs.
 
-**Version:** 2.0 - Kill Chain Architecture  
-**Training:** In Progress (2000 episodes)  
-**Last Updated:** 2025-11-27
+## 🚀 Quick Start (New Users)
 
-## Quick Links
+**Recommended reading order:**
+
+1. [README.md](../README.md) - Project overview and key features
+2. [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) - Complete beginner's guide
+3. [QUICK_START.md](QUICK_START.md) - Quick reference for getting started
+4. [GUI_GUIDE.md](GUI_GUIDE.md) - GUI application tutorial
+
+## 📖 Documentation by Category
 
 ### Getting Started
 
-- [Quick Start Guide](QUICK_START.md) - Installation and first steps
-- [Beginner Guide](BEGINNER_GUIDE.md) - Concepts and basics
-- [Project Overview](PROJECT_OVERVIEW.md) - Mission and achievements
+| Document                               | Description                            | Audience  |
+| -------------------------------------- | -------------------------------------- | --------- |
+| [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) | Complete guide for non-technical users | Beginners |
+| [QUICK_START.md](QUICK_START.md)       | Quick reference with CLI examples      | All users |
+| [GUI_GUIDE.md](GUI_GUIDE.md)           | GUI application guide                  | GUI users |
 
-### Architecture & Design
+### Usage Guides
 
-- [Technical Architecture](TECHNICAL_ARCHITECTURE.md) - System design and algorithms
-- [Optimization Summary](OPTIMIZATION_SUMMARY.md) - Evolution and improvements
-- [Project Structure](PROJECT_STRUCTURE.md) - Code organization
+| Document                                             | Description                    | Audience       |
+| ---------------------------------------------------- | ------------------------------ | -------------- |
+| [AUTONOMOUS_SCAN_GUIDE.md](AUTONOMOUS_SCAN_GUIDE.md) | Advanced CLI scanning features | Advanced users |
+| [REAL_WORLD_USAGE.md](REAL_WORLD_USAGE.md)           | Practical usage examples       | All users      |
+| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)           | Deployment instructions        | DevOps         |
 
-### Training & Deployment
+### Feature Documentation
 
-- [Checkpoint System](CHECKPOINT_SYSTEM.md) - Model saving and loading
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Production usage
-- [Autonomous Scan Guide](AUTONOMOUS_SCAN_GUIDE.md) - Automated scanning
+| Document                                 | Description                       | Audience             |
+| ---------------------------------------- | --------------------------------- | -------------------- |
+| [ZERO_DAY_HUNTER.md](ZERO_DAY_HUNTER.md) | Zero-Day hunting mode guide       | Security researchers |
+| [TARGET_HUNTER.md](TARGET_HUNTER.md)     | Targetless mode (5 OSINT sources) | Bug bounty hunters   |
+| [GUI_AUTOMATION.md](GUI_AUTOMATION.md)   | GUI automation features           | Automation users     |
+| [MAC_SPOOFING.md](MAC_SPOOFING.md)       | MAC spoofing capabilities         | Advanced users       |
 
-### Advanced Topics
+### Technical Documentation
 
-- [Real World Usage](REAL_WORLD_USAGE.md) - Practical applications
-- [GUI Guide](GUI_GUIDE.md) - Interactive interface
-- [AI Concepts](AI_CONCEPTS.md) - Deep learning fundamentals
+| Document                                                     | Description                    | Audience    |
+| ------------------------------------------------------------ | ------------------------------ | ----------- |
+| [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)                   | High-level project description | All users   |
+| [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)                 | Codebase structure             | Developers  |
+| [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)       | System architecture            | Developers  |
+| [AI_CONCEPTS.md](AI_CONCEPTS.md)                             | AI/ML concepts explained       | Learners    |
+| [AGENT_VS_HUMAN_COMPARISON.md](AGENT_VS_HUMAN_COMPARISON.md) | Agent vs human testing         | Researchers |
+| [CODE_LEARNING_GUIDE.md](CODE_LEARNING_GUIDE.md)             | Code learning guide            | Developers  |
 
-## What's New in 2.0
+### Training & Optimization
 
-### Kill Chain Architecture (100 Actions)
+| Document                                                   | Description              | Audience         |
+| ---------------------------------------------------------- | ------------------------ | ---------------- |
+| [TRAINING_RECOMMENDATIONS.md](TRAINING_RECOMMENDATIONS.md) | Training best practices  | ML practitioners |
+| [CHECKPOINT_SYSTEM.md](CHECKPOINT_SYSTEM.md)               | Checkpoint management    | All users        |
+| [OPTIMIZATION_SUMMARY.md](OPTIMIZATION_SUMMARY.md)         | Performance optimization | Advanced users   |
 
-**Phase 1: Reconnaissance (0-29)**
+### Maintenance
 
-- Passive OSINT: Whois, DNS, GitHub Secrets, Shodan
-- Active OSINT: Port Scan, WAF Detection, Subdomain Takeover
+| Document                                               | Description         | Audience         |
+| ------------------------------------------------------ | ------------------- | ---------------- |
+| [CLEANUP_GUIDE.md](CLEANUP_GUIDE.md)                   | Cleanup procedures  | All users        |
+| [IMPLEMENTATION_JOURNEY.md](IMPLEMENTATION_JOURNEY.md) | Development history | Interested users |
 
-**Phase 2: Discovery (30-59)**
+## 🎯 Find Documentation by Task
 
-- Auth/Session: SQLi, JWT, IDOR, OAuth
-- Injection: XSS, SSTI, Command Injection
-- Logic/API: Mass Assignment, GraphQL, NoSQL
+### I want to...
 
-**Phase 3: Exploitation (60-89)**
+- **Start scanning websites** → [QUICK_START.md](QUICK_START.md) or [GUI_GUIDE.md](GUI_GUIDE.md)
+- **Learn the basics** → [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md)
+- **Use Zero-Day Hunter** → [ZERO_DAY_HUNTER.md](ZERO_DAY_HUNTER.md)
+- **Auto-discover targets** → [TARGET_HUNTER.md](TARGET_HUNTER.md)
+- **Train the agent** → [TRAINING_RECOMMENDATIONS.md](TRAINING_RECOMMENDATIONS.md)
+- **Understand the architecture** → [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)
+- **See real-world examples** → [REAL_WORLD_USAGE.md](REAL_WORLD_USAGE.md)
+- **Deploy to production** → [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+- **Clean up files** → [CLEANUP_GUIDE.md](CLEANUP_GUIDE.md)
 
-- Advanced Injection: Blind SQLi/XSS, RCE
-- Cloud: AWS SSRF, Docker API, Kubernetes
-- System: Path Traversal, XXE, HTTP Smuggling
+## 🔍 Search by Feature
 
-**Phase 4: Post-Exploitation (90-99)**
+### Scan Modes
 
-- Data exfiltration, privilege escalation, persistence
+- **Auto Mode** - [QUICK_START.md](QUICK_START.md#auto-mode-default)
+- **Aggressive Mode** - [QUICK_START.md](QUICK_START.md#aggressive-mode)
+- **OSINT Mode** - [QUICK_START.md](QUICK_START.md#osint-mode)
+- **Specific Mode** - [QUICK_START.md](QUICK_START.md#specific-mode)
+- **Zero-Day Mode** - [ZERO_DAY_HUNTER.md](ZERO_DAY_HUNTER.md)
+- **Targetless Mode** - [TARGET_HUNTER.md](TARGET_HUNTER.md)
 
-### Phase-Based Reward Shaping
+### Discovery Sources (Targetless Mode)
 
-**Efficient Algorithm:**
+- **Google Dorks** - [TARGET_HUNTER.md](TARGET_HUNTER.md#google-dorks)
+- **Shodan** - [TARGET_HUNTER.md](TARGET_HUNTER.md#shodan)
+- **CRT.sh** - [TARGET_HUNTER.md](TARGET_HUNTER.md#crtsh-certificate-transparency)
+- **DuckDuckGo** - [TARGET_HUNTER.md](TARGET_HUNTER.md#duckduckgo)
+- **Censys** - [TARGET_HUNTER.md](TARGET_HUNTER.md#censys)
 
-- Progressive phase unlocking (5 actions to unlock next)
-- Reward bonuses: +10 (correct phase), +20 (completion)
-- Skip penalty: -5 (locked phases)
-- Result: 20-30% faster convergence
+### Key Features
 
-### Transfer Learning
+- **100 Real-World Actions** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#100-actions-explained)
+- **200+ Attack Payloads** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#payload-database)
+- **Auto-Proxy Fetching** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#proxy-system)
+- **Stealth Options** - [QUICK_START.md](QUICK_START.md#stealth-levels)
+- **Report Generation** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#report-formats)
 
-- Smart weight transfer from 52-action to 100-action architecture
-- Hidden layers: Fully transferred
-- Output layer: Partially transferred (first 52 actions)
-- New actions: Randomly initialized
+## 📊 Documentation Statistics
 
-### MAX GPU Optimization
+- **Total Documents**: 22
+- **Getting Started**: 3 docs
+- **Usage Guides**: 3 docs
+- **Feature Docs**: 4 docs
+- **Technical Docs**: 6 docs
+- **Training Docs**: 3 docs
+- **Maintenance**: 2 docs
+- **Project Info**: 1 doc
 
-- 8192 neurons (2x increase)
-- 4096 batch size (2x increase)
-- TF32 tensor cores enabled
-- Result: 35-40% faster training
+## 🆕 Latest Updates (2025)
 
-## Training Configuration
+### New Features Documented
 
-```bash
-# Start training
-python train_multi_target.py --episodes 2000
+- ✅ Zero-Day Hunter mode (fuzzing, CVE intelligence, config scanning)
+- ✅ Targetless Hunter mode (5 OSINT sources)
+- ✅ 200+ attack payloads
+- ✅ Auto-proxy fetching (6 sources)
+- ✅ Aggressive scan mode
+- ✅ Full exploit URLs
+- ✅ Comprehensive reports
 
-# Resume training
-python train_multi_target.py --episodes 2000 --resume 1000
+### Recently Updated Docs
 
-# Deploy agent
-python autonomous_scan.py --target http://example.com
-```
+- [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - Added 2 new scan modes
+- [QUICK_START.md](QUICK_START.md) - Added Zero-Day and Targetless examples
+- [AUTONOMOUS_SCAN_GUIDE.md](AUTONOMOUS_SCAN_GUIDE.md) - Updated with all modes
+- [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) - Simplified new mode explanations
+- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Updated file structure
+- [GUI_GUIDE.md](GUI_GUIDE.md) - Added Targetless UI documentation
 
-## Performance Metrics
+## 💡 Tips for Using This Documentation
 
-| Metric          | Value               |
-| --------------- | ------------------- |
-| Training Speed  | ~125 episodes/hour  |
-| Total Duration  | ~16-20 hours        |
-| Checkpoints     | 200 files (~1.7 GB) |
-| GPU Utilization | 90-95%              |
-| Success Rate    | 90% (estimated)     |
+1. **Start with the basics** - Read BEGINNER_GUIDE.md if you're new
+2. **Use the search** - Ctrl+F to find specific topics
+3. **Follow links** - Internal links connect related topics
+4. **Check examples** - Most guides include CLI examples
+5. **Stay updated** - Check this index for latest additions
 
-## Documentation Status
+## 📞 Need Help?
 
-| Document                  | Status          | Last Updated |
-| ------------------------- | --------------- | ------------ |
-| README.md                 | ✅ Updated      | 2025-11-27   |
-| QUICK_START.md            | ✅ Updated      | 2025-11-27   |
-| TECHNICAL_ARCHITECTURE.md | ✅ Updated      | 2025-11-27   |
-| PROJECT_OVERVIEW.md       | ✅ Updated      | 2025-11-27   |
-| OPTIMIZATION_SUMMARY.md   | ✅ Updated      | 2025-11-27   |
-| CHECKPOINT_SYSTEM.md      | ✅ Updated      | 2025-11-27   |
-| BEGINNER_GUIDE.md         | ⚠️ Needs update | -            |
-| DEPLOYMENT_GUIDE.md       | ⚠️ Needs update | -            |
-| Other docs                | ℹ️ Legacy       | -            |
-
-## Key Changes from 1.0
-
-### Removed
-
-- 32 "fluff" actions (XML Bomb, XPath, LDAP, SSI, CSS Injection, etc.)
-- Simulation-only attacks
-- Low-impact vulnerabilities
-
-### Added
-
-- 20 OSINT actions (passive + active reconnaissance)
-- 28 real-world attacks (Blind SQLi/XSS, RCE, Cloud exploits)
-- Phase-Based Reward Shaping algorithm
-- Transfer learning support
-- MAX GPU optimization
-
-### Improved
-
-- Action space: 52 → 100 (focused on real-world)
-- Training speed: +35-40% (GPU optimization)
-- Convergence: -20-30% episodes (reward shaping)
-- Architecture: 4096 → 8192 neurons
-
-## Future Roadmap
-
-- [ ] Complete 2000-episode training
-- [ ] Real-world deployment testing
-- [ ] Multi-GPU distributed training
-- [ ] Advanced OSINT modules
-- [ ] Cloud vulnerability detection
-- [ ] Hierarchical RL for complex chains
-
-## Contributing
-
-See individual documentation files for detailed information on each topic.
-
-For questions or issues, refer to the appropriate guide or create a GitHub issue.
+- 📖 Check the relevant guide above
+- 🐛 See [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md#troubleshooting) for troubleshooting
+- 💬 Open an issue on GitHub
+- 📧 Contact the maintainers
 
 ---
 
-**Last Updated:** 2025-11-27  
-**Version:** 2.0 (Kill Chain Architecture)  
-**Status:** Training in progress
+**Documentation Version**: 2.0  
+**Last Updated**: 2025-11-28  
+**Status**: ✅ Complete & Current

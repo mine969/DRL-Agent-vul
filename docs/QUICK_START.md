@@ -140,6 +140,44 @@ python autonomous_scan.py --target http://example.com --mode specific --attack "
 - Faster execution
 - Focused testing
 
+### ZERO-DAY Mode
+
+```bash
+python autonomous_scan.py --target http://example.com --mode zeroday
+```
+
+- Fuzzing and mutation testing
+- CVE intelligence integration
+- Configuration vulnerability scanning
+- Discovers unknown vulnerabilities
+
+### TARGETLESS Mode
+
+```bash
+# Using Google Dorks
+python autonomous_scan.py --mode targetless --google-dork "inurl:admin.php"
+
+# Using Shodan
+python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key YOUR_KEY
+
+# Using CRT.sh (Certificate Transparency)
+python autonomous_scan.py --mode targetless --crtsh example.com
+
+# Using DuckDuckGo
+python autonomous_scan.py --mode targetless --duckduckgo "site:example.com login"
+
+# Using Censys
+python autonomous_scan.py --mode targetless --censys-query "services.http.response.body:admin" --censys-id YOUR_ID --censys-secret YOUR_SECRET
+
+# Combine multiple sources
+python autonomous_scan.py --mode targetless --google-dork "inurl:login" --shodan-query "apache" --shodan-key YOUR_KEY
+```
+
+- Auto-discovers targets via OSINT
+- 5 discovery sources available
+- Autonomous target hunting
+- Perfect for bug bounty hunting
+
 ---
 
 ## Using Proxies
@@ -279,6 +317,41 @@ python autonomous_scan.py \
 # Based on discovered attack surface
 ```
 
+### Workflow 4: Zero-Day Hunting
+
+```bash
+# 1. Run Zero-Day Hunter mode
+python autonomous_scan.py \
+  --target http://target.com \
+  --mode zeroday \
+  --crawl-depth 30 \
+  --intensity 5
+
+# 2. Review fuzzing results
+# Check for crashes, errors, unusual responses
+
+# 3. Investigate CVE intelligence findings
+# Verify version-specific vulnerabilities
+```
+
+### Workflow 5: Targetless Bug Bounty Hunting
+
+```bash
+# 1. Auto-discover targets using multiple sources
+python autonomous_scan.py \
+  --mode targetless \
+  --google-dork "inurl:admin site:.edu" \
+  --shodan-query "apache 2.4" \
+  --shodan-key YOUR_KEY \
+  --crtsh example.com
+
+# 2. Agent scans all discovered targets
+# Automatically tests each found URL
+
+# 3. Review consolidated report
+# All findings from all targets in one report
+```
+
 ---
 
 ## Troubleshooting
@@ -345,16 +418,18 @@ python autonomous_scan.py --target http://target.com --crawl-depth 50 --intensit
 
 ## Quick Reference
 
-| Task            | Command                                                           |
-| --------------- | ----------------------------------------------------------------- |
-| Train agent     | `python train_multi_target.py --episodes 5000`                    |
-| Resume training | `python train_multi_target.py --latest --episodes 5000`           |
-| GUI scan        | `python scanner_gui.py`                                           |
-| CLI scan        | `python autonomous_scan.py --target URL`                          |
-| Aggressive scan | `python autonomous_scan.py --target URL --mode aggressive`        |
-| OSINT only      | `python autonomous_scan.py --target URL --mode osint`             |
-| With proxies    | `python autonomous_scan.py --target URL --proxy-file proxies.txt` |
-| High stealth    | `python autonomous_scan.py --target URL --stealth high`           |
+| Task             | Command                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| Train agent      | `python train_multi_target.py --episodes 5000`                                              |
+| Resume training  | `python train_multi_target.py --latest --episodes 5000`                                     |
+| GUI scan         | `python scanner_gui.py`                                                                     |
+| CLI scan         | `python autonomous_scan.py --target URL`                                                    |
+| Aggressive scan  | `python autonomous_scan.py --target URL --mode aggressive`                                  |
+| OSINT only       | `python autonomous_scan.py --target URL --mode osint`                                       |
+| Zero-Day hunting | `python autonomous_scan.py --target URL --mode zeroday`                                     |
+| Targetless scan  | `python autonomous_scan.py --mode targetless --google-dork "query" --shodan-query "apache"` |
+| With proxies     | `python autonomous_scan.py --target URL --proxy-file proxies.txt`                           |
+| High stealth     | `python autonomous_scan.py --target URL --stealth high`                                     |
 
 ---
 

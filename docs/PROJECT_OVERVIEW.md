@@ -17,7 +17,7 @@ An **AI-powered web security scanner** that uses Deep Reinforcement Learning to 
 
 ### 🔥 Advanced Scanning
 
-- **4 scan modes**: Auto, Aggressive, OSINT, Specific
+- **6 scan modes**: Auto, Aggressive, OSINT, Specific, Zero-Day, Targetless
 - **200+ attack payloads**: SQL, XSS, SSRF, LFI, SSTI, etc.
 - **Auto-proxy fetching**: 6 sources, 200+ proxies
 - **Stealth options**: Low/Medium/High/Paranoid
@@ -204,6 +204,20 @@ RL/
 - Single vulnerability type
 - Focused testing
 - **Use for**: Targeted assessment
+
+### ZERO-DAY Mode
+
+- Fuzzing and mutation testing
+- CVE intelligence integration
+- Configuration scanning
+- **Use for**: Discovering unknown vulnerabilities
+
+### TARGETLESS Mode
+
+- Auto-discover targets via OSINT
+- 5 discovery sources: Google Dorks, Shodan, CRT.sh, DuckDuckGo, Censys
+- Autonomous target hunting
+- **Use for**: Bug bounty hunting, wide-scale reconnaissance
 
 ---
 

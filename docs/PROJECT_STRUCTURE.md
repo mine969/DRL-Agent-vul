@@ -24,14 +24,22 @@ d:/github/RL/
 ├── 🧠 **Core Components**
 │   ├── agent/
 │   │   ├── __init__.py
-│   │   └── dqn_agent.py           # Deep Q-Network implementation
+│   │   ├── dqn_agent.py           # Deep Q-Network implementation
+│   │   └── payload_manager.py     # 200+ attack payloads
 │   │
-│   └── env/
-│       ├── __init__.py
-│       ├── web_sec_env.py         # Gymnasium environment (15 actions)
-│       ├── target_app.py          # Flask test server
-│       ├── templates/             # Modern UI templates
-│       └── static/                # CSS, JS assets
+│   ├── env/
+│   │   ├── __init__.py
+│   │   ├── web_sec_env.py         # Gymnasium environment (100 actions)
+│   │   ├── target_app.py          # Flask test server
+│   │   ├── templates/             # Modern UI templates
+│   │   └── static/                # CSS, JS assets
+│   │
+│   └── utils/
+│       ├── zero_day_hunter.py     # Fuzzing, CVE intelligence, config scanning
+│       ├── target_hunter.py       # 5 OSINT sources (Google, Shodan, CRT.sh, DuckDuckGo, Censys)
+│       ├── proxy_fetcher.py       # Auto-fetch proxies (6 sources)
+│       ├── vulnerability_database.py  # Vuln descriptions
+│       └── report_generator.py    # Report creation
 │
 ├── 💾 **Models & Checkpoints**
 │   ├── checkpoints/
@@ -48,11 +56,13 @@ d:/github/RL/
     ├── GUI_GUIDE.md               # GUI application guide
     ├── REAL_WORLD_USAGE.md        # Practical usage examples
     ├── AUTONOMOUS_SCAN_GUIDE.md   # Advanced scanning features
+    ├── ZERO_DAY_HUNTER.md         # Zero-Day hunting mode
+    ├── TARGET_HUNTER.md           # Targetless mode (5 OSINT sources)
     ├── DEPLOYMENT_GUIDE.md        # DVWA deployment guide
     ├── CHECKPOINT_SYSTEM.md       # Model management
-    ├── GPU_SUCCESS.md             # GPU setup & performance
+    ├── TRAINING_RECOMMENDATIONS.md # Training best practices
     ├── CLEANUP_GUIDE.md           # File management
-    └── TRANSFER_LEARNING.md       # Pre-trained models info
+    └── PROJECT_OVERVIEW.md        # High-level project description
 ```
 
 ---
