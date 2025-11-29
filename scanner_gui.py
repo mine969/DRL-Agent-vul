@@ -37,6 +37,7 @@ class ToolTip(object):
     def __init__(self, widget, text='widget info'):
         self.wait_time = 500     # miliseconds
         self.wrap_length = 180   # pixels
+        self.widget = widget     # FIX: Assign widget to self.widget
         self.text = text
         self.widget.bind("<Enter>", self.enter)
         self.widget.bind("<Leave>", self.leave)
