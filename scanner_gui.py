@@ -21,7 +21,6 @@ import sys
 import glob
 import json
 from datetime import datetime
-
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -973,18 +972,19 @@ Payload: {finding.get('payload')}
         specific_attack = self.specific_attack_type.get() if mode == "specific" else None
         
         # Targetless Config
-        dork = self.dork_query.get().strip()
         shodan_q = self.shodan_query.get().strip()
         shodan_k = self.shodan_key.get().strip()
         crtsh_d = self.crtsh_domain.get().strip()
         ddg_q = self.duckduckgo_query.get().strip()
         censys_q = self.censys_query.get().strip()
-        censys_q = self.censys_query.get().strip()
         censys_k = self.censys_api_key.get().strip()
         
+        # Check if we should use Auto-Generate
+        auto_generate = False
         if mode == "targetless" and not (dork or shodan_q or crtsh_d or ddg_q or censys_q):
-             messagebox.showerror("Error", "Please enter at least one discovery query (Dork, Shodan, CRT.sh, etc).")
-             return
+             # All fields empty -> Auto-Generate Mode
+             auto_generate = True
+             self.log("🤖 AUTO-GENERATE MODE ACTIVATED: Generating random queries...", "INFO")
         
         self.scan_button.config(state=tk.DISABLED)
         self.flash_btn.config(state=tk.DISABLED)
@@ -997,9 +997,9 @@ Payload: {finding.get('payload')}
         self.exploit_text.delete(1.0, tk.END)
         self.exploit_text.insert(tk.END, "// Scanning target... Awaiting findings...")
         
-        threading.Thread(target=self.run_scan, args=(target, model, mode, specific_attack, dork, shodan_q, shodan_k, crtsh_d, ddg_q, censys_q, censys_i, censys_s), daemon=True).start()
+        threading.Thread(target=self.run_scan, args=(target, model, mode, specific_attack, dork, shodan_q, shodan_k, crtsh_d, ddg_q, censys_q, censys_k, auto_generate), daemon=True).start()
 
-    def run_scan(self, target, model, mode, specific_attack, dork, shodan_q, shodan_k, crtsh_d, ddg_q, censys_q, censys_i, censys_s):
+    def run_scan(self, target, model, mode, specific_attack, dork, shodan_q, shodan_k, crtsh_d, ddg_q, censys_q, censys_k, auto_generate):
         # Redirect stdout to GUI
         class StdoutRedirector:
             def __init__(self, text_widget):
@@ -1019,15 +1019,41 @@ Payload: {finding.get('payload')}
                 self.log(f"🌍 INITIATING TARGET HUNTING...", "INFO")
                 hunter = TargetHunter(shodan_api_key=shodan_k)
                 
+                # Auto-Generate Logic
+                if auto_generate:
+                    import random
+                    if not dork: 
+                        dork = random.choice(hunter.get_common_dorks())
+                        self.log(f"🎲 Auto-Generated Dork: {dork}", "INFO")
+                    
+                    if not shodan_q and shodan_k:
+                        shodan_q = random.choice(hunter.get_shodan_queries())
+                        self.log(f"🎲 Auto-Generated Shodan Query: {shodan_q}", "INFO")
+                        
+                    if not crtsh_d:
+                        crtsh_d = random.choice(hunter.get_target_domains())
+                        self.log(f"🎲 Auto-Generated CRT.sh Domain: {crtsh_d}", "INFO")
+                        
+                    if not ddg_q:
+                        ddg_q = random.choice(hunter.get_duckduckgo_queries())
+                        self.log(f"🎲 Auto-Generated DuckDuckGo Query: {ddg_q}", "INFO")
+                        
+                    if not censys_q and censys_k:
+                        censys_q = random.choice(hunter.get_censys_queries())
+                        self.log(f"🎲 Auto-Generated Censys Query: {censys_q}", "INFO")
+
                 if dork:
                     found = hunter.dork_google(dork, num_results=5)
                     self.log(f"🔍 Google Dork found {len(found)} targets", "SUCCESS")
                     targets.extend(found)
                     
                 if shodan_q:
-                    found = hunter.search_shodan(shodan_q, limit=5)
-                    self.log(f"🌐 Shodan found {len(found)} targets", "SUCCESS")
-                    targets.extend(found)
+                    if shodan_k:
+                        found = hunter.search_shodan(shodan_q, limit=5)
+                        self.log(f"🌐 Shodan found {len(found)} targets", "SUCCESS")
+                        targets.extend(found)
+                    else:
+                        self.log("⚠️ Shodan Key missing - skipping Shodan", "WARNING")
                 
                 if crtsh_d:
                     found = hunter.search_crtsh(crtsh_d)
@@ -1040,9 +1066,12 @@ Payload: {finding.get('payload')}
                     targets.extend(found)
                     
                 if censys_q:
-                    found = hunter.search_censys(censys_q, censys_i, censys_s, limit=5)
-                    self.log(f"👁️ Censys found {len(found)} targets", "SUCCESS")
-                    targets.extend(found)
+                    if censys_k:
+                        found = hunter.search_censys(censys_q, censys_k, limit=5)
+                        self.log(f"👁️ Censys found {len(found)} targets", "SUCCESS")
+                        targets.extend(found)
+                    else:
+                        self.log("⚠️ Censys Key missing - skipping Censys", "WARNING")
                     
                 targets = list(set(targets))
                 self.log(f"✅ Total unique targets found: {len(targets)}", "SUCCESS")
@@ -1104,8 +1133,15 @@ Payload: {finding.get('payload')}
                     specific_attack=specific_attack
                 )
                 total_findings += len(findings)
+                
+                # Check if user aborted during scan
+                if not self.is_scanning:
+                    self.log("⚠️ SCAN ABORTED BY USER", "WARNING")
+                    break
             
-            self.root.after(0, lambda: self.scan_complete(total_findings))
+            # Only show completion if not aborted
+            if self.is_scanning:
+                self.root.after(0, lambda: self.scan_complete(total_findings))
             
         except Exception as e:
             self.root.after(0, lambda: self.log(f"SYSTEM ERROR: {str(e)}", "ERROR"))
@@ -1124,14 +1160,22 @@ Payload: {finding.get('payload')}
         messagebox.showinfo("MISSION COMPLETE", f"Scan finished.\nFound {count} vulnerabilities.")
 
     def stop_scan(self):
-        if self.auditor:
-            self.auditor.stop()
+        self.log("🛑 ABORTING MISSION...", "WARNING")
         self.is_scanning = False
+        
+        # Stop the auditor if it exists
+        if self.auditor:
+            try:
+                self.auditor.stop()
+            except Exception as e:
+                self.log(f"Error stopping auditor: {e}", "ERROR")
+        
+        # Reset UI state
         self.progress.stop()
         self.scan_button.config(state=tk.NORMAL)
         self.flash_btn.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
-        self.log("MISSION ABORTED BY USER", "WARNING")
+        self.log("❌ MISSION ABORTED BY USER", "WARNING")
 
     def preview_queries(self):
         """Show preview of auto-generated queries in a popup window"""
