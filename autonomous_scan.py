@@ -729,10 +729,10 @@ class SecurityAuditor:
         print("=" * 70)
         
         if scan_mode == "aggressive":
-            print(f"🔥 AGGRESSIVE MODE ENGAGED: Boosting intensity and depth!")
-            crawl_depth = int(crawl_depth * 1.5)
-            test_intensity = int(test_intensity * 2)
-            epsilon = 0.3 # More random exploration
+            print(f"🔥 AGGRESSIVE MODE ENGAGED: MAXIMIZING INTENSITY!")
+            crawl_depth = int(crawl_depth * 2.0)  # Double depth
+            test_intensity = int(test_intensity * 3) # Triple intensity
+            epsilon = 0.4 # High random exploration for novel attacks
             
         print()
         

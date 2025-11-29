@@ -498,7 +498,7 @@ class SecurityScannerGUI:
         # --- Control Widgets in Scrollable Frame ---
         self.add_section_header(self.scrollable_frame, "🎯 MISSION PARAMETERS")
         self.create_input_field(self.scrollable_frame, "TARGET URL:", self.target_url, "localhost:5001")
-        self.create_slider_field(self.scrollable_frame, "CRAWL DEPTH:", self.crawl_depth, 1, 100, 30, "Rec: 30 for new sites, 100+ for deep scan")
+        self.create_slider_field(self.scrollable_frame, "CRAWL DEPTH:", self.crawl_depth, 0, 100, 30, "0 = Only target URL (no crawl), 30 for new sites, 100+ for deep scan")
         self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 10, 3, "Rec: 2 for new sites, 3 standard, 5 aggressive")
         self.create_model_selector(self.scrollable_frame)
         
@@ -818,8 +818,20 @@ class SecurityScannerGUI:
 
     def add_finding(self, finding):
         self.findings.append(finding)
-        display_text = f"[{finding.get('type', 'Vuln')}] {finding.get('url', 'URL')}"
+        vuln_type = finding.get('type', 'Vuln')
+        display_text = f"[{vuln_type}] {finding.get('url', 'URL')}"
+        
         self.findings_list.insert(tk.END, display_text)
+        
+        # Color coding based on severity
+        index = self.findings_list.size() - 1
+        
+        high_severity = ['SQL', 'Command', 'RCE', 'Upload', 'XXE', 'SSRF', 'Auth', 'Admin', 'Mass Assignment']
+        if any(s.lower() in vuln_type.lower() for s in high_severity):
+            self.findings_list.itemconfig(index, {'fg': self.colors["danger"]}) # RED
+        else:
+            self.findings_list.itemconfig(index, {'fg': self.colors["warning"]}) # YELLOW
+            
         self.findings_list.see(tk.END)
 
     def on_finding_select(self, event):
@@ -972,6 +984,7 @@ Payload: {finding.get('payload')}
         specific_attack = self.specific_attack_type.get() if mode == "specific" else None
         
         # Targetless Config
+        dork = self.dork_query.get().strip()
         shodan_q = self.shodan_query.get().strip()
         shodan_k = self.shodan_key.get().strip()
         crtsh_d = self.crtsh_domain.get().strip()
@@ -1092,9 +1105,14 @@ Payload: {finding.get('payload')}
                 try:
                     with open(proxy_file, 'r') as f:
                         proxy_list = [line.strip() for line in f if line.strip()]
-                    self.log(f"LOADED {len(proxy_list)} PROXIES", "SUCCESS")
+                    self.log(f"✅ LOADED {len(proxy_list)} PROXIES", "SUCCESS")
                 except Exception as e:
-                    self.log(f"PROXY LOAD ERROR: {e}", "ERROR")
+                    self.log(f"❌ PROXY LOAD ERROR: {e}", "ERROR")
+                    self.log("⚠️ Continuing without proxies...", "WARNING")
+            else:
+                if proxy_file:
+                    self.log(f"⚠️ Proxy file not found: {proxy_file}", "WARNING")
+                self.log("ℹ️ No proxy configured - using direct connection", "INFO")
             
             stealth = self.stealth_level.get()
             self.log(f"STEALTH LEVEL: {stealth.upper()}", "INFO")
@@ -1118,8 +1136,14 @@ Payload: {finding.get('payload')}
                 original_log_finding = self.auditor.log_finding
                 def gui_log_finding(finding):
                     original_log_finding(finding)
-                    self.root.after(0, lambda: self.add_finding(finding))
-                    self.root.after(0, lambda: self.log(f"VULNERABILITY CONFIRMED: {finding.get('type')}", "WARNING"))
+                    self.root.after(0, lambda f=finding: self.add_finding(f))
+                    # Log detailed vulnerability information
+                    vuln_type = finding.get('type', 'Unknown')
+                    vuln_url = finding.get('url', 'N/A')
+                    vuln_payload = finding.get('payload', 'N/A')
+                    self.root.after(0, lambda: self.log(f"🚨 VULNERABILITY CONFIRMED: {vuln_type}", "WARNING"))
+                    self.root.after(0, lambda: self.log(f"   └─ URL: {vuln_url}", "INFO"))
+                    self.root.after(0, lambda: self.log(f"   └─ Payload: {vuln_payload}", "INFO"))
                 
                 self.auditor.log_finding = gui_log_finding
                 
