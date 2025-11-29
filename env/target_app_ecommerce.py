@@ -17,7 +17,7 @@ import jwt
 app = Flask(__name__)
 app.secret_key = 'ecommerce_secret_2025'
 JWT_SECRET = 'ecommerce_jwt_secret'
-DB_NAME = 'ecommerce.db'
+DB_NAME = 'env/ecommerce.db'
 
 # ============================================================================
 # DATABASE SETUP

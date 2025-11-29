@@ -270,22 +270,27 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # Define local training targets (5 professional web applications)
+    # Define real-world training targets
+    # ⚠️ IMPORTANT: Only scan websites you own or have explicit permission to test!
     targets = [
-        ("E-Commerce Platform", "http://localhost:5002"),
-        ("Social Media", "http://localhost:5003"),
-        ("SecureBank", "http://localhost:5004"),
-        ("VulnBlog", "http://localhost:5005"),
-        ("FileShare Pro", "http://localhost:5006"),
+        # Example real-world targets (replace with your authorized targets)
+        ("LMS Platform", "https://levelup.melivecode.com"),
+        ("RSU Portal", "https://rsuip.org"),
+        ("DIT RSU", "https://dit.rsu.ac.th"),
+        
+        # Add more targets here as needed:
+        # ("Target Name", "https://example.com"),
+        # ("Another Target", "https://another-example.com"),
     ]
     
     print("=" * 70)
-    print("🎯 LOCAL MULTI-TARGET TRAINING")
+    print("� REAL-WORLD MULTI-TARGET TRAINING")
     print("=" * 70)
-    print(f"Total Local Targets: {len(targets)}")
+    print("⚠️  WARNING: Only scan authorized targets!")
+    print(f"\nTotal Real-World Targets: {len(targets)}")
     print("\nTraining Targets:")
     for name, url in targets:
-        print(f"  ✓ {name}: {url}")
+        print(f"  🌐 {name}: {url}")
     print("=" * 70)
     print()
     
