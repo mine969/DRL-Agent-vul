@@ -389,8 +389,8 @@ class SecurityScannerGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("💀 DRL AI RED TEAM - AUTONOMOUS ATTACKER")
-        self.root.geometry("1400x900")
-        self.root.minsize(1200, 800)
+        self.root.geometry("1920x1080")  # Increased default size
+        self.root.minsize(1280, 720)    # Increased minimum size to prevent content cutoff
         
         # Cyberpunk / Red Team Theme
         self.colors = {
@@ -477,8 +477,21 @@ class SecurityScannerGUI:
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
         
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw", width=330) # Fixed width for content
+        # Create window without fixed width - will resize dynamically
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        
+        # Bind canvas resize to update scrollable frame width
+        def on_canvas_resize(event):
+            self.canvas.itemconfig(self.canvas_window, width=event.width)
+        
+        self.canvas.bind("<Configure>", on_canvas_resize)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        
+        # Enable mousewheel scrolling
+        def on_mousewheel(event):
+            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        self.canvas.bind_all("<MouseWheel>", on_mousewheel)
         
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
@@ -486,8 +499,8 @@ class SecurityScannerGUI:
         # --- Control Widgets in Scrollable Frame ---
         self.add_section_header(self.scrollable_frame, "🎯 MISSION PARAMETERS")
         self.create_input_field(self.scrollable_frame, "TARGET URL:", self.target_url, "localhost:5001")
-        self.create_slider_field(self.scrollable_frame, "CRAWL DEPTH:", self.crawl_depth, 1, 100, 30)
-        self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 10, 3)
+        self.create_slider_field(self.scrollable_frame, "CRAWL DEPTH:", self.crawl_depth, 1, 100, 30, "Rec: 30 for new sites, 100+ for deep scan")
+        self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 10, 3, "Rec: 2 for new sites, 3 standard, 5 aggressive")
         self.create_model_selector(self.scrollable_frame)
         
         # SCAN MODES
@@ -514,45 +527,88 @@ class SecurityScannerGUI:
         self.attack_combo.config(state=tk.DISABLED)
 
         # Target Discovery (Hidden by default)
+        self.discovery_section_header = tk.Label(
+            self.scrollable_frame, 
+            text="🎯 TARGET DISCOVERY", 
+            font=("Courier New", 12, "bold"), 
+            bg=self.colors["bg_panel"], 
+            fg=self.colors["text_dim"]
+        )
+        
         self.discovery_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
-        self.discovery_frame.pack(fill=tk.X, padx=15, pady=5)
+        
+        # Load environment variables
+        from dotenv import load_dotenv
+        load_dotenv()
         
         self.dork_query = tk.StringVar()
         self.shodan_query = tk.StringVar()
-        self.shodan_key = tk.StringVar()
+        self.shodan_key = tk.StringVar(value=os.getenv("SHODAN_API_KEY", ""))
         self.crtsh_domain = tk.StringVar()
         self.duckduckgo_query = tk.StringVar()
         self.censys_query = tk.StringVar()
-        self.censys_id = tk.StringVar()
-        self.censys_secret = tk.StringVar()
+        self.censys_query = tk.StringVar()
+        self.censys_api_key = tk.StringVar(value=os.getenv("CENSYS_API_KEY", ""))
         
-        # Grid layout for discovery frame
+        # Grid layout for discovery frame with random buttons
+        # Google Dork
         tk.Label(self.discovery_frame, text="GOOGLE DORK:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=0, column=0, sticky="w", padx=5, pady=2)
         tk.Entry(self.discovery_frame, textvariable=self.dork_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=0, column=1, sticky="ew", padx=5, pady=2)
+        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("dork")).grid(row=0, column=2, padx=(0, 5), pady=2)
         
+        # Shodan Query
         tk.Label(self.discovery_frame, text="SHODAN QUERY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=1, column=0, sticky="w", padx=5, pady=2)
         tk.Entry(self.discovery_frame, textvariable=self.shodan_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=1, column=1, sticky="ew", padx=5, pady=2)
+        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("shodan")).grid(row=1, column=2, padx=(0, 5), pady=2)
         
+        # Shodan Key (no random button)
         tk.Label(self.discovery_frame, text="SHODAN KEY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=2, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.shodan_key, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white", show="*").grid(row=2, column=1, sticky="ew", padx=5, pady=2)
+        tk.Entry(self.discovery_frame, textvariable=self.shodan_key, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white", show="*").grid(row=2, column=1, columnspan=2, sticky="ew", padx=5, pady=2)
         
+        # CRT.sh Domain
         tk.Label(self.discovery_frame, text="CRT.SH DOMAIN:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=3, column=0, sticky="w", padx=5, pady=2)
         tk.Entry(self.discovery_frame, textvariable=self.crtsh_domain, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=3, column=1, sticky="ew", padx=5, pady=2)
+        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("crtsh")).grid(row=3, column=2, padx=(0, 5), pady=2)
         
+        # DuckDuckGo
         tk.Label(self.discovery_frame, text="DUCKDUCKGO:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=4, column=0, sticky="w", padx=5, pady=2)
         tk.Entry(self.discovery_frame, textvariable=self.duckduckgo_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=4, column=1, sticky="ew", padx=5, pady=2)
+        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("duckduckgo")).grid(row=4, column=2, padx=(0, 5), pady=2)
         
+        # Censys Query
         tk.Label(self.discovery_frame, text="CENSYS QUERY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=5, column=0, sticky="w", padx=5, pady=2)
         tk.Entry(self.discovery_frame, textvariable=self.censys_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=5, column=1, sticky="ew", padx=5, pady=2)
+        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("censys")).grid(row=5, column=2, padx=(0, 5), pady=2)
         
-        tk.Label(self.discovery_frame, text="CENSYS ID:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=6, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.censys_id, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white", show="*").grid(row=6, column=1, sticky="ew", padx=5, pady=2)
+        # Censys API Key (PAT)
+        tk.Label(self.discovery_frame, text="CENSYS API KEY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=6, column=0, sticky="w", padx=5, pady=2)
+        tk.Entry(self.discovery_frame, textvariable=self.censys_api_key, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white", show="*").grid(row=6, column=1, columnspan=2, sticky="ew", padx=5, pady=2)
         
-        tk.Label(self.discovery_frame, text="CENSYS SECRET:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=7, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.censys_secret, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white", show="*").grid(row=7, column=1, sticky="ew", padx=5, pady=2)
+        # Add auto-generate hint
+        auto_hint = tk.Label(
+            self.discovery_frame, 
+            text="💡 Tip: Leave fields empty to use AUTO-GENERATE mode (100+ queries)", 
+            font=("Consolas", 8, "italic"), 
+            bg=self.colors["bg_panel"], 
+            fg=self.colors["accent_dim"]
+        )
+        auto_hint.grid(row=7, column=0, columnspan=2, sticky="w", padx=5, pady=(10, 2))
+        
+        # Add Preview Queries button
+        preview_btn = tk.Button(
+            self.discovery_frame,
+            text="🔍 PREVIEW AUTO-GENERATED QUERIES",
+            font=("Courier New", 9, "bold"),
+            bg=self.colors["accent_dim"],
+            fg="black",
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self.preview_queries
+        )
+        preview_btn.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=(5, 10))
         
         self.discovery_frame.columnconfigure(1, weight=1)
-        self.discovery_frame.pack_forget() # Hide initially
+        # Don't pack yet - will be shown when targetless mode is selected
 
         # STEALTH CONFIGURATION
         self.add_section_header(self.scrollable_frame, "🥷 STEALTH CONFIGURATION")
@@ -659,8 +715,13 @@ class SecurityScannerGUI:
             
         # Handle Discovery Frame
         if mode == "targetless":
-            self.discovery_frame.pack(fill=tk.X, padx=15, pady=5, after=self.attack_frame)
+            # Show header first
+            self.discovery_section_header.pack(pady=(15, 5), padx=15, anchor=tk.W)
+            # Then show frame
+            self.discovery_frame.pack(fill=tk.X, padx=15, pady=5)
         else:
+            # Hide both header and frame
+            self.discovery_section_header.pack_forget()
             self.discovery_frame.pack_forget()
 
     def add_section_header(self, parent, text):
@@ -675,13 +736,16 @@ class SecurityScannerGUI:
         entry.insert(0, placeholder)
         ToolTip(entry, f"Enter the {label_text.lower().replace(':', '')} here")
 
-    def create_slider_field(self, parent, label_text, variable, from_, to, default):
+    def create_slider_field(self, parent, label_text, variable, from_, to, default, tooltip_text=None):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
         frame.pack(pady=5, padx=15, fill=tk.X)
         tk.Label(frame, text=label_text, font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
         tk.Scale(frame, from_=from_, to=to, orient=tk.HORIZONTAL, variable=variable, bg=self.colors["bg_panel"], fg=self.colors["accent"], troughcolor="black", showvalue=True, highlightthickness=0).pack(fill=tk.X)
         variable.set(default)
-        ToolTip(frame, f"Adjust {label_text.lower().replace(':', '')}")
+        if tooltip_text:
+            ToolTip(frame, tooltip_text)
+        else:
+            ToolTip(frame, f"Adjust {label_text.lower().replace(':', '')}")
 
     def create_model_selector(self, parent):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
@@ -889,7 +953,16 @@ Payload: {finding.get('payload')}
             if not target:
                 messagebox.showerror("Error", "Please enter a target URL.")
                 return
-            if not target.startswith(('http://', 'https://')): target = 'http://' + target
+            # Only add http:// if user didn't specify any protocol
+            if not target.startswith(('http://', 'https://')):
+                target = 'http://' + target
+                self.log(f"No protocol specified, defaulting to HTTP: {target}", "INFO")
+            else:
+                # User specified protocol - respect their choice
+                if target.startswith('https://'):
+                    self.log(f"Using HTTPS as specified: {target}", "INFO")
+                else:
+                    self.log(f"Using HTTP as specified: {target}", "INFO")
         
         model_selection = self.model_path.get()
         if " (Final)" in model_selection:
@@ -906,8 +979,8 @@ Payload: {finding.get('payload')}
         crtsh_d = self.crtsh_domain.get().strip()
         ddg_q = self.duckduckgo_query.get().strip()
         censys_q = self.censys_query.get().strip()
-        censys_i = self.censys_id.get().strip()
-        censys_s = self.censys_secret.get().strip()
+        censys_q = self.censys_query.get().strip()
+        censys_k = self.censys_api_key.get().strip()
         
         if mode == "targetless" and not (dork or shodan_q or crtsh_d or ddg_q or censys_q):
              messagebox.showerror("Error", "Please enter at least one discovery query (Dork, Shodan, CRT.sh, etc).")
@@ -1059,6 +1132,154 @@ Payload: {finding.get('payload')}
         self.flash_btn.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.log("MISSION ABORTED BY USER", "WARNING")
+
+    def preview_queries(self):
+        """Show preview of auto-generated queries in a popup window"""
+        from utils.target_hunter import TargetHunter
+        import random
+        
+        # Create popup window
+        preview_window = tk.Toplevel(self.root)
+        preview_window.title("🔍 Auto-Generated Query Preview")
+        preview_window.geometry("800x600")
+        preview_window.configure(bg=self.colors["bg_dark"])
+        
+        # Header
+        header = tk.Label(
+            preview_window,
+            text="🤖 AUTO-GENERATED QUERIES PREVIEW",
+            font=("Courier New", 14, "bold"),
+            bg=self.colors["bg_dark"],
+            fg=self.colors["accent"]
+        )
+        header.pack(pady=10)
+        
+        # Info label
+        info = tk.Label(
+            preview_window,
+            text="These queries will be randomly selected when you start the scan",
+            font=("Consolas", 9),
+            bg=self.colors["bg_dark"],
+            fg=self.colors["text_dim"]
+        )
+        info.pack(pady=5)
+        
+        # Text area with scrollbar
+        text_frame = tk.Frame(preview_window, bg=self.colors["bg_dark"])
+        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        scrollbar = tk.Scrollbar(text_frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        text_area = tk.Text(
+            text_frame,
+            wrap=tk.WORD,
+            font=("Consolas", 9),
+            bg="black",
+            fg=self.colors["text"],
+            yscrollcommand=scrollbar.set
+        )
+        text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_area.yview)
+        
+        # Get queries from TargetHunter
+        hunter = TargetHunter()
+        
+        # Google Dorks
+        text_area.insert(tk.END, "🔍 GOOGLE DORKS (60+ available)\n", "header")
+        text_area.insert(tk.END, "=" * 70 + "\n\n")
+        dorks = hunter.get_common_dorks()
+        sample_dorks = random.sample(dorks, min(10, len(dorks)))
+        for i, dork in enumerate(sample_dorks, 1):
+            text_area.insert(tk.END, f"{i}. {dork}\n")
+        text_area.insert(tk.END, f"\n... and {len(dorks) - 10} more dorks\n\n")
+        
+        # Shodan Queries
+        text_area.insert(tk.END, "🌐 SHODAN QUERIES (30+ available)\n", "header")
+        text_area.insert(tk.END, "=" * 70 + "\n\n")
+        shodan_queries = hunter.get_shodan_queries()
+        sample_shodan = random.sample(shodan_queries, min(10, len(shodan_queries)))
+        for i, query in enumerate(sample_shodan, 1):
+            text_area.insert(tk.END, f"{i}. {query}\n")
+        text_area.insert(tk.END, f"\n... and {len(shodan_queries) - 10} more queries\n\n")
+        
+        # CRT.sh Domains
+        text_area.insert(tk.END, "📜 CRT.SH DOMAINS (10+ available)\n", "header")
+        text_area.insert(tk.END, "=" * 70 + "\n\n")
+        domains = hunter.get_target_domains()
+        for i, domain in enumerate(domains, 1):
+            text_area.insert(tk.END, f"{i}. {domain}\n")
+        text_area.insert(tk.END, "\n")
+        
+        # DuckDuckGo Queries
+        text_area.insert(tk.END, "🦆 DUCKDUCKGO QUERIES (10+ available)\n", "header")
+        text_area.insert(tk.END, "=" * 70 + "\n\n")
+        ddg_queries = hunter.get_duckduckgo_queries()
+        for i, query in enumerate(ddg_queries, 1):
+            text_area.insert(tk.END, f"{i}. {query}\n")
+        text_area.insert(tk.END, "\n")
+        
+        # Censys Queries
+        text_area.insert(tk.END, "👁️ CENSYS QUERIES (10+ available)\n", "header")
+        text_area.insert(tk.END, "=" * 70 + "\n\n")
+        censys_queries = hunter.get_censys_queries()
+        sample_censys = random.sample(censys_queries, min(10, len(censys_queries)))
+        for i, query in enumerate(sample_censys, 1):
+            text_area.insert(tk.END, f"{i}. {query}\n")
+        
+        # Configure tags
+        text_area.tag_config("header", foreground=self.colors["accent"], font=("Courier New", 10, "bold"))
+        
+        # Make read-only
+        text_area.config(state=tk.DISABLED)
+        
+        # Close button
+        close_btn = tk.Button(
+            preview_window,
+            text="✅ GOT IT",
+            font=("Courier New", 11, "bold"),
+            bg=self.colors["accent"],
+            fg="black",
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=preview_window.destroy,
+            width=20
+        )
+        close_btn.pack(pady=10)
+
+    def random_query(self, query_type):
+        """Fill the field with a random query from the database"""
+        from utils.target_hunter import TargetHunter
+        import random
+        
+        hunter = TargetHunter()
+        
+        if query_type == "dork":
+            dorks = hunter.get_common_dorks()
+            self.dork_query.set(random.choice(dorks))
+            self.log(f"Random Google Dork: {self.dork_query.get()}", "INFO")
+            
+        elif query_type == "shodan":
+            queries = hunter.get_shodan_queries()
+            self.shodan_query.set(random.choice(queries))
+            self.log(f"Random Shodan Query: {self.shodan_query.get()}", "INFO")
+            
+        elif query_type == "crtsh":
+            domains = hunter.get_target_domains()
+            self.crtsh_domain.set(random.choice(domains))
+            self.log(f"Random CRT.sh Domain: {self.crtsh_domain.get()}", "INFO")
+            
+        elif query_type == "duckduckgo":
+            queries = hunter.get_duckduckgo_queries()
+            self.duckduckgo_query.set(random.choice(queries))
+            self.log(f"Random DuckDuckGo Query: {self.duckduckgo_query.get()}", "INFO")
+            
+        elif query_type == "censys":
+            queries = hunter.get_censys_queries()
+            self.censys_query.set(random.choice(queries))
+            self.log(f"Random Censys Query: {self.censys_query.get()}", "INFO")
+
+
 
     def view_report(self):
         reports = glob.glob("reports/vulnerability_report_*.html")

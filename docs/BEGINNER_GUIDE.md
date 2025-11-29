@@ -137,6 +137,43 @@ python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key
 
 ---
 
+## 🧠 Scanning Strategies (Recommended Settings)
+
+### For Unknown / New Websites (Start Here) 🛡️
+
+**Goal**: Map the site safely without crashing it or getting blocked.
+
+- **Crawl Depth**: `30` (Enough to find main pages)
+- **Intensity**: `2` (Gentle testing)
+- **Command**:
+  ```bash
+  python autonomous_scan.py http://target.com --depth 30 --intensity 2
+  ```
+
+### For Standard Security Testing ⚖️
+
+**Goal**: Thorough check of a stable website.
+
+- **Crawl Depth**: `50`
+- **Intensity**: `3` (Default balance)
+- **Command**:
+  ```bash
+  python autonomous_scan.py http://target.com --depth 50 --intensity 3
+  ```
+
+### For Deep / Aggressive Testing 🔥
+
+**Goal**: Find deep vulnerabilities in robust applications.
+
+- **Crawl Depth**: `100`
+- **Intensity**: `5` (Maximum attack power)
+- **Command**:
+  ```bash
+  python autonomous_scan.py http://target.com --depth 100 --intensity 5
+  ```
+
+---
+
 ## 📊 Understanding the Report
 
 ### Impact Levels

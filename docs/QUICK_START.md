@@ -154,6 +154,17 @@ python autonomous_scan.py --target http://example.com --mode zeroday
 ### TARGETLESS Mode
 
 ```bash
+# AUTO-GENERATE MODE (Recommended) - Automatically creates queries from 100+ database
+python autonomous_scan.py --auto-generate
+
+# Auto-generate from specific source
+python autonomous_scan.py --auto-generate --auto-source google
+python autonomous_scan.py --auto-generate --auto-source shodan --shodan-key YOUR_KEY
+
+# Control query count
+python autonomous_scan.py --auto-generate --auto-max 5
+
+# MANUAL MODE - Provide your own queries
 # Using Google Dorks
 python autonomous_scan.py --mode targetless --google-dork "inurl:admin.php"
 
@@ -175,6 +186,8 @@ python autonomous_scan.py --mode targetless --google-dork "inurl:login" --shodan
 
 - Auto-discovers targets via OSINT
 - 5 discovery sources available
+- **Auto-generate**: 100+ pre-configured queries (60+ Google dorks, 30+ Shodan queries)
+- **Manual mode**: Provide custom queries
 - Autonomous target hunting
 - Perfect for bug bounty hunting
 
@@ -414,28 +427,6 @@ python autonomous_scan.py --target http://target.com --crawl-depth 50 --intensit
 3. ✅ Study `TRAINING_RECOMMENDATIONS.md`
 4. ✅ Explore `GUI_GUIDE.md`
 
----
-
-## Quick Reference
-
-| Task             | Command                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------- |
-| Train agent      | `python train_multi_target.py --episodes 5000`                                              |
-| Resume training  | `python train_multi_target.py --latest --episodes 5000`                                     |
-| GUI scan         | `python scanner_gui.py`                                                                     |
-| CLI scan         | `python autonomous_scan.py --target URL`                                                    |
-| Aggressive scan  | `python autonomous_scan.py --target URL --mode aggressive`                                  |
-| OSINT only       | `python autonomous_scan.py --target URL --mode osint`                                       |
-| Zero-Day hunting | `python autonomous_scan.py --target URL --mode zeroday`                                     |
-| Targetless scan  | `python autonomous_scan.py --mode targetless --google-dork "query" --shodan-query "apache"` |
-| With proxies     | `python autonomous_scan.py --target URL --proxy-file proxies.txt`                           |
-| High stealth     | `python autonomous_scan.py --target URL --stealth high`                                     |
-
----
-
-## Getting Help
-
-- 📖 Read the docs in `docs/` folder
 - 🐛 Check `TROUBLESHOOTING.md`
 - 💬 Open an issue on GitHub
 - 📧 Contact the maintainers

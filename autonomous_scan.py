@@ -28,6 +28,11 @@ import datetime
 import json
 import argparse
 import random
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 import time
 
 # Import internal modules
@@ -288,12 +293,59 @@ class WebsiteExplorer:
         self.wayback = WaybackMachine(self.domain)
         self.obfuscator = RequestObfuscator(stealth_level)
         
+    def scan_ports(self, ports: List[int] = None) -> List[str]:
+        """
+        Scans common web ports to find hidden services.
+        """
+        if ports is None:
+            # Common web ports
+            ports = [80, 443, 8080, 8443, 8000, 8008, 8888, 3000, 5000, 9000, 9200, 9443]
+            
+        print(f"🔌 Scanning {len(ports)} common ports on {self.domain}...")
+        open_services = []
+        
+        import socket
+        
+        for port in ports:
+            try:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(1.0) # Fast timeout
+                result = sock.connect_ex((self.domain, port))
+                sock.close()
+                
+                if result == 0:
+                    # Port is open, try to determine protocol
+                    protocols = []
+                    if port in [443, 8443, 9443]:
+                        protocols = ["https"]
+                    elif port in [80, 8080, 8000, 3000, 5000]:
+                        protocols = ["http"]
+                    else:
+                        protocols = ["http", "https"]
+                        
+                    for proto in protocols:
+                        url = f"{proto}://{self.domain}:{port}"
+                        open_services.append(url)
+                        print(f"  ✨ Found open service: {url}")
+                        
+            except Exception:
+                pass
+                
+        return open_services
+
     def explore(self, max_pages: int = 50, auto_login: bool = True) -> List[str]:
         """
         Crawls the website to discover pages.
         """
         print(f"🕷️  Starting reconnaissance on: {self.base_url}")
         print(f"🎯 Target domain: {self.domain}\n")
+        
+        # --- PORT SCANNING ---
+        # Check for other open ports first
+        if "localhost" not in self.domain and "127.0.0.1" not in self.domain:
+            found_services = self.scan_ports()
+            for service in found_services:
+                self.discovered_urls.add(service)
         
         # Try to authenticate first
         if auto_login:
@@ -302,6 +354,13 @@ class WebsiteExplorer:
         
         # Queue: The list of pages we need to visit
         pages_to_visit: deque = deque([self.base_url])
+        
+        # Add discovered services to queue
+        if "localhost" not in self.domain and "127.0.0.1" not in self.domain:
+            for service in found_services:
+                if service not in pages_to_visit:
+                    pages_to_visit.append(service)
+        
         visited_pages: Set[str] = set()
         
         # --- WAYBACK MACHINE INTEGRATION ---
@@ -865,10 +924,10 @@ if __name__ == "__main__":
         # Parse command line arguments
         parser = argparse.ArgumentParser(description='AI-Powered Autonomous Security Scanner')
         parser.add_argument('url', nargs='?', help='Target URL to scan (e.g., http://localhost:5000)')
-        parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl')
-        parser.add_argument('--intensity', type=int, default=3, help='How many times to test each page')
+        parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl (Rec: 30 for new sites, 100+ for deep scan)')
+        parser.add_argument('--intensity', type=int, default=3, help='Attack intensity 1-5 (Rec: 2 for new sites, 3 standard, 5 aggressive)')
         parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Path to the trained AI model')
-        parser.add_argument("--mode", type=str, default="auto", choices=["auto", "aggressive", "osint", "specific", "zeroday"], help="Scan mode")
+        parser.add_argument("--mode", type=str, default="auto", choices=["auto", "aggressive", "osint", "specific", "zeroday", "targetless"], help="Scan mode")
         parser.add_argument("--attack", type=str, help="Specific attack type (e.g., SQL, XSS)")
         parser.add_argument("--proxy-file", type=str, help="Path to proxy list file")
         parser.add_argument("--stealth", type=str, default="medium", choices=["low", "medium", "high", "paranoid"], help="Stealth level")
@@ -876,13 +935,18 @@ if __name__ == "__main__":
         # Hunting Arguments
         parser.add_argument("--dork", type=str, help="Google Dork query to find targets")
         parser.add_argument("--shodan-query", type=str, help="Shodan query to find targets")
-        parser.add_argument("--shodan-key", type=str, help="Shodan API Key")
+        parser.add_argument("--shodan-key", type=str, default=os.getenv("SHODAN_API_KEY"), help="Shodan API Key")
         parser.add_argument("--crtsh", type=str, help="Domain to search in CRT.sh")
         parser.add_argument("--duckduckgo", type=str, help="DuckDuckGo query")
         parser.add_argument("--censys-query", type=str, help="Censys query")
-        parser.add_argument("--censys-id", type=str, help="Censys API ID")
-        parser.add_argument("--censys-secret", type=str, help="Censys API Secret")
+        parser.add_argument("--censys-id", type=str, default=os.getenv("CENSYS_API_ID"), help="Censys API ID")
+        parser.add_argument("--censys-secret", type=str, default=os.getenv("CENSYS_API_SECRET"), help="Censys API Secret")
         parser.add_argument("--limit", type=int, default=5, help="Max targets to hunt per source")
+        
+        # AUTO-GENERATE MODE
+        parser.add_argument("--auto-generate", action="store_true", help="AUTO-GENERATE MODE: Automatically generate queries for target hunting")
+        parser.add_argument("--auto-source", type=str, default="all", choices=["all", "google", "shodan", "crtsh", "duckduckgo", "censys"], help="Source for auto-generation")
+        parser.add_argument("--auto-max", type=int, default=3, help="Max queries per source in auto-generate mode")
 
         args = parser.parse_args()
         
@@ -891,7 +955,15 @@ if __name__ == "__main__":
         if args.url:
             targets.append(args.url)
         
-        if args.dork or args.shodan_query or args.crtsh or args.duckduckgo or args.censys_query:
+        # AUTO-GENERATE MODE
+        if args.auto_generate or args.mode == "targetless":
+            print(f"\n🤖 AUTO-GENERATE MODE ACTIVATED!")
+            hunter = TargetHunter(shodan_api_key=args.shodan_key)
+            auto_targets = hunter.auto_generate_targets(source=args.auto_source, max_per_source=args.auto_max)
+            targets.extend(auto_targets)
+        
+        # MANUAL QUERY MODE
+        elif args.dork or args.shodan_query or args.crtsh or args.duckduckgo or args.censys_query:
             print(f"\n🌍 STARTING TARGET HUNTING...")
             hunter = TargetHunter(shodan_api_key=args.shodan_key)
             
@@ -924,7 +996,7 @@ if __name__ == "__main__":
             print(f"✅ Total unique targets found: {len(targets)}\n")
             
         if not targets:
-            print("❌ No targets specified. Use --url or hunting arguments (--dork, --shodan-query, etc.)")
+            print("❌ No targets specified. Use --url, hunting arguments (--dork, --shodan-query, etc.), or --auto-generate")
             return
 
         # Load proxies if provided
