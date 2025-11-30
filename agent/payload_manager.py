@@ -1,13 +1,28 @@
 import random
+import json
+import os
 from typing import List, Dict
 
 class PayloadManager:
     """
     Manages real-world security payloads for the agent.
     Updated with 2025 WAF Bypass, Cloud Native, and OWASP Top 10 2025 techniques.
+    NOW ENHANCED: Loads real-world payloads from HoneyPot data.
     """
     
-    def __init__(self):
+    def __init__(self, unified_data_path: str = None):
+        # Unified Kaggle Data Storage
+        self.unified_payloads = []
+        self.unified_ports = {}
+        self.unified_attack_types = {}
+        self.severity_payloads = {"low": [], "medium": [], "high": []}
+        self.protocol_distribution = {}
+        
+        # Load unified Kaggle data if provided
+        if unified_data_path and os.path.exists(unified_data_path):
+            self._load_unified_kaggle_data(unified_data_path)
+        
+        # --- SQL Injection (2025 Edition: JSON-Based & PostgreSQL CVE-2025-1094) ---
         # --- SQL Injection (2025 Edition: JSON-Based & PostgreSQL CVE-2025-1094) ---
         self.sqli_payloads = [
             "' OR '1'='1",
@@ -557,10 +572,158 @@ class PayloadManager:
         
     def get_all_payloads(self) -> List[str]:
         """Return a flat list of all payloads for massive scanning"""
-        return (self.sqli_payloads + self.sqli_time_based + self.sqli_waf_bypass + 
+        all_payloads = (self.sqli_payloads + self.sqli_time_based + self.sqli_waf_bypass + 
                 self.sqli_json_bypass + self.xss_payloads + self.xss_polyglots + 
                 self.xss_csp_bypass + self.ssrf_cloud + self.fuzz_payloads + 
                 self.supply_chain_payloads + self.deserialization_payloads +
                 self.crypto_attack_payloads + self.race_condition_payloads +
                 self.log_injection_payloads + self.business_logic_payloads +
                 self.auth_bypass_payloads)
+        
+        # Add HoneyPot payloads if loaded
+        if self.honeypot_payloads:
+            all_payloads.extend(self.honeypot_payloads)
+        
+        return all_payloads
+    
+    def _load_honeypot_data(self, json_path: str):
+        """
+        Loads HoneyPot data from training_data.json.
+        Extracts payloads, ports, and attack type distributions.
+        """
+        print(f"🍯 Loading HoneyPot data from {json_path}...")
+        
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Extract unique payloads
+            payload_set = set()
+            port_counts = {}
+            attack_type_counts = {}
+            
+            for entry in data:
+                # Extract payload
+                payload = entry.get('input', {}).get('payload', '')
+                if payload and len(payload) < 500:  # Filter out extremely long payloads
+                    payload_set.add(payload)
+                
+                # Count port distribution
+                port = entry.get('input', {}).get('port', 0)
+                port_counts[port] = port_counts.get(port, 0) + 1
+                
+                # Count attack types
+                attack_type = entry.get('label', {}).get('attack_type', 'Unknown')
+                attack_type_counts[attack_type] = attack_type_counts.get(attack_type, 0) + 1
+            
+            # Store results
+            self.honeypot_payloads = list(payload_set)
+            self.honeypot_ports = port_counts
+            self.honeypot_attack_types = attack_type_counts
+            
+            print(f"   ✅ Loaded {len(self.honeypot_payloads)} unique payloads")
+            print(f"   ✅ Analyzed {len(port_counts)} unique ports")
+            print(f"   ✅ Identified {len(attack_type_counts)} attack types")
+            
+            # Show top 5 ports
+            top_ports = sorted(port_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            print(f"   📊 Top Ports: {', '.join([f'{p}({c})' for p, c in top_ports])}")
+            
+        except Exception as e:
+            print(f"   ⚠️ Error loading HoneyPot data: {e}")
+    
+    def get_honeypot_payload(self) -> str:
+        """Get a random payload from HoneyPot data."""
+        if self.honeypot_payloads:
+            return random.choice(self.honeypot_payloads)
+        return ""
+    
+    def get_prioritized_ports(self) -> List[int]:
+        """Returns ports sorted by frequency in unified Kaggle data."""
+        if self.unified_ports:
+            return [port for port, _ in sorted(self.unified_ports.items(), 
+                                              key=lambda x: x[1], reverse=True)]
+        return []
+    
+    def _load_unified_kaggle_data(self, json_path: str):
+        """
+        Loads unified Kaggle dataset (HoneyPot + Cybersecurity).
+        Extracts payloads, ports, severity levels, and protocols.
+        """
+        print(f"🍯 Loading unified Kaggle data from {json_path}...")
+        
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            # Extract data
+            payload_set = set()
+            port_counts = {}
+            attack_type_counts = {}
+            protocol_counts = {}
+            
+            for entry in data:
+                # Extract payload
+                payload = entry.get('input', {}).get('payload', '')
+                if payload and len(payload) < 500:
+                    payload_set.add(payload)
+                    
+                    # Categorize by severity
+                    severity = entry.get('label', {}).get('severity', 'medium')
+                    if severity in self.severity_payloads:
+                        self.severity_payloads[severity].append(payload)
+                
+                # Count port distribution
+                port = entry.get('input', {}).get('port', 0)
+                if port > 0:
+                    port_counts[port] = port_counts.get(port, 0) + 1
+                
+                # Count attack types
+                attack_type = entry.get('label', {}).get('attack_type', 'Unknown')
+                attack_type_counts[attack_type] = attack_type_counts.get(attack_type, 0) + 1
+                
+                # Count protocols
+                protocol = entry.get('input', {}).get('protocol', 'tcp')
+                protocol_counts[protocol] = protocol_counts.get(protocol, 0) + 1
+            
+            # Store results
+            self.unified_payloads = list(payload_set)
+            self.unified_ports = port_counts
+            self.unified_attack_types = attack_type_counts
+            self.protocol_distribution = protocol_counts
+            
+            print(f"   ✅ Loaded {len(self.unified_payloads)} unique payloads")
+            print(f"   ✅ Analyzed {len(port_counts)} unique ports")
+            print(f"   ✅ Identified {len(attack_type_counts)} attack types")
+            print(f"   📊 Severity: Low={len(self.severity_payloads['low'])}, "
+                  f"Medium={len(self.severity_payloads['medium'])}, "
+                  f"High={len(self.severity_payloads['high'])}")
+            
+            # Show top protocols
+            top_protocols = sorted(protocol_counts.items(), key=lambda x: x[1], reverse=True)[:3]
+            print(f"   📊 Top Protocols: {', '.join([f'{p}({c})' for p, c in top_protocols])}")
+            
+        except Exception as e:
+            print(f"   ⚠️ Error loading unified Kaggle data: {e}")
+    
+    def get_unified_payload(self) -> str:
+        """Get a random payload from unified Kaggle data."""
+        if self.unified_payloads:
+            return random.choice(self.unified_payloads)
+        return ""
+    
+    def get_payload_by_severity(self, severity: str = "medium") -> str:
+        """Get a payload by severity level (low/medium/high)."""
+        severity = severity.lower()
+        if severity in self.severity_payloads and self.severity_payloads[severity]:
+            return random.choice(self.severity_payloads[severity])
+        return self.get_unified_payload()
+    
+    def get_stealthy_payload(self) -> str:
+        """Get a low-severity payload for stealth operations."""
+        return self.get_payload_by_severity("low")
+    
+    def get_aggressive_payload(self) -> str:
+        """Get a high-severity payload for aggressive operations."""
+        return self.get_payload_by_severity("high")
+
