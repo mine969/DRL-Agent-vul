@@ -309,11 +309,12 @@ class WebSecurityGym(gym.Env):
                 if response:
                     reward += self._update_coverage(self.current_page_id)
                 
-                # LOGGING FOR USER
+                # LOGGING FOR USER (FULL EXACT LOGS)
                 status = response.status_code if response else "None"
                 url = response.url if response else "N/A"
+                method = response.request.method if response else ""
                 
-                # Try to extract payload from request body/params for display
+                # Extract payload from request body/params for display
                 payload_info = ""
                 if response:
                     info['url'] = response.url
@@ -321,20 +322,21 @@ class WebSecurityGym(gym.Env):
                     
                     if response.request.body:
                         info['payload'] = str(response.request.body)
-                        payload_info = f" | Body: {str(response.request.body)[:50]}..."
+                        payload_info = f" | Body: {str(response.request.body)}"
                     elif '?' in response.url:
                         info['payload'] = response.url.split('?', 1)[1]
                         if 'q=' in response.url:
-                            payload_info = f" | Query: {response.url.split('q=')[1][:50]}..."
+                            payload_info = f" | Query: {response.url.split('q=')[1]}"
                     else:
                         info['payload'] = ""
                 
-                print(f"Action: {action_name:<25} | Status: {status:<3} | Reward: {action_reward:>5.1f} | URL: {url[-40:]:<40}{payload_info}")
+                print(f"Action: {action_name:<25} | {method:<4} | Status: {status:<3} | Reward: {action_reward:>5.1f} | URL: {url} {payload_info}", flush=True)
             else:
                 response = None
                 
-        except requests.exceptions.RequestException:
+        except requests.exceptions.RequestException as e:
             # If the server crashes or connection fails
+            print(f"Action: {self.action_book.get(action_id).__name__:<25} | ERROR | Status: 500 | Reward: -10.0 | Error: {str(e)}", flush=True)
             return self._get_observation(500), -10.0, True, False, {}
         
         # 2. Analyze the Result

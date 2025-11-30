@@ -32,41 +32,85 @@ import glob
 class MultiTargetTrainer:
     """Trains the agent across multiple target applications."""
     
-    def __init__(self, targets, model_path="dqn_web_sec_model.pth", verbose=False):
+    def __init__(self, targets, model_path="dqn_web_sec_model.pth", verbose=False, auto_resume=True):
         """
         Args:
             targets: List of (name, url) tuples for each target
             model_path: Path to save/load the model
             verbose: Enable detailed logging
+            auto_resume: Automatically load latest checkpoint if available
         """
         self.targets = targets
         self.model_path = model_path
         self.verbose = verbose
         
+        # Initialize training metrics FIRST (before any early returns)
+        self.episode_rewards = {name: [] for name, _ in targets}
+        self.episode_vulns_found = {name: [] for name, _ in targets}
+        
         # Initialize agent (state_dim=11, action_dim=100)
         self.agent = DQNAgent(state_dim=11, action_dim=100)
         
-        # Try to load existing model
+        # Auto-resume from latest checkpoint if enabled
+        if auto_resume:
+            latest_ep = self._find_latest_checkpoint()
+            if latest_ep > 0:
+                checkpoint_path = f"checkpoints/multi_target_8k_ep{latest_ep}.pth"
+                try:
+                    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+                    self.agent.brain.load_state_dict(torch.load(checkpoint_path, map_location=device))
+                    self.agent.target_brain.load_state_dict(self.agent.brain.state_dict())
+                    print(f"✅ Auto-resumed from checkpoint: Episode {latest_ep}")
+                    print(f"📁 Loaded: {checkpoint_path}")
+                    self.start_episode = latest_ep + 1
+                    return  # Early return is OK now, metrics are initialized
+                except Exception as e:
+                    print(f"⚠️  Failed to load checkpoint {checkpoint_path}: {e}")
+                    print(f"   Falling back to base model...")
+        
+        # Fallback: Try to load base model
         try:
             device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
             self.agent.brain.load_state_dict(torch.load(model_path, map_location=device))
             print(f"✅ Loaded existing model from {model_path}")
+            self.start_episode = 1
         except:
             print(f"🆕 Starting fresh training (no existing model)")
+            self.start_episode = 1
+
+    
+    def _find_latest_checkpoint(self):
+        """Find the checkpoint with the highest episode number."""
+        import glob
+        import re
+        checkpoints = glob.glob("checkpoints/multi_target_8k_ep*.pth")
+        if not checkpoints:
+            return 0
         
-        # Training metrics
-        self.episode_rewards = {name: [] for name, _ in targets}
-        self.episode_vulns_found = {name: [] for name, _ in targets}
+        latest_ep = 0
+        for cp in checkpoints:
+            try:
+                match = re.search(r'ep(\d+)\.pth', cp)
+                if match:
+                    ep = int(match.group(1))
+                    if ep > latest_ep:
+                        latest_ep = ep
+            except:
+                continue
+        return latest_ep
+
         
-    def train_curriculum(self, total_episodes=1000, start_episode=1):
+    def train_curriculum(self, total_episodes=2000, start_episode=None):
         """
-        Curriculum Learning Strategy (6 Targets):
+        Curriculum Learning Strategy (6 Targets - 2000 Episodes):
         
-        Phase 1 (0-200): Local targets only (Original, E-Commerce, Social)
-        Phase 2 (201-400): Add LMS (real-world but controlled)
-        Phase 3 (401-700): Add RSU Portal and DIT RSU
-        Phase 4 (701-1000): All 6 targets + focus on weakest
+        Phase 1 (1-200): High focus on OWASP Juice Shop (70%) + Local targets warmup (30%)
+        Phase 2 (201-2000): Sustained focus on OWASP Juice Shop (80%) + Random local targets (20%)
         """
+        # Use auto-detected start episode if not specified
+        if start_episode is None:
+            start_episode = self.start_episode
+        
         print("=" * 70)
         print("🎓 MULTI-TARGET CURRICULUM TRAINING (6 TARGETS)")
         print("=" * 70)
@@ -128,26 +172,22 @@ class MultiTargetTrainer:
     
     def _select_target(self, episode, total_episodes):
         """Curriculum learning: gradually introduce more targets (6 total)."""
-        # ACCELERATED CURRICULUM: Introduce real targets much sooner
-        phase_1_end = 50   # Ep 1-50: Local only (Warmup)
-        phase_2_end = 100  # Ep 51-100: Add LMS
-        # Ep 101+: All targets (Real-World)
+        # CURRICULUM FOR 2000 EPISODES - OWASP JUICE SHOP PRIORITY
+        phase_1_end = 200   # Ep 1-200: Initial focus
         
         if episode <= phase_1_end:
-            # Phase 1: Local targets only (0-2)
-            return random.choice(self.targets[:3])
-        
-        elif episode <= phase_2_end:
-            # Phase 2: Local + LMS (0-3)
-            return random.choice(self.targets[:4])
+            # Phase 1: 70% OWASP Juice Shop, 30% Local Targets
+            if random.random() < 0.7:
+                return self.targets[5]  # OWASP Juice Shop
+            else:
+                return random.choice(self.targets[:5])  # Local targets
         
         else:
-            # Phase 3: All 6 targets (Local + Real World)
-            # 70% chance to pick a Real-World target to prioritize them
-            if random.random() < 0.7:
-                return random.choice(self.targets[3:]) # Real-world only
+            # Phase 2: 80% OWASP Juice Shop, 20% Local Targets (for generalization)
+            if random.random() < 0.8:
+                return self.targets[5]  # OWASP Juice Shop
             else:
-                return random.choice(self.targets[:3]) # Local fallback
+                return random.choice(self.targets[:5])  # Local targets
     
     def _train_episode(self, target_name, target_url, episode_num):
         """Train one episode on a specific target."""
@@ -185,7 +225,7 @@ class MultiTargetTrainer:
                 try:
                     action_name = env.action_book.get(action).__name__
                 except:
-                    action_name = f"Action_{action}"
+                    action_name = f"INVALID_ACTION_{action}"
                 print(f"    Step {steps}: Action={action_name} | Reward={reward:.1f} | Vuln={reward>50}", flush=True)
         
         env.close()
@@ -270,49 +310,32 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     
-    # Define local training targets (5 professional web applications)
+    # Define training targets (5 local apps + OWASP Juice Shop)
     targets = [
         ("E-Commerce Platform", "http://localhost:5002"),
         ("Social Media", "http://localhost:5003"),
         ("SecureBank", "http://localhost:5004"),
         ("VulnBlog", "http://localhost:5005"),
         ("FileShare Pro", "http://localhost:5006"),
+        ("OWASP Juice Shop", "http://localhost:3000"),
     ]
     
     print("=" * 70)
-    print("🎯 LOCAL MULTI-TARGET TRAINING")
+    print("🎯 MULTI-TARGET TRAINING (5 LOCAL + OWASP JUICE SHOP)")
     print("=" * 70)
-    print(f"Total Local Targets: {len(targets)}")
+    print(f"Total Targets: {len(targets)}")
+    print(f"  - Local Targets: 5")
+    print(f"  - OWASP Juice Shop: 1")
     print("\nTraining Targets:")
     for name, url in targets:
         print(f"  ✓ {name}: {url}")
     print("=" * 70)
     print()
     
-    # Create trainer and start
+    # Create trainer (auto-resumes from latest checkpoint by default)
     trainer = MultiTargetTrainer(targets, model_path=args.model, verbose=args.verbose)
     
-    # Handle auto-resume
-    if args.latest:
-        latest_ep = find_latest_checkpoint()
-        if latest_ep > 0:
-            print(f"🔎 Found latest checkpoint: Episode {latest_ep}")
-            args.resume = latest_ep
-        else:
-            print("⚠️ No checkpoints found to resume from. Starting fresh.")
+    # Start training (start_episode is auto-detected in __init__)
+    trainer.train_curriculum(total_episodes=args.episodes)
 
-    # Load checkpoint if resuming
-    if args.resume > 0:
-        checkpoint_path = f"checkpoints/multi_target_8k_ep{args.resume}.pth"
-        try:
-            device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-            trainer.agent.brain.load_state_dict(torch.load(checkpoint_path, map_location=device))
-            trainer.agent.target_brain.load_state_dict(trainer.agent.brain.state_dict())
-            print(f"✅ Loaded checkpoint from episode {args.resume}")
-        except Exception as e:
-            print(f"❌ Failed to load checkpoint: {e}")
-            print(f"   Starting from scratch instead")
-            args.resume = 0
-    
-    trainer.train_curriculum(total_episodes=args.episodes, start_episode=args.resume + 1 if args.resume > 0 else 1)
 

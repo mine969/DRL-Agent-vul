@@ -10,14 +10,19 @@ from agent.dqn_agent import DQNAgent
 from env.web_sec_env import WebSecurityGym
 import argparse
 
-def load_trained_agent(model_path, state_dim=7, action_dim=15):
-    """Load a trained DQN agent from checkpoint"""
+def load_trained_agent(model_path, state_dim=11, action_dim=100):
+    """Load a trained DQN agent from checkpoint (auto-loads latest)"""
+    from utils.model_loader import load_model_smart
+    
     agent = DQNAgent(state_dim, action_dim)
-    agent.brain.load_state_dict(torch.load(model_path))
+    episode = load_model_smart(agent, model_path=model_path, auto_checkpoint=True, verbose=True)
     agent.brain.eval()  # Set to evaluation mode
     agent.epsilon = 0.0  # No exploration, only exploitation
-    print(f"✅ Loaded trained model from: {model_path}")
+    
+    if episode > 0:
+        print(f"📍 Loaded from Episode: {episode}")
     return agent
+
 
 def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, verbose=True):
     """

@@ -693,15 +693,16 @@ class SecurityAuditor:
         pass
     
     def _load_ai_brain(self, model_path):
-        """Attempts to load the trained neural network."""
+        """Attempts to load the trained neural network (auto-loads latest checkpoint)."""
         try:
-            device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-            self.ai_agent.brain.load_state_dict(torch.load(model_path, map_location=device))
+            from utils.model_loader import load_model_smart
+            episode = load_model_smart(self.ai_agent, model_path=model_path, auto_checkpoint=True, verbose=True)
             self.ai_agent.brain.eval() # Set to evaluation mode (no learning, just doing)
             self.ai_agent.epsilon = 0.0    # Stop exploring randomly, use learned skills
-            print(f"✅ Loaded AI Brain from: {model_path}\n")
+            if episode > 0:
+                print(f"📍 Resumed from Episode: {episode}\n")
         except Exception as e:
-            print(f"⚠️  Could not load model from {model_path}")
+            print(f"⚠️  Could not load model")
             print(f"   Error details: {str(e)}")
             print("   The agent will act randomly (Untrained Mode)\n")
 
