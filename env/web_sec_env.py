@@ -181,6 +181,25 @@ class WebSecurityGym(gym.Env):
             58: self.attack_websocket_hijacking,
             59: self.attack_api_rate_limit_bypass,
         }
+        
+        # ADVANCED ATTACK EXTENSION: Load additional attack methods
+        # These attacks work on many real-world web applications, not just Juice Shop
+        try:
+            from env.juice_shop_extension import JuiceShopExtension, JUICE_SHOP_ACTIONS
+            self.advanced_ext = JuiceShopExtension(self.session, target_url)
+            
+            # Add advanced actions to action book (IDs 60-74)
+            for action_id, method_name in JUICE_SHOP_ACTIONS.items():
+                self.action_book[action_id] = getattr(self.advanced_ext, method_name)
+            
+            # Update action space to include new actions
+            self.action_space = spaces.Discrete(75)  # 0-74 (15 new attacks)
+            
+            # Only print if verbose or targeting Juice Shop
+            if 'localhost:3000' in target_url or 'juice' in target_url.lower():
+                print(f"✅ Loaded Advanced Attack Extension: {len(JUICE_SHOP_ACTIONS)} attacks (OAuth/SSO included)")
+        except ImportError:
+            pass  # Extension not available, continue with base actions
     
     def _setup_browser_session(self) -> None:
         """Configures the HTTP client to be fast and reliable."""

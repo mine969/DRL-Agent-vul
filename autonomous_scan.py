@@ -762,7 +762,20 @@ class SecurityAuditor:
             else:
                 print(f"  ✅ Page appears secure.")
         
-        # --- Phase 3: Reporting ---
+        # --- Phase 3: Filter False Positives ---
+        print("\n🔍 PHASE 3: FILTERING FALSE POSITIVES")
+        print("-" * 70)
+        
+        from utils.false_positive_filter import apply_false_positive_filter
+        original_count = len(all_findings)
+        all_findings = apply_false_positive_filter(all_findings, self.base_url)
+        filtered_count = original_count - len(all_findings)
+        
+        if filtered_count > 0:
+            print(f"  🗑️  Removed {filtered_count} false positive(s)")
+        print(f"  ✅ {len(all_findings)} genuine finding(s) remain")
+        
+        # --- Phase 4: Reporting ---
         self._generate_final_report(discovered_urls, all_findings)
         
         return all_findings
