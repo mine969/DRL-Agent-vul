@@ -717,6 +717,7 @@ class SecurityAuditor:
         - "aggressive": High intensity, deeper crawl, more noise
         - "osint": Only perform OSINT actions
         - "specific": Only perform a specific type of attack
+        - "deep_skill": Systematically test all learned skills (High Intensity)
         """
         print("=" * 70)
         print(f"🤖 AUTONOMOUS AI SECURITY AUDITOR | MODE: {scan_mode.upper()}")
@@ -733,8 +734,15 @@ class SecurityAuditor:
             print(f"🔥 AGGRESSIVE MODE ENGAGED: MAXIMIZING INTENSITY!")
             crawl_depth = int(crawl_depth * 2.0)  # Double depth
             test_intensity = int(test_intensity * 3) # Triple intensity
+            crawl_depth = int(crawl_depth * 2.0)  # Double depth
+            test_intensity = int(test_intensity * 3) # Triple intensity
             epsilon = 0.4 # High random exploration for novel attacks
             
+        elif scan_mode == "deep_skill":
+            print(f"🧠 DEEP SKILL CHECK ENGAGED: SYSTEMATICALLY TESTING ALL CAPABILITIES")
+            test_intensity = max(test_intensity, 10) # Ensure at least 10 attempts per page
+            epsilon = 0.05 # Low random exploration, rely on learned skills
+
         print()
         
         # --- Phase 1: Reconnaissance ---
@@ -880,6 +888,60 @@ class SecurityAuditor:
                                     pass
                 return findings
 
+            # Deep Skill Check Mode
+            if scan_mode == "deep_skill":
+                print(f"  🧠 Running Deep Skill Check on {url}...")
+                
+                # Define skill categories to test
+                skill_categories = {
+                    "SQL Injection": ["sql", "injection", "database"],
+                    "XSS": ["xss", "script", "alert"],
+                    "Command Injection": ["command", "exec", "shell", "cmd"],
+                    "Path Traversal": ["path", "traversal", "file", "etc"],
+                    "Auth Bypass": ["auth", "login", "bypass", "cookie"],
+                    "Fuzzing": ["fuzz", "overflow", "random"]
+                }
+                
+                for category, keywords in skill_categories.items():
+                    if self.stop_requested: break
+                    
+                    print(f"    👉 Testing Skill: {category}")
+                    
+                    # Find relevant actions for this category
+                    relevant_actions = []
+                    for action_id, action_name in self.action_map.items():
+                        if any(k in action_name.lower() for k in keywords):
+                            relevant_actions.append(action_id)
+                    
+                    if not relevant_actions:
+                        continue
+                        
+                    # Execute a few relevant actions
+                    # We limit to 3 actions per category to avoid taking too long
+                    for action in random.sample(relevant_actions, min(3, len(relevant_actions))):
+                        if self.stop_requested: break
+                        
+                        state, _ = env.reset()
+                        # Force the specific action
+                        next_state, reward, terminated, truncated, info = env.step(action)
+                        
+                        # Lower threshold for deep skill check - we want to see everything the model "thinks" might work
+                        if reward > 10: 
+                            vuln_name = self._map_action_to_vuln(action)
+                            finding = Finding(
+                                url=info.get('url', url),
+                                vuln_type=f"{vuln_name} (Deep Check)",
+                                confidence='Medium',
+                                reward=reward,
+                                payload=info.get('payload', ''),
+                                method=info.get('method', 'GET')
+                            )
+                            findings.append(finding)
+                            self.log_finding(finding)
+                            print(f"      🚨 Potential Issue: {vuln_name} (Reward: {reward:.1f})")
+                
+                return findings
+
             # Default AUTO mode (AI Agent)
             for _ in range(attempts):
                 if self.stop_requested:
@@ -941,7 +1003,7 @@ if __name__ == "__main__":
         parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl (Rec: 30 for new sites, 100+ for deep scan)')
         parser.add_argument('--intensity', type=int, default=3, help='Attack intensity 1-5 (Rec: 2 for new sites, 3 standard, 5 aggressive)')
         parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Path to the trained AI model')
-        parser.add_argument("--mode", type=str, default="auto", choices=["auto", "aggressive", "osint", "specific", "zeroday", "targetless"], help="Scan mode")
+        parser.add_argument("--mode", type=str, default="auto", choices=["auto", "aggressive", "osint", "specific", "zeroday", "targetless", "deep_skill"], help="Scan mode")
         parser.add_argument("--attack", type=str, help="Specific attack type (e.g., SQL, XSS)")
         parser.add_argument("--proxy-file", type=str, help="Path to proxy list file")
         parser.add_argument("--stealth", type=str, default="medium", choices=["low", "medium", "high", "paranoid"], help="Stealth level")

@@ -499,7 +499,7 @@ class SecurityScannerGUI:
         self.add_section_header(self.scrollable_frame, "🎯 MISSION PARAMETERS")
         self.create_input_field(self.scrollable_frame, "TARGET URL:", self.target_url, "localhost:5001")
         self.create_slider_field(self.scrollable_frame, "CRAWL DEPTH:", self.crawl_depth, 0, 100, 30, "0 = Only target URL (no crawl), 30 for new sites, 100+ for deep scan")
-        self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 10, 3, "Rec: 2 for new sites, 3 standard, 5 aggressive")
+        self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 50, 3, "Rec: 2 for new sites, 3 standard, 5 aggressive, 20+ for deep skill check")
         self.create_model_selector(self.scrollable_frame)
         
         # SCAN MODES
@@ -509,6 +509,7 @@ class SecurityScannerGUI:
         modes_frame.pack(fill=tk.X, padx=15, pady=5)
         
         tk.Radiobutton(modes_frame, text="🤖 FULL AUTO (AI AGENT)", variable=self.scan_mode, value="auto", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="🧠 DEEP SKILL CHECK", variable=self.scan_mode, value="deep_skill", bg=self.colors["bg_panel"], fg="#d400ff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#d400ff", font=("Consolas", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
         tk.Radiobutton(modes_frame, text="🔥 AGGRESSIVE MODE", variable=self.scan_mode, value="aggressive", bg=self.colors["bg_panel"], fg=self.colors["danger"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["danger"], font=("Consolas", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
         tk.Radiobutton(modes_frame, text="🕵️ SUPER OSINT MODE", variable=self.scan_mode, value="osint", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
         tk.Radiobutton(modes_frame, text="🎯 SPECIFIC ATTACK", variable=self.scan_mode, value="specific", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
