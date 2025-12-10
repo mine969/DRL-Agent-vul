@@ -8,7 +8,7 @@ import re
 import os
 
 
-def find_latest_checkpoint(checkpoint_dir="checkpoints", pattern="multi_target_8k_ep*.pth"):
+def find_latest_checkpoint(checkpoint_dir="checkpoints", pattern="multi_target_*_ep*.pth"):
     """
     Find the checkpoint with the highest episode number.
     
@@ -67,12 +67,12 @@ def load_model_smart(agent, model_path="dqn_web_sec_model.pth", auto_checkpoint=
                 if hasattr(agent, 'target_brain'):
                     agent.target_brain.load_state_dict(agent.brain.state_dict())
                 if verbose:
-                    print(f"✅ Loaded latest checkpoint: Episode {latest_ep}")
-                    print(f"📁 File: {checkpoint_path}")
+                    print(f"Loaded latest checkpoint: Episode {latest_ep}")
+                    print(f"File: {checkpoint_path}")
                 return latest_ep
             except Exception as e:
                 if verbose:
-                    print(f"⚠️  Failed to load checkpoint {checkpoint_path}: {e}")
+                    print(f"Failed to load checkpoint {checkpoint_path}: {e}")
                     print(f"   Falling back to base model...")
     
     # Fallback to base model
@@ -81,11 +81,11 @@ def load_model_smart(agent, model_path="dqn_web_sec_model.pth", auto_checkpoint=
         if hasattr(agent, 'target_brain'):
             agent.target_brain.load_state_dict(agent.brain.state_dict())
         if verbose:
-            print(f"✅ Loaded base model: {model_path}")
+            print(f"Loaded base model: {model_path}")
         return 0
     except Exception as e:
         if verbose:
-            print(f"⚠️  No model found. Starting fresh.")
+            print(f"No model found. Starting fresh.")
         return 0
 
 

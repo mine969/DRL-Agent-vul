@@ -143,15 +143,15 @@ class DQNAgent:
         
         # Hardware Setup
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        print(f"🚀 AI Brain initialized on: {self.device}")
+        print(f"AI Brain initialized on: {self.device}")
         if self.device.type == 'cuda':
             print(f"   GPU Model: {torch.cuda.get_device_name(0)}")
             torch.backends.cudnn.benchmark = True # Auto-tune for max speed
             torch.backends.cuda.matmul.allow_tf32 = True # Enable TF32 for speed
-            print(f"   ⚡ CuDNN Benchmark: ENABLED")
-            print(f"   ⚡ TF32 Math: ENABLED (MAX Speed Mode)")
-            print(f"   📦 Batch Size: 4096 (MAX)")
-            print(f"   🧠 Network Size: 8192 neurons (MAX)")
+            print(f"   CuDNN Benchmark: ENABLED")
+            print(f"   TF32 Math: ENABLED (MAX Speed Mode)")
+            print(f"   Batch Size: 4096 (MAX)")
+            print(f"   Network Size: 8192 neurons (MAX)")
         
         # Initialize Components
         self.memory = ExperienceMemory(state_dim, action_dim, capacity=10000)

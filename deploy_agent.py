@@ -20,11 +20,11 @@ def load_trained_agent(model_path, state_dim=11, action_dim=100):
     agent.epsilon = 0.0  # No exploration, only exploitation
     
     if episode > 0:
-        print(f"📍 Loaded from Episode: {episode}")
+        print(f"Loaded from Episode: {episode}")
     return agent
 
 
-def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, verbose=True):
+def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, epsilon=0.0, verbose=True):
     """
     Test the trained agent against a target website
     
@@ -32,6 +32,7 @@ def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, verb
         target_url: URL of the target (e.g., "http://localhost/dvwa")
         model_path: Path to the trained model weights
         episodes: Number of test episodes to run
+        epsilon: Exploration rate
         verbose: Print detailed output
     """
     
@@ -40,9 +41,10 @@ def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, verb
     
     # Load trained agent
     agent = load_trained_agent(model_path)
+    agent.epsilon = epsilon # Set exploration rate
     
-    print(f"\n🎯 Target: {target_url}")
-    print(f"🤖 Running {episodes} test episodes...\n")
+    print(f"\nTarget: {target_url}")
+    print(f"Running {episodes} test episodes...\n")
     print("=" * 60)
     
     vulnerabilities_found = []
@@ -74,7 +76,7 @@ def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, verb
                     'step': step_count
                 }
                 vulnerabilities_found.append(vuln_info)
-                episode_log.append(f"  🚨 VULNERABILITY FOUND: {action_name} (Reward: {reward})")
+                episode_log.append(f"  VULNERABILITY FOUND: {action_name} (Reward: {reward})")
             
             state = next_state
         
@@ -89,16 +91,16 @@ def test_agent(target_url, model_path="dqn_web_sec_model.pth", episodes=10, verb
     
     # Summary
     print("\n" + "=" * 60)
-    print("📊 SUMMARY")
+    print("SUMMARY")
     print("=" * 60)
     print(f"Total Vulnerabilities Found: {len(vulnerabilities_found)}")
     
     if vulnerabilities_found:
-        print("\n🔴 Vulnerabilities Detected:")
+        print("\nVulnerabilities Detected:")
         for vuln in vulnerabilities_found:
             print(f"  - Episode {vuln['episode']}: {vuln['action']} (Step {vuln['step']}, Reward: {vuln['reward']})")
     else:
-        print("\n✅ No vulnerabilities detected (or agent needs more training)")
+        print("\nNo vulnerabilities detected (or agent needs more training)")
     
     return vulnerabilities_found
 
@@ -130,7 +132,7 @@ def interactive_mode(target_url, model_path="dqn_web_sec_model.pth"):
     env = WebSecurityGym(target_url=target_url)
     agent = load_trained_agent(model_path)
     
-    print(f"\n🎮 INTERACTIVE MODE")
+    print(f"\nINTERACTIVE MODE")
     print(f"Target: {target_url}")
     print("Press Ctrl+C to stop\n")
     
@@ -155,12 +157,12 @@ def interactive_mode(target_url, model_path="dqn_web_sec_model.pth"):
                 done = terminated or truncated
                 
                 if reward > 0:
-                    print(f"  ✅ Reward: +{reward}")
+                    print(f"  Reward: +{reward}")
                 elif reward < -5:
-                    print(f"  ⚠️  Penalty: {reward}")
+                    print(f"  Penalty: {reward}")
                 
                 if reward > 50:
-                    print(f"  🚨 VULNERABILITY EXPLOITED!")
+                    print(f"  VULNERABILITY EXPLOITED!")
                 
                 state = next_state
                 step += 1
@@ -171,12 +173,13 @@ def interactive_mode(target_url, model_path="dqn_web_sec_model.pth"):
             episode += 1
             
     except KeyboardInterrupt:
-        print("\n\n👋 Stopped by user")
+        print("\n\nStopped by user")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Deploy trained RL agent against target websites")
     parser.add_argument("--target", type=str, required=True, help="Target URL (e.g., http://localhost/dvwa)")
-    parser.add_argument("--model", type=str, default="dqn_web_sec_model.pth", help="Path to trained model")
+    parser.add_argument("--model", type=str, default="checkpoints/multi_target_10k_ep10000.pth", help="Path to trained model")
+    parser.add_argument("--epsilon", type=float, default=0.0, help="Exploration rate (0.0 = exploitation only)")
     parser.add_argument("--episodes", type=int, default=10, help="Number of test episodes")
     parser.add_argument("--interactive", action="store_true", help="Run in interactive mode")
     
@@ -185,4 +188,4 @@ if __name__ == "__main__":
     if args.interactive:
         interactive_mode(args.target, args.model)
     else:
-        test_agent(args.target, args.model, args.episodes)
+        test_agent(args.target, args.model, args.episodes, epsilon=args.epsilon)

