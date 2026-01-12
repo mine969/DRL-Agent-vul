@@ -47,6 +47,15 @@ We further decompose the Q-value into Value ($V$) and Advantage ($A$) streams:
 $$Q(s, a) = V(s) + \left( A(s, a) - \frac{1}{|\mathcal{A}|} \sum_{a'} A(s, a') \right)$$
 This allows the agent to learn the value of being in a state $s$ without necessarily calculating the effect of every action $a$.
 
+**Loss Function (MSE):**
+To train the Main Brain, we minimize the Mean Squared Error between the predicted Q-value and the target value $Y_t$ over a batch $B$:
+$$L(\theta) = \frac{1}{B} \sum_{i=1}^{B} \left( Y_t^{(i)} - Q(s_i, a_i; \theta) \right)^2$$
+
+**Soft Target Update:**
+To ensure stability, the Target Brain parameters $\theta^-$ are updated slowly tracking the Main Brain parameters $\theta$:
+$$\theta^- \leftarrow \tau \theta + (1 - \tau) \theta^-$$
+where $\tau \ll 1$ (e.g., 0.01).
+
 #### 2.2. Pseudocode
 
 ```python
