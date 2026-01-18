@@ -447,8 +447,9 @@ def upload():
     conn.close()
     
     success_msg = f'File "{filename}" uploaded successfully!'
+    alert_div = '<div class="alert alert-success">' + success_msg + '</div>'
     msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
-        f'<div class="alert alert-success">{success_msg}</div>{% if session.get(\'username\') %}')
+        alert_div + '{% if session.get(\'username\') %}')
     conn = get_db()
     files = conn.execute('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', (session['user_id'],)).fetchall()
     conn.close()
