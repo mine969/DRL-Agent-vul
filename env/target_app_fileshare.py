@@ -25,36 +25,219 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 HOME_PAGE = """
 <!DOCTYPE html>
 <html>
-<head><title>FileShare Pro</title></head>
-<body style="font-family: Arial; max-width: 900px; margin: 50px auto;">
-    <h1> FileShare Pro</h1>
-    {% if session.get('username') %}
-        <p>Welcome, {{ session.get('username') }}! <a href="/logout">Logout</a></p>
+<head>
+    <title>FileShare Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            color: #2563EB;
+            font-size: 28px;
+        }
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+        }
+        .upload-area:hover {
+            border-color: #2563EB;
+            background: #f0f7ff;
+        }
+        input[type="file"] {
+            margin: 15px 0;
+            padding: 10px;
+            width: 100%;
+        }
+        input[type="text"], textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-family: inherit;
+        }
+        .btn {
+            background: #2563EB;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .btn:hover { background: #1E40AF; }
+        .btn-danger {
+            background: #DC2626;
+        }
+        .btn-danger:hover { background: #B91C1C; }
+        .btn-secondary {
+            background: #6B7280;
+        }
+        .btn-secondary:hover { background: #4B5563; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th {
+            background: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+        }
+        tr:hover {
+            background: #f9fafb;
+        }
+        .file-icon {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .file-size {
+            color: #6B7280;
+            font-size: 0.9rem;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6B7280;
+        }
+        .alert {
+            padding: 12px 16px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .alert-success {
+            background: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #10B981;
+        }
+        .alert-error {
+            background: #FEE2E2;
+            color: #991B1B;
+            border: 1px solid #EF4444;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 FileShare Pro</h1>
+            {% if session.get('username') %}
+                <div>
+                    <span style="color: #6B7280; margin-right: 15px;">Welcome, <strong>{{ session.get('username') }}</strong></span>
+                    <a href="/logout" class="btn btn-secondary" style="text-decoration: none;">Logout</a>
+                </div>
+            {% else %}
+                <div>
+                    <a href="/login" class="btn" style="text-decoration: none; margin-right: 10px;">Login</a>
+                    <a href="/register" class="btn btn-secondary" style="text-decoration: none;">Register</a>
+                </div>
+            {% endif %}
+        </div>
         
-        <h2>Upload File</h2>
-        <form method="POST" action="/upload" enctype="multipart/form-data">
-            <input type="file" name="file" required>
-            <input type="text" name="description" placeholder="Description">
-            <input type="submit" value="Upload">
-        </form>
-        
-        <h2>My Files</h2>
-        <table border="1" cellpadding="10">
-            <tr><th>Filename</th><th>Description</th><th>Actions</th></tr>
-            {% for file in files %}
-            <tr>
-                <td>{{ file.filename }}</td>
-                <td>{{ file.description }}</td>
-                <td>
-                    <a href="/download/{{ file.id }}">Download</a> | 
-                    <a href="/delete/{{ file.id }}">Delete</a>
-                </td>
-            </tr>
-            {% endfor %}
-        </table>
-    {% else %}
-        <p><a href="/login">Login</a> | <a href="/register">Register</a></p>
-    {% endif %}
+        {% if session.get('username') %}
+            <div class="card">
+                <h2 style="margin-bottom: 20px; color: #1F2937;">Upload File</h2>
+                <form method="POST" action="/upload" enctype="multipart/form-data">
+                    <div class="upload-area">
+                        <p style="font-size: 18px; margin-bottom: 10px;">📤 Drag and drop or select a file</p>
+                        <input type="file" name="file" required>
+                        <input type="text" name="description" placeholder="File description (optional)" style="max-width: 500px;">
+                        <div style="margin-top: 15px;">
+                            <button type="submit" class="btn">Upload File</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="card">
+                <h2 style="margin-bottom: 20px; color: #1F2937;">My Files ({{ files|length }})</h2>
+                {% if files %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Description</th>
+                            <th>Uploaded</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for file in files %}
+                        <tr>
+                            <td>
+                                <span class="file-icon">📄</span>
+                                <strong>{{ file.filename }}</strong>
+                            </td>
+                            <td>{{ file.description or '-' }}</td>
+                            <td class="file-size">{{ file.created_at }}</td>
+                            <td>
+                                <a href="/download/{{ file.id }}" class="btn" style="text-decoration: none; padding: 6px 12px; font-size: 13px;">Download</a>
+                                <a href="/delete/{{ file.id }}" class="btn btn-danger" 
+                                   onclick="return confirm('Are you sure you want to delete this file?')"
+                                   style="text-decoration: none; padding: 6px 12px; font-size: 13px;">Delete</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-state">
+                    <p style="font-size: 18px; margin-bottom: 10px;">No files uploaded yet</p>
+                    <p style="color: #9CA3AF;">Upload your first file to get started!</p>
+                </div>
+                {% endif %}
+            </div>
+        {% else %}
+            <div class="card">
+                <div class="empty-state">
+                    <h2 style="margin-bottom: 15px;">Welcome to FileShare Pro</h2>
+                    <p style="font-size: 16px; margin-bottom: 20px;">A secure file sharing platform</p>
+                    <div>
+                        <a href="/login" class="btn" style="text-decoration: none; margin-right: 10px;">Login</a>
+                        <a href="/register" class="btn btn-secondary" style="text-decoration: none;">Create Account</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
 </body>
 </html>
 """
@@ -62,15 +245,85 @@ HOME_PAGE = """
 LOGIN_PAGE = """
 <!DOCTYPE html>
 <html>
-<head><title>Login - FileShare</title></head>
-<body style="font-family: Arial; max-width: 400px; margin: 100px auto;">
-    <h2>Login to FileShare</h2>
-    <form method="POST">
-        <input type="text" name="username" placeholder="Username" required><br><br>
-        <input type="password" name="password" placeholder="Password" required><br><br>
-        <input type="submit" value="Login">
-    </form>
-    <p><a href="/register">Register</a> | <a href="/">Home</a></p>
+<head>
+    <title>Login - FileShare</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 400px;
+        }
+        h2 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #1F2937;
+            font-size: 24px;
+        }
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        input[type="submit"] {
+            width: 100%;
+            padding: 12px;
+            background: #2563EB;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        input[type="submit"]:hover {
+            background: #1E40AF;
+        }
+        .links {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #6B7280;
+        }
+        .links a {
+            color: #2563EB;
+            text-decoration: none;
+            margin: 0 5px;
+        }
+        .links a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>🔐 Login to FileShare</h2>
+        <form method="POST">
+            <input type="text" name="username" placeholder="Username" required autofocus>
+            <input type="password" name="password" placeholder="Password" required>
+            <input type="submit" value="Login">
+        </form>
+        <div class="links">
+            <a href="/register">Create account</a> | <a href="/">Home</a>
+        </div>
+    </div>
 </body>
 </html>
 """
@@ -163,13 +416,20 @@ def upload():
         return redirect('/login')
     
     if 'file' not in request.files:
-        return "No file", 400
+        msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
+            '<div class="alert alert-error">No file provided</div>{% if session.get(\'username\') %}')
+        return render_template_string(msg_html, files=[], session=session)
     
     file = request.files['file']
-    description = request.form.get('description', '')
+    description = request.form.get('description', '').strip()
     
     if file.filename == '':
-        return "No filename", 400
+        msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
+            '<div class="alert alert-error">Please select a file</div>{% if session.get(\'username\') %}')
+        conn = get_db()
+        files = conn.execute('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', (session['user_id'],)).fetchall()
+        conn.close()
+        return render_template_string(msg_html, files=files, session=session)
     
     # VULN: Unrestricted file upload - no validation
     filename = file.filename
@@ -177,13 +437,22 @@ def upload():
     filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
     file.save(filepath)
     
+    # Get file size
+    file_size = os.path.getsize(filepath)
+    
     conn = get_db()
     conn.execute('INSERT INTO files (user_id, filename, filepath, description) VALUES (?, ?, ?, ?)',
                 (session['user_id'], filename, filepath, description))
     conn.commit()
     conn.close()
     
-    return redirect('/')
+    success_msg = f'File "{filename}" uploaded successfully!'
+    msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
+        f'<div class="alert alert-success">{success_msg}</div>{% if session.get(\'username\') %}')
+    conn = get_db()
+    files = conn.execute('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', (session['user_id'],)).fetchall()
+    conn.close()
+    return render_template_string(msg_html, files=files, session=session)
 
 @app.route('/download/<int:file_id>')
 def download(file_id):

@@ -80,6 +80,10 @@ HTML_TEMPLATE = """
             background: rgba(45, 136, 255, 0.1);
             color: var(--primary);
         }
+        .nav-links a.active {
+            color: var(--primary);
+            font-weight: 600;
+        }
         .container {
             max-width: 900px;
             margin: 20px auto;
@@ -144,10 +148,12 @@ HTML_TEMPLATE = """
     <nav class="navbar">
         <a href="/" class="logo">SocialNet</a>
         <div class="nav-links">
-            <a href="/">Feed</a>
+            <a href="/posts" {% if request.path == '/posts' or request.path == '/' %}class="active"{% endif %}>Feed</a>
             {% if session.user_id %}
-                <a href="/profile/{{ session.user_id }}">My Profile</a>
+                <a href="/profile/{{ session.user_id }}">Profile</a>
+                <a href="/search">Search</a>
                 <a href="/messages/{{ session.user_id }}">Messages</a>
+                <a href="/logout">Logout</a>
             {% else %}
                 <a href="/login">Login</a>
                 <a href="/register">Join</a>
@@ -478,30 +484,98 @@ def profile(user_id):
     conn = get_db()
     
     # VULN: No privacy check - can view private profiles
-    user = conn.execute(f"SELECT * FROM users WHERE id = {user_id}").fetchone()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    
+    if not user:
+        conn.close()
+        return "User not found", 404
+    
+    # Get user's posts
+    user_posts = conn.execute('''SELECT p.*, u.username, u.avatar 
+                                 FROM posts p JOIN users u ON p.user_id = u.id 
+                                 WHERE p.user_id = ? ORDER BY p.created_at DESC LIMIT 20''', (user_id,)).fetchall()
+    
+    # Get friend count
+    friend_count = conn.execute('SELECT COUNT(*) FROM friendships WHERE user_id = ? AND status = ?', 
+                               (user_id, 'accepted')).fetchone()[0]
+    
     conn.close()
     
-    if user:
-        page_content = """
-        <div class="card" style="margin-top: 2rem;">
-            <div style="background: linear-gradient(90deg, var(--primary), #888); height: 150px; border-radius: 8px 8px 0 0;"></div>
+    is_own_profile = session.get('user_id') == user['id']
+    
+    page_content = """
+    <div style="max-width: 700px; margin: 0 auto;">
+        <a href="/posts" style="color: var(--primary); text-decoration: none; margin-bottom: 1rem; display: inline-block;">
+            ← Back to Feed
+        </a>
+        
+        <div class="card" style="margin-top: 1rem;">
+            <div style="background: linear-gradient(90deg, var(--primary), #888); height: 200px; border-radius: 8px 8px 0 0;"></div>
             <div style="padding: 2rem; position: relative;">
                 <div style="width: 120px; height: 120px; border-radius: 50%; background: #333; border: 4px solid var(--card-bg); position: absolute; top: -60px;"></div>
-                <div style="margin-top: 40px;">
-                    <h1>{{ u.username }}</h1>
-                    <p style="color: #ccc;">{{ u.bio }}</p>
-                    <div style="margin-top: 1rem;">
-                        <button class="btn" style="width: auto;">Follow</button>
-                        <button class="btn btn-outline" style="width: auto;">Message</button>
+                <div style="margin-top: 70px;">
+                    <h1 style="margin-bottom: 0.5rem;">{{ u.username }}</h1>
+                    <p style="color: var(--text-muted); margin-bottom: 1rem;">{{ u.bio }}</p>
+                    
+                    <div style="display: flex; gap: 2rem; margin-bottom: 1.5rem;">
+                        <div>
+                            <div style="font-weight: bold; font-size: 1.2rem;">{{ posts|length }}</div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted);">Posts</div>
+                        </div>
+                        <div>
+                            <div style="font-weight: bold; font-size: 1.2rem;">{{ friend_count }}</div>
+                            <div style="font-size: 0.9rem; color: var(--text-muted);">Friends</div>
+                        </div>
                     </div>
+                    
+                    {% if not is_own_profile %}
+                    <div style="display: flex; gap: 1rem;">
+                        <button class="btn" style="width: auto;">Follow</button>
+                        <a href="/messages/{{ u.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">Message</a>
+                    </div>
+                    {% else %}
+                    <div style="display: flex; gap: 1rem;">
+                        <a href="/messages/{{ u.id }}" class="btn" style="width: auto; text-decoration: none;">My Messages</a>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
-        """
-        full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
-        return render_template_string(full_html, u=user)
+        
+        <h2 style="margin-top: 2rem; margin-bottom: 1rem;">Posts</h2>
+        {% for post in posts %}
+        <div class="card" style="margin-bottom: 1rem;">
+            <div class="post-header">
+                <div class="avatar"></div>
+                <div>
+                    <div style="font-weight: bold;">{{ post.username }}</div>
+                    <div style="font-size: 0.8rem; color: #B0B3B8;">{{ post.created_at }}</div>
+                </div>
+            </div>
+            <div class="post-content">
+                {{ post.content | safe }}
+            </div>
+            {% if post.image_url %}
+            <img src="/static/{{ post.image_url }}" style="width: 100%; border-radius: 8px; margin-top: 10px;">
+            {% endif %}
+            <div class="post-actions">
+                <button class="btn btn-outline" style="width: auto;">Like ({{ post.likes }})</button>
+                <a href="/posts/{{ post.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">Comment</a>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not posts %}
+        <div class="card" style="text-align: center; padding: 3rem;">
+            <p style="color: var(--text-muted);">No posts yet.</p>
+        </div>
+        {% endif %}
+    </div>
+    """
     
-    return "User not found", 404
+    full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+    return render_template_string(full_html, u=dict(user), posts=[dict(p) for p in user_posts], 
+                                 friend_count=friend_count, is_own_profile=is_own_profile)
 
 # ============================================================================
 # POSTS
@@ -546,8 +620,9 @@ def posts():
                     <img src="/static/{{ p.image_url }}" style="width: 100%; border-radius: 8px; margin-top: 10px;">
                     {% endif %}
                     <div class="post-actions">
-                        <button class="btn btn-outline" style="width: auto;">Like ({{ p.likes }})</button>
+                        <button class="btn btn-outline" style="width: auto;" onclick="alert('Like feature not implemented')">Like ({{ p.likes }})</button>
                         <a href="/posts/{{ p.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">Comment</a>
+                        <a href="/profile/{{ p.user_id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">View Profile</a>
                     </div>
                 </div>
                 {% endfor %}
@@ -757,9 +832,78 @@ def uploaded_file(filename):
 # MESSAGES
 # ============================================================================
 
-@app.route('/api/messages/<user_id>', methods=['GET'])
+@app.route('/messages/<user_id>', methods=['GET'])
 def get_messages(user_id):
-    """Get messages - VULN: IDOR"""
+    """Get messages page - VULN: IDOR"""
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    conn = get_db()
+    
+    # Get conversation partner
+    partner = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    if not partner:
+        conn.close()
+        return "User not found", 404
+    
+    # VULN: Can read anyone's messages - no authorization check
+    messages = conn.execute('''SELECT m.*, 
+                              u1.username as from_username, 
+                              u2.username as to_username
+                              FROM messages m
+                              JOIN users u1 ON m.from_user_id = u1.id
+                              JOIN users u2 ON m.to_user_id = u2.id
+                              WHERE (m.to_user_id = ? AND m.from_user_id = ?) 
+                              OR (m.to_user_id = ? AND m.from_user_id = ?)
+                              ORDER BY m.created_at ASC''',
+                           (user_id, session['user_id'], session['user_id'], user_id)).fetchall()
+    
+    conn.close()
+    
+    page_content = """
+    <div style="max-width: 700px; margin: 0 auto;">
+        <a href="/posts" style="color: var(--primary); text-decoration: none; margin-bottom: 1rem; display: inline-block;">
+            ← Back to Feed
+        </a>
+        
+        <div class="card" style="margin-top: 1rem;">
+            <h2 style="margin-bottom: 1rem;">Messages with {{ partner.username }}</h2>
+            
+            <div style="max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; background: #18191A; margin-bottom: 1rem;">
+                {% for msg in messages %}
+                <div style="margin-bottom: 1rem; {% if msg.from_user_id == session.user_id %}text-align: right;{% endif %}">
+                    <div style="display: inline-block; background: {% if msg.from_user_id == session.user_id %}var(--primary){% else %}var(--card-bg){% endif %}; 
+                                padding: 0.75rem 1rem; border-radius: 12px; max-width: 70%;">
+                        <div style="font-size: 0.85rem; color: {% if msg.from_user_id == session.user_id %}#000{% else %}var(--text-main){% endif %}; 
+                                    margin-bottom: 0.3rem; font-weight: 600;">{{ msg.from_username }}</div>
+                        <div style="color: {% if msg.from_user_id == session.user_id %}#000{% else %}var(--text-main){% endif %};">{{ msg.content | safe }}</div>
+                        <div style="font-size: 0.75rem; color: {% if msg.from_user_id == session.user_id %}rgba(0,0,0,0.6){% else %}var(--text-muted){% endif %}; 
+                                    margin-top: 0.3rem;">{{ msg.created_at }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+                
+                {% if not messages %}
+                <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No messages yet. Start the conversation!</p>
+                {% endif %}
+            </div>
+            
+            <form method="POST" action="/api/messages/send">
+                <input type="hidden" name="to_user_id" value="{{ partner.id }}">
+                <textarea name="content" class="form-control" placeholder="Type a message..." rows="3" required></textarea>
+                <button type="submit" class="btn" style="width: auto; margin-top: 0.5rem;">Send Message</button>
+            </form>
+        </div>
+    </div>
+    """
+    
+    full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+    return render_template_string(full_html, messages=[dict(m) for m in messages], 
+                                 partner=dict(partner), session=session)
+
+@app.route('/api/messages/<user_id>', methods=['GET'])
+def get_messages_api(user_id):
+    """Get messages API - VULN: IDOR"""
     conn = get_db()
     # VULN: Can read anyone's messages
     messages = conn.execute('SELECT * FROM messages WHERE to_user_id = ? OR from_user_id = ?',
@@ -770,10 +914,16 @@ def get_messages(user_id):
 @app.route('/api/messages/send', methods=['POST'])
 def send_message():
     """Send message - VULN: Stored XSS"""
-    data = request.json
+    data = request.json if request.json else request.form
     from_user_id = session.get('user_id', 1)
     to_user_id = data.get('to_user_id')
     content = data.get('content', '')
+    
+    if not content or not to_user_id:
+        if request.is_json:
+            return jsonify({'error': 'Missing content or recipient'}), 400
+        else:
+            return redirect(f'/messages/{to_user_id}')
     
     conn = get_db()
     # VULN: No XSS protection
@@ -782,7 +932,10 @@ def send_message():
     conn.commit()
     conn.close()
     
-    return jsonify({'message': 'Message sent', 'vuln': 'Stored XSS'}), 201
+    if request.is_json:
+        return jsonify({'message': 'Message sent', 'vuln': 'Stored XSS'}), 201
+    else:
+        return redirect(f'/messages/{to_user_id}')
 
 # ============================================================================
 # FRIENDSHIPS
@@ -813,6 +966,20 @@ def search():
     """Search - VULN: SQL Injection"""
     query = request.args.get('q', '')
     
+    if not query:
+        page_content = """
+        <div style="max-width: 600px; margin: 0 auto; margin-top: 3rem;">
+            <h1 style="margin-bottom: 2rem;">Search Users</h1>
+            <form action="/search" method="GET" style="display: flex; gap: 1rem;">
+                <input type="text" name="q" class="form-control" placeholder="Search by username or bio..." 
+                       value="" style="flex: 1;">
+                <button type="submit" class="btn" style="width: auto;">Search</button>
+            </form>
+        </div>
+        """
+        full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+        return render_template_string(full_html)
+    
     conn = get_db()
     # VULN: SQL Injection
     sql = f"SELECT * FROM users WHERE username LIKE '%{query}%' OR bio LIKE '%{query}%'"
@@ -822,32 +989,58 @@ def search():
         conn.close()
         
         page_content = """
-        <div style="margin-bottom: 2rem;">
-            <h1>Search Results for "{{ q }}"</h1>
-        </div>
-        
-        {% for u in results %}
-        <div class="card">
-            <div style="display: flex; align-items: center;">
-                <div class="avatar" style="width: 60px; height: 60px;"></div>
-                <div>
-                    <h2><a href="/profile/{{ u.id }}" style="color: white; text-decoration: none;">{{ u.username }}</a></h2>
-                    <p>{{ u.bio }}</p>
+        <div style="max-width: 700px; margin: 0 auto;">
+            <a href="/posts" style="color: var(--primary); text-decoration: none; margin-bottom: 1rem; display: inline-block;">
+                ← Back to Feed
+            </a>
+            
+            <h1 style="margin-bottom: 1rem;">Search Results for "{{ q }}"</h1>
+            
+            <form action="/search" method="GET" style="display: flex; gap: 1rem; margin-bottom: 2rem;">
+                <input type="text" name="q" class="form-control" placeholder="Search by username or bio..." 
+                       value="{{ q }}" style="flex: 1;">
+                <button type="submit" class="btn" style="width: auto;">Search</button>
+            </form>
+            
+            {% if results %}
+            <div style="display: flex; flex-direction: column; gap: 1rem;">
+                {% for u in results %}
+                <div class="card">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div class="avatar" style="width: 60px; height: 60px;"></div>
+                        <div style="flex: 1;">
+                            <h2 style="margin-bottom: 0.3rem;">
+                                <a href="/profile/{{ u.id }}" style="color: white; text-decoration: none;">{{ u.username }}</a>
+                            </h2>
+                            <p style="color: var(--text-muted); margin: 0;">{{ u.bio }}</p>
+                        </div>
+                        <div>
+                            <a href="/profile/{{ u.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">View Profile</a>
+                        </div>
+                    </div>
                 </div>
+                {% endfor %}
             </div>
+            {% else %}
+            <div class="card" style="text-align: center; padding: 3rem;">
+                <p style="color: var(--text-muted); font-size: 1.1rem;">No users found for "{{ q }}"</p>
+                <p style="color: var(--text-muted); margin-top: 0.5rem;">Try a different search term</p>
+            </div>
+            {% endif %}
         </div>
-        {% endfor %}
-        
-        {% if not results %}
-        <p>No users found.</p>
-        {% endif %}
         """
         full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
-        return render_template_string(full_html, results=results, q=query)
+        return render_template_string(full_html, results=[dict(u) for u in results], q=query)
 
     except Exception as e:
         conn.close()
-        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', f'<div class="alert">Database Error: {str(e)}</div>'))
+        error_content = f"""
+        <div class="alert">
+            <strong>Database Error:</strong> {str(e)}
+            <br><small>This might indicate a SQL injection vulnerability!</small>
+        </div>
+        """
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', error_content))
 
 # ============================================================================
 # MISC

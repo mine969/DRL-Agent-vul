@@ -312,19 +312,46 @@ POST_PAGE = """
         
         <div class="comments">
             <h3 style="margin-bottom: 20px;">Comments ({{ comments|length }})</h3>
-            {% for comment in comments %}
-                <div class="comment">
-                    <p>{{ comment.content | safe }}</p>
-                    <small style="color: #999;">— {{ comment.author }}</small>
-                </div>
-            {% endfor %}
             
+            {% if comments %}
+                {% for comment in comments %}
+                    <div class="comment">
+                        <p style="line-height: 1.8; margin-bottom: 0.5rem;">{{ comment.content | safe }}</p>
+                        <small style="color: #999;">— {{ comment.author }} • {{ comment.created_at }}</small>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <p style="text-align: center; color: #999; padding: 2rem;">No comments yet. Be the first to comment!</p>
+            {% endif %}
+            
+            {% if session.get('username') %}
             <h4 style="margin-top: 30px; margin-bottom: 10px;">Add a comment</h4>
             <form method="POST" action="/post/{{ post.id }}/comment">
                 <textarea name="content" rows="3" placeholder="Share your thoughts..." required></textarea>
                 <input type="submit" value="Post Comment">
             </form>
+            {% else %}
+            <div style="margin-top: 30px; padding: 1.5rem; background: #f5f5f5; border-radius: 5px; text-align: center;">
+                <p style="color: #666; margin-bottom: 1rem;">Want to comment on this post?</p>
+                <a href="/login" class="btn" style="text-decoration: none;">Sign In to Comment</a>
+            </div>
+            {% endif %}
         </div>
+        
+        {% if related_posts and related_posts|length > 0 %}
+        <div style="margin-top: 40px;">
+            <h3 style="margin-bottom: 20px;">More from {{ post.author }}</h3>
+            {% for rp in related_posts %}
+            <div class="post-card" style="margin-bottom: 15px;">
+                <h3 style="font-size: 20px; margin-bottom: 8px;">
+                    <a href="/post/{{ rp.id }}" style="color: #1a1a1a; text-decoration: none;">{{ rp.title }}</a>
+                </h3>
+                <p style="color: #666; font-size: 14px; margin-bottom: 10px;">{{ rp.content[:150] }}...</p>
+                <div class="post-meta">By {{ rp.author }} • {{ rp.created_at }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 </body>
 </html>
@@ -439,12 +466,38 @@ def init_db():
     if c.fetchone()[0] == 0:
         users = [
             ('admin', hashlib.md5(b'admin123').hexdigest()),
-            ('blogger', hashlib.md5(b'password').hexdigest())
+            ('tech_writer', hashlib.md5(b'password').hexdigest()),
+            ('travel_blogger', hashlib.md5(b'password').hexdigest()),
+            ('food_critic', hashlib.md5(b'password').hexdigest()),
+            ('lifestyle_guru', hashlib.md5(b'password').hexdigest()),
+            ('dev_blogger', hashlib.md5(b'password').hexdigest())
         ]
         c.executemany('INSERT INTO users (username, password) VALUES (?, ?)', users)
         
-        c.execute('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)',
-                 (1, 'Welcome to VulnBlog!', 'This is a deliberately vulnerable blog platform for security research.'))
+        # Create diverse blog posts
+        posts = [
+            (1, 'Welcome to VulnBlog!', 'This is a deliberately vulnerable blog platform for security research. Feel free to explore and test!'),
+            (2, 'Getting Started with Python in 2024', 'Python continues to dominate as one of the most popular programming languages. Here are the essential tools and frameworks you need to know...'),
+            (2, '10 VS Code Extensions Every Developer Needs', 'Boost your productivity with these must-have extensions. From code formatting to Git integration, these tools will transform your workflow...'),
+            (3, 'Hidden Gems of Southeast Asia', 'Beyond the tourist hotspots, Southeast Asia offers incredible hidden destinations. Let me share my favorites from 3 years of travel...'),
+            (3, 'Budget Travel Tips: How I Travel on $30/Day', 'Traveling doesn\'t have to break the bank. Here are my proven strategies for exploring the world on a tight budget...'),
+            (4, 'The Perfect Homemade Pizza Recipe', 'After years of experimentation, I\'ve perfected my pizza dough recipe. The secret? Time and temperature control...'),
+            (4, 'Restaurant Review: La Bella Vita', 'This hidden Italian gem in downtown serves the most authentic carbonara I\'ve had outside of Rome. Here\'s my full review...'),
+            (5, 'Minimalist Living: 6 Months Later', 'Six months ago, I decluttered my entire life. Here\'s what I learned about living with less and why I\'ll never go back...'),
+            (5, 'Morning Routine for Maximum Productivity', 'How you start your day determines how you live your life. Here\'s the morning routine that changed everything for me...'),
+            (6, 'Building a REST API with FastAPI', 'FastAPI is revolutionizing Python web development. This tutorial covers everything from setup to deployment...'),
+            (6, 'Docker Best Practices for 2024', 'Containerization is essential for modern development. Here are the best practices I\'ve learned from deploying hundreds of containers...'),
+            (2, 'Machine Learning Basics: A Practical Guide', 'Demystifying ML for beginners. We\'ll build a simple classifier from scratch using scikit-learn...'),
+            (3, 'Solo Female Travel: Safety Tips', 'As a solo female traveler, safety is paramount. Here are my essential tips for staying safe while exploring the world...'),
+            (4, 'Sourdough Starter: Complete Guide', 'Creating and maintaining a sourdough starter is easier than you think. This comprehensive guide covers everything...'),
+            (5, 'Digital Detox: One Week Without Social Media', 'I spent a week completely offline. The results surprised me. Here\'s what happened and what I learned...'),
+            (6, 'Git Workflows for Teams', 'Effective Git workflows can make or break a development team. Here\'s what works best for distributed teams...'),
+            (2, 'TypeScript vs JavaScript in 2024', 'The debate continues. Here\'s my take after using both in production for 5 years...'),
+            (3, 'Backpacking Through Patagonia', 'The trek through Torres del Paine was the most challenging and rewarding experience of my life. Here\'s my complete guide...'),
+            (4, 'Fermentation 101: Making Kimchi at Home', 'Fermented foods are having a moment, and for good reason. Let\'s start with homemade kimchi...'),
+            (5, 'Work-Life Balance in the Remote Era', 'Working from home blurred all the boundaries. Here\'s how I reclaimed my work-life balance...')
+        ]
+        c.executemany('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)', posts)
     
     conn.commit()
     conn.close()
@@ -456,12 +509,38 @@ def get_db():
 
 @app.route('/')
 def index():
+    search_query = request.args.get('search', '').strip()
     conn = get_db()
-    posts = conn.execute('''SELECT posts.*, users.username as author 
-                           FROM posts JOIN users ON posts.user_id = users.id 
-                           ORDER BY created_at DESC''').fetchall()
+    
+    if search_query:
+        # VULN: Potential SQL injection if not properly handled
+        posts = conn.execute('''SELECT posts.*, users.username as author 
+                               FROM posts JOIN users ON posts.user_id = users.id 
+                               WHERE posts.title LIKE ? OR posts.content LIKE ?
+                               ORDER BY created_at DESC''', 
+                             (f'%{search_query}%', f'%{search_query}%')).fetchall()
+    else:
+        posts = conn.execute('''SELECT posts.*, users.username as author 
+                               FROM posts JOIN users ON posts.user_id = users.id 
+                               ORDER BY created_at DESC LIMIT 20''').fetchall()
+    
     conn.close()
-    return render_template_string(HOME_PAGE, posts=posts, session=session)
+    
+    # Add search form to home page
+    home_with_search = HOME_PAGE.replace(
+        '<h2 style="margin-bottom: 30px; font-size: 32px;">Latest Stories</h2>',
+        '''<div style="margin-bottom: 30px;">
+            <h2 style="font-size: 32px; margin-bottom: 15px;">Latest Stories</h2>
+            <form method="GET" action="/" style="display: flex; gap: 10px; max-width: 500px;">
+                <input type="text" name="search" placeholder="Search posts..." 
+                       value="''' + search_query + '''" 
+                       style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
+                <input type="submit" value="Search" class="btn">
+            </form>
+        </div>'''
+    )
+    
+    return render_template_string(home_with_search, posts=posts, session=session, search_query=search_query)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -526,15 +605,25 @@ def view_post(post_id):
     post = conn.execute('''SELECT posts.*, users.username as author 
                           FROM posts JOIN users ON posts.user_id = users.id 
                           WHERE posts.id = ?''', (post_id,)).fetchone()
-    comments = conn.execute('''SELECT comments.*, users.username as author 
-                              FROM comments JOIN users ON comments.user_id = users.id 
-                              WHERE post_id = ?''', (post_id,)).fetchall()
-    conn.close()
     
     if not post:
+        conn.close()
         return "Post not found", 404
     
-    return render_template_string(POST_PAGE, post=post, comments=comments)
+    comments = conn.execute('''SELECT comments.*, users.username as author 
+                              FROM comments JOIN users ON comments.user_id = users.id 
+                              WHERE post_id = ? ORDER BY created_at DESC''', (post_id,)).fetchall()
+    
+    # Get related posts
+    related_posts = conn.execute('''SELECT posts.*, users.username as author 
+                                   FROM posts JOIN users ON posts.user_id = users.id 
+                                   WHERE posts.user_id = ? AND posts.id != ? 
+                                   ORDER BY created_at DESC LIMIT 3''', (post['user_id'], post_id)).fetchall()
+    
+    conn.close()
+    
+    return render_template_string(POST_PAGE, post=post, comments=comments, 
+                                 related_posts=related_posts, session=session)
 
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):

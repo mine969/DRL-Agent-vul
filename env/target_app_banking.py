@@ -175,7 +175,7 @@ HTML_TEMPLATE = """
     </nav>
     
     <div class="container">
-        {% block content %}{% endblock %}
+        {{ content | safe }}
     </div>
 </body>
 </html>
@@ -207,10 +207,91 @@ def init_db():
     if c.fetchone()[0] == 0:
         users = [
             ('admin', hashlib.md5(b'admin123').hexdigest(), 100000.0, '1001'),
-            ('user', hashlib.md5(b'password').hexdigest(), 500.0, '1002'),
-            ('victim', hashlib.md5(b'secret').hexdigest(), 5000.0, '1003')
+            ('john_smith', hashlib.md5(b'password').hexdigest(), 5420.50, '1002'),
+            ('sarah_johnson', hashlib.md5(b'password').hexdigest(), 12350.75, '1003'),
+            ('mike_williams', hashlib.md5(b'password').hexdigest(), 3200.00, '1004'),
+            ('emily_brown', hashlib.md5(b'password').hexdigest(), 8750.25, '1005'),
+            ('david_jones', hashlib.md5(b'password').hexdigest(), 25000.00, '1006'),
+            ('lisa_garcia', hashlib.md5(b'password').hexdigest(), 1850.50, '1007'),
+            ('tech_corp', hashlib.md5(b'password').hexdigest(), 150000.00, '2001'),
+            ('retail_store', hashlib.md5(b'password').hexdigest(), 45000.00, '2002'),
+            ('freelancer_alex', hashlib.md5(b'password').hexdigest(), 6200.00, '1008')
         ]
         c.executemany('INSERT INTO users (username, password, balance, account_number) VALUES (?, ?, ?, ?)', users)
+        
+        # Create realistic transaction history
+        transactions = [
+            # john_smith transactions
+            (2, 2500.00, 'Salary Deposit - TechCorp Inc'),
+            (2, -1200.00, 'Rent Payment - Landlord'),
+            (2, -85.50, 'Grocery Store - Whole Foods'),
+            (2, -45.00, 'Gas Station - Shell'),
+            (2, -120.00, 'Electric Bill - City Power'),
+            (2, -500.00, 'Transfer to Savings'),
+            
+            # sarah_johnson transactions
+            (3, 4500.00, 'Salary Deposit - Design Studio'),
+            (3, -1500.00, 'Mortgage Payment'),
+            (3, -250.00, 'Car Payment - Auto Finance'),
+            (3, -95.75, 'Restaurant - Italian Bistro'),
+            (3, -180.00, 'Internet & Cable'),
+            (3, -420.00, 'Insurance Premium'),
+            
+            # mike_williams transactions
+            (4, 3000.00, 'Salary Deposit'),
+            (4, -950.00, 'Rent Payment'),
+            (4, -150.00, 'Phone Bill'),
+            (4, -75.00, 'Gym Membership'),
+            (4, -200.00, 'Student Loan Payment'),
+            
+            # emily_brown transactions
+            (5, 3800.00, 'Salary Deposit - Marketing Co'),
+            (5, -1100.00, 'Rent Payment'),
+            (5, -320.00, 'Shopping - Fashion Outlet'),
+            (5, -65.00, 'Coffee Shop - Starbucks'),
+            (5, -150.00, 'Utilities'),
+            (5, -500.00, 'Investment Transfer'),
+            
+            # david_jones transactions
+            (6, 8000.00, 'Salary Deposit - Senior Manager'),
+            (6, -2200.00, 'Mortgage Payment'),
+            (6, -450.00, 'Car Lease'),
+            (6, -1200.00, 'Private School Tuition'),
+            (6, -350.00, 'Home Insurance'),
+            (6, -180.00, 'Landscaping Service'),
+            
+            # lisa_garcia transactions
+            (7, 2200.00, 'Salary Deposit - Retail'),
+            (7, -800.00, 'Rent Payment'),
+            (7, -120.00, 'Grocery Shopping'),
+            (7, -55.00, 'Gas'),
+            (7, -90.00, 'Phone Bill'),
+            
+            # tech_corp transactions
+            (8, 50000.00, 'Client Payment - Project Alpha'),
+            (8, -15000.00, 'Payroll - Monthly'),
+            (8, -3500.00, 'Office Rent'),
+            (8, -2200.00, 'Software Licenses'),
+            (8, -1800.00, 'Marketing Campaign'),
+            (8, 25000.00, 'Investment Round'),
+            
+            # retail_store transactions
+            (9, 12000.00, 'Sales Revenue - Week 1'),
+            (9, -4500.00, 'Inventory Purchase'),
+            (9, -2000.00, 'Employee Wages'),
+            (9, -850.00, 'Store Rent'),
+            (9, -320.00, 'Utilities'),
+            (9, 8500.00, 'Sales Revenue - Week 2'),
+            
+            # freelancer_alex transactions
+            (10, 1500.00, 'Client Payment - Web Design'),
+            (10, 2200.00, 'Client Payment - Logo Design'),
+            (10, -650.00, 'Rent Payment'),
+            (10, -120.00, 'Software Subscription'),
+            (10, -85.00, 'Coworking Space'),
+            (10, 1800.00, 'Client Payment - Branding')
+        ]
+        c.executemany('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', transactions)
     conn.commit()
     conn.close()
 
@@ -224,9 +305,7 @@ def index():
     if 'user_id' in session:
         return redirect('/dashboard')
     
-    login_html = """
-    {% extends "layout" %}
-    {% block content %}
+    page_content = """
     <div style="display: flex; justify-content: center; margin-top: 4rem;">
         <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
             <h1 style="color: var(--primary);">Welcome Back</h1>
@@ -244,9 +323,8 @@ def index():
             <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">Demo: admin/admin123</p>
         </div>
     </div>
-    {% endblock %}
-    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
-    return render_template_string(login_html)
+    """
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -274,9 +352,7 @@ def dashboard():
     transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC', (session['user_id'],)).fetchall()
     conn.close()
     
-    dashboard_html = """
-    {% extends "layout" %}
-    {% block content %}
+    page_content = """
     <div class="balance-hero">
         <p class="balance-label">Total Balance</p>
         <div class="balance-amount">${{ "%.2f"|format(user.balance) }}</div>
@@ -290,19 +366,24 @@ def dashboard():
                 <div class="form-group">
                     <label>Recipient Account</label>
                     <input type="text" name="to_account" class="form-control" placeholder="e.g., 1002" required>
+                    <small style="color: var(--text-muted); font-size: 0.85rem;">Enter recipient account number</small>
                 </div>
                 <div class="form-group">
                     <label>Amount (USD)</label>
-                    <input type="number" name="amount" class="form-control" placeholder="0.00" step="0.01" required>
+                    <input type="number" name="amount" class="form-control" placeholder="0.00" step="0.01" min="0.01" required>
                 </div>
                 <button type="submit" class="btn">Send Money</button>
             </form>
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <a href="/transfer-form" style="color: var(--primary); text-decoration: none; font-size: 0.9rem;">Advanced Transfer →</a>
+            </div>
         </div>
         
         <div class="card">
-            <h3>Recent Transactions</h3>
+            <h3 style="margin-bottom: 1rem;">Recent Transactions</h3>
+            {% if transactions %}
             <ul class="transaction-list">
-                {% for t in transactions %}
+                {% for t in transactions[:10] %}
                 <li class="transaction-item">
                     <div>
                         <div class="t-desc">{{ t.description }}</div>
@@ -312,16 +393,24 @@ def dashboard():
                         {{ "$" if t.amount > 0 else "-$" }}{{ "%.2f"|format(t.amount|abs) }}
                     </div>
                 </li>
-                {% else %}
-                <li style="text-align: center; color: var(--text-muted); padding: 1rem;">No history available</li>
                 {% endfor %}
             </ul>
+            {% if transactions|length > 10 %}
+            <div style="text-align: center; padding-top: 1rem; border-top: 1px solid var(--border);">
+                <p style="color: var(--text-muted); font-size: 0.9rem;">Showing 10 most recent transactions</p>
+            </div>
+            {% endif %}
+            {% else %}
+            <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
+                <p>No transaction history yet.</p>
+                <p style="font-size: 0.9rem; margin-top: 0.5rem;">Your transactions will appear here.</p>
+            </div>
+            {% endif %}
         </div>
     </div>
-    {% endblock %}
-    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+    """
     
-    return render_template_string(dashboard_html, user=user, transactions=transactions)
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=user, transactions=transactions)
 
 @app.route('/transfer', methods=['POST'])
 def transfer():
@@ -329,40 +418,110 @@ def transfer():
     if 'user_id' not in session:
         return redirect('/')
     
-    to_account = request.form.get('to_account')
-    amount = float(request.form.get('amount'))
+    to_account = request.form.get('to_account', '').strip()
+    try:
+        amount = float(request.form.get('amount', 0))
+    except (ValueError, TypeError):
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', 
+            '<div class="alert alert-danger">Invalid amount. Please try again.</div>'))
+    
+    if amount <= 0:
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', 
+            '<div class="alert alert-danger">Amount must be greater than zero.</div>'))
     
     conn = get_db()
     sender = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
     recipient = conn.execute('SELECT * FROM users WHERE account_number = ?', (to_account,)).fetchone()
     
     msg = ""
-    if sender['balance'] >= amount and recipient:
+    status = "error"
+    
+    if not to_account:
+        msg = "Transfer failed: Please provide a recipient account number"
+    elif sender['balance'] < amount:
+        msg = f"Transfer failed: Insufficient funds. You have ${sender['balance']:.2f} but tried to transfer ${amount:.2f}"
+    elif not recipient:
+        msg = f"Transfer failed: Account number {to_account} not found"
+    elif recipient['id'] == sender['id']:
+        msg = "Transfer failed: Cannot transfer to your own account"
+    else:
+        # VULN: Can transfer to any account (IDOR)
         conn.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (amount, sender['id']))
         conn.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, recipient['id']))
         conn.execute('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', 
-                    (sender['id'], -amount, f"Transfer to {to_account}"))
+                    (sender['id'], -amount, f"Transfer to {to_account} - {recipient['username']}"))
+        conn.execute('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', 
+                    (recipient['id'], amount, f"Transfer from {sender['account_number']} - {sender['username']}"))
         conn.commit()
-        msg = "Transfer successful"
-    else:
-        msg = "Transfer failed: Insufficient funds or invalid account"
+        msg = f"Transfer successful! ${amount:.2f} sent to account {to_account}"
+        status = "success"
     
     conn.close()
     
-    # Return HTML success page
-    success_html = """
-    {% extends "layout" %}
-    {% block content %}
+    # Return HTML status page
+    page_content = f"""
     <div style="text-align: center; margin-top: 4rem;">
         <div class="card" style="max-width: 500px; margin: 0 auto;">
             <h2 style="color: var(--primary);">Transaction Status</h2>
-            <p style="font-size: 1.2rem; margin: 2rem 0;">{{ msg }}</p>
-            <a href="/dashboard" class="btn">Return to Dashboard</a>
+            <div class="alert {'alert-success' if status == 'success' else 'alert-danger'}" style="margin: 2rem 0;">
+                {msg}
+            </div>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <a href="/dashboard" class="btn">Return to Dashboard</a>
+                <a href="/transfer-form" class="btn" style="background: var(--card-bg); color: var(--text-main); border: 1px solid var(--border);">Make Another Transfer</a>
+            </div>
         </div>
     </div>
-    {% endblock %}
-    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
-    return render_template_string(success_html, msg=msg)
+    """
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
+
+@app.route('/transfer-form')
+def transfer_form():
+    """Standalone transfer form"""
+    if 'user_id' not in session:
+        return redirect('/')
+    
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    
+    page_content = """
+    <div style="max-width: 600px; margin: 0 auto; margin-top: 2rem;">
+        <h1 style="color: var(--primary); margin-bottom: 2rem;">Money Transfer</h1>
+        
+        <div class="card">
+            <div style="background: rgba(37, 99, 235, 0.1); padding: 1rem; border-radius: 6px; margin-bottom: 2rem;">
+                <p style="margin: 0; color: var(--primary); font-weight: 600;">Available Balance: ${{ "%.2f"|format(user.balance) }}</p>
+            </div>
+            
+            <form method="POST" action="/transfer">
+                <div class="form-group">
+                    <label>Recipient Account Number</label>
+                    <input type="text" name="to_account" class="form-control" placeholder="e.g., 1002" required>
+                    <small style="color: var(--text-muted); font-size: 0.85rem;">Enter the account number of the recipient</small>
+                </div>
+                <div class="form-group">
+                    <label>Amount (USD)</label>
+                    <input type="number" name="amount" class="form-control" placeholder="0.00" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Description (Optional)</label>
+                    <input type="text" name="description" class="form-control" placeholder="e.g., Payment for services">
+                </div>
+                <button type="submit" class="btn">Send Money</button>
+                <a href="/dashboard" style="margin-left: 1rem; color: var(--text-muted); text-decoration: none;">Cancel</a>
+            </form>
+        </div>
+        
+        <div class="card" style="margin-top: 2rem; background: rgba(255, 193, 7, 0.1); border-color: #FFC107;">
+            <h3 style="margin-bottom: 1rem; color: #F57C00;">Recent Recipients</h3>
+            <p style="color: var(--text-muted); font-size: 0.9rem;">
+                Demo accounts: 1002 (john_smith), 1003 (sarah_johnson), 1004 (mike_williams)
+            </p>
+        </div>
+    </div>
+    """
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=dict(user))
 
 @app.route('/logout')
 def logout():
@@ -373,6 +532,6 @@ if __name__ == '__main__':
     print("=" * 70)
     print("VULNERABLE BANKING APP - Research Variant 3")
     print("=" * 70)
-    print("🚀 Starting on http://localhost:5004")
+    print("Starting on http://localhost:5004")
     init_db()
     app.run(port=5004, debug=True)
