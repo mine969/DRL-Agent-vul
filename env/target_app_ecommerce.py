@@ -176,7 +176,7 @@ HTML_TEMPLATE = """
         <div class="alert">{{ error }}</div>
         {% endif %}
         
-        {% block content %}{% endblock %}
+        {{ content | safe }}
     </div>
 </body>
 </html>
@@ -243,31 +243,107 @@ def init_db():
     # Seed data
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
-        # Create users
+        # Create diverse users
         users = [
             ('admin', 'admin@shop.com', hashlib.md5(b'admin123').hexdigest(), 'admin', 10000.0),
-            ('customer', 'customer@shop.com', hashlib.md5(b'password').hexdigest(), 'customer', 100.0),
-            ('vip', 'vip@shop.com', hashlib.md5(b'vip123').hexdigest(), 'vip', 500.0)
+            ('john_doe', 'john@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 250.0),
+            ('sarah_tech', 'sarah@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 1500.0),
+            ('mike_gamer', 'mike@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 800.0),
+            ('lisa_photo', 'lisa@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 450.0),
+            ('david_dev', 'david@email.com', hashlib.md5(b'password').hexdigest(), 'vip', 2000.0),
+            ('emma_student', 'emma@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 150.0),
+            ('alex_business', 'alex@email.com', hashlib.md5(b'password').hexdigest(), 'vip', 5000.0),
+            ('rachel_designer', 'rachel@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 600.0),
+            ('tom_writer', 'tom@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 300.0),
+            ('nina_chef', 'nina@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 400.0),
+            ('chris_athlete', 'chris@email.com', hashlib.md5(b'password').hexdigest(), 'customer', 700.0)
         ]
         c.executemany('INSERT INTO users (username, email, password, role, balance) VALUES (?, ?, ?, ?, ?)', users)
         
-        # Create products
+        # Create extensive product catalog
         products = [
-            ('Laptop Pro', 'High-performance laptop', 999.99, 50, 'Electronics', 'laptop.jpg'),
-            ('Smartphone X', 'Latest smartphone', 699.99, 100, 'Electronics', 'phone.jpg'),
-            ('Headphones', 'Noise-cancelling headphones', 199.99, 200, 'Audio', 'headphones.jpg'),
-            ('Smart Watch', 'Fitness tracking watch', 299.99, 150, 'Wearables', 'watch.jpg'),
-            ('Tablet', '10-inch tablet', 449.99, 75, 'Electronics', 'tablet.jpg'),
-            ('Premium Course', 'Online security course', 0.01, 1000, 'Digital', 'course.jpg')
+            # Electronics
+            ('MacBook Pro 16"', 'Professional laptop with M3 chip, 32GB RAM', 2499.99, 25, 'Electronics', 'macbook.jpg'),
+            ('Dell XPS 15', 'Premium Windows laptop, Intel i9, 16GB RAM', 1899.99, 30, 'Electronics', 'dell.jpg'),
+            ('iPhone 15 Pro', 'Latest flagship smartphone with A17 chip', 1199.99, 50, 'Electronics', 'iphone.jpg'),
+            ('Samsung Galaxy S24', 'Android flagship with 200MP camera', 999.99, 45, 'Electronics', 'samsung.jpg'),
+            ('iPad Air', '10.9-inch tablet with M1 chip', 599.99, 40, 'Electronics', 'ipad.jpg'),
+            ('Sony WH-1000XM5', 'Premium noise-cancelling headphones', 399.99, 60, 'Audio', 'sony_headphones.jpg'),
+            ('AirPods Pro 2', 'Wireless earbuds with active noise cancellation', 249.99, 80, 'Audio', 'airpods.jpg'),
+            ('Canon EOS R6', 'Full-frame mirrorless camera', 2499.99, 15, 'Photography', 'canon.jpg'),
+            ('Sony A7 IV', 'Professional mirrorless camera body', 2299.99, 12, 'Photography', 'sony_camera.jpg'),
+            ('DJI Mini 3 Pro', 'Compact drone with 4K camera', 759.99, 35, 'Electronics', 'dji_drone.jpg'),
+            
+            # Gaming
+            ('PlayStation 5', 'Next-gen gaming console', 499.99, 20, 'Gaming', 'ps5.jpg'),
+            ('Xbox Series X', 'Microsoft gaming console', 499.99, 18, 'Gaming', 'xbox.jpg'),
+            ('Nintendo Switch OLED', 'Hybrid gaming console', 349.99, 40, 'Gaming', 'switch.jpg'),
+            ('Gaming Keyboard RGB', 'Mechanical keyboard with RGB lighting', 129.99, 75, 'Gaming', 'keyboard.jpg'),
+            ('Gaming Mouse Pro', 'High-precision gaming mouse', 79.99, 100, 'Gaming', 'mouse.jpg'),
+            ('27" Gaming Monitor', '144Hz QHD gaming display', 399.99, 30, 'Gaming', 'monitor.jpg'),
+            
+            # Smart Home
+            ('Amazon Echo Dot', 'Smart speaker with Alexa', 49.99, 150, 'Smart Home', 'echo.jpg'),
+            ('Google Nest Hub', 'Smart display with Google Assistant', 99.99, 80, 'Smart Home', 'nest.jpg'),
+            ('Ring Video Doorbell', 'Smart doorbell with camera', 179.99, 60, 'Smart Home', 'ring.jpg'),
+            ('Philips Hue Starter Kit', 'Smart LED bulbs with hub', 149.99, 70, 'Smart Home', 'hue.jpg'),
+            
+            # Wearables
+            ('Apple Watch Series 9', 'Advanced smartwatch with health tracking', 429.99, 55, 'Wearables', 'apple_watch.jpg'),
+            ('Fitbit Charge 6', 'Fitness tracker with GPS', 159.99, 90, 'Wearables', 'fitbit.jpg'),
+            ('Garmin Forerunner 265', 'GPS running watch', 449.99, 40, 'Wearables', 'garmin.jpg'),
+            
+            # Accessories
+            ('USB-C Hub 7-in-1', 'Multi-port adapter for laptops', 39.99, 200, 'Accessories', 'usb_hub.jpg'),
+            ('Portable SSD 1TB', 'Fast external storage drive', 119.99, 85, 'Accessories', 'ssd.jpg'),
+            ('Wireless Charger', 'Fast charging pad for phones', 29.99, 150, 'Accessories', 'charger.jpg'),
+            ('Laptop Backpack', 'Professional backpack with laptop compartment', 59.99, 100, 'Accessories', 'backpack.jpg'),
+            
+            # Digital Products
+            ('Premium Security Course', 'Online cybersecurity training', 0.01, 1000, 'Digital', 'course.jpg'),
+            ('Photo Editing Software', 'Professional photo editor license', 99.99, 500, 'Digital', 'software.jpg')
         ]
         c.executemany('INSERT INTO products (name, description, price, stock, category, image_url) VALUES (?, ?, ?, ?, ?, ?)', products)
+        
+        # Create sample orders
+        orders = [
+            (2, 2499.99, 'completed', None),  # john_doe bought MacBook
+            (3, 1199.99, 'completed', 'SAVE10'),  # sarah_tech bought iPhone
+            (4, 999.98, 'shipped', None),  # mike_gamer bought PS5 + game
+            (5, 2499.99, 'completed', None),  # lisa_photo bought Canon camera
+            (6, 599.99, 'processing', 'VIP20'),  # david_dev bought iPad
+            (7, 249.99, 'completed', None),  # emma_student bought AirPods
+            (8, 1899.99, 'completed', 'SAVE50'),  # alex_business bought Dell laptop
+            (9, 429.99, 'shipped', None),  # rachel_designer bought Apple Watch
+            (10, 149.99, 'completed', None),  # tom_writer bought smart bulbs
+            (11, 759.99, 'processing', None),  # nina_chef bought drone
+        ]
+        c.executemany('INSERT INTO orders (user_id, total, status, coupon_code) VALUES (?, ?, ?, ?)', orders)
+        
+        # Create order items
+        order_items = [
+            (1, 1, 1, 2499.99),  # Order 1: MacBook
+            (2, 3, 1, 1199.99),  # Order 2: iPhone
+            (3, 11, 1, 499.99),  # Order 3: PS5
+            (3, 16, 1, 499.99),  # Order 3: Gaming Monitor
+            (4, 8, 1, 2499.99),  # Order 4: Canon camera
+            (5, 5, 1, 599.99),   # Order 5: iPad
+            (6, 7, 1, 249.99),   # Order 6: AirPods
+            (7, 2, 1, 1899.99),  # Order 7: Dell XPS
+            (8, 21, 1, 429.99),  # Order 8: Apple Watch
+            (9, 20, 1, 149.99),  # Order 9: Hue lights
+            (10, 10, 1, 759.99), # Order 10: Drone
+        ]
+        c.executemany('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)', order_items)
         
         # Create coupons
         coupons = [
             ('SAVE10', 10.0, 100),
             ('SAVE50', 50.0, 10),
             ('FREE100', 100.0, 1),
-            ('VIP20', 20.0, 50)
+            ('VIP20', 20.0, 50),
+            ('WELCOME15', 15.0, 200),
+            ('TECH25', 25.0, 30)
         ]
         c.executemany('INSERT INTO coupons (code, discount, max_uses) VALUES (?, ?, ?)', coupons)
     
@@ -491,15 +567,17 @@ def product_detail(product_id):
                 <p style="color: #888;">Stock: {{ p.stock }} units</p>
                 
                 <form action="/api/cart/add" method="POST" style="margin-top: 2rem;">
-                    <!-- Note: Keeping API for cart add for now, or could make form submit to special route -->
-                    <!-- Let's make it a button that sends JSON or a form that accepts standard POST -->
                     <div class="form-group">
                         <label>Quantity</label>
-                        <input type="number" name="quantity" value="1" class="form-control" style="width: 100px;">
+                        <input type="number" name="quantity" value="1" min="1" class="form-control" style="width: 120px;">
                     </div>
                     <input type="hidden" name="product_id" value="{{ p.id }}">
-                    <button type="submit" class="btn">Add to Encryption Layer (Cart)</button>
+                    <button type="submit" class="btn" style="width: auto; padding: 1rem 2rem;">Add to Cart</button>
                 </form>
+                <div style="margin-top: 1rem;">
+                    <a href="/products" class="btn btn-secondary" style="width: auto;">← Back to Products</a>
+                    <a href="/cart" class="btn btn-secondary" style="width: auto; margin-left: 1rem;">View Cart</a>
+                </div>
             </div>
         </div>
         {% endblock %}
@@ -514,7 +592,7 @@ def product_detail(product_id):
 @app.route('/api/cart/add', methods=['POST'])
 def add_to_cart():
     """Add to cart - VULN: Negative quantity"""
-    data = request.json
+    data = request.json if request.json else request.form
     product_id = data.get('product_id')
     quantity = int(data.get('quantity', 1))
     
@@ -525,9 +603,442 @@ def add_to_cart():
     session.modified = True
     
     if quantity < 0:
-        return jsonify({'message': 'Item added to cart', 'vuln': 'Business Logic Flaw - Negative Quantity', 'cart': session['cart']})
+        if request.json:
+            return jsonify({'message': 'Item added to cart', 'vuln': 'Business Logic Flaw - Negative Quantity', 'cart': session['cart']})
+        else:
+            return redirect('/cart?msg=Item added')
     
-    return jsonify({'message': 'Item added', 'cart': session['cart']})
+    if request.json:
+        return jsonify({'message': 'Item added', 'cart': session['cart']})
+    else:
+        return redirect('/cart?msg=Item added to cart')
+
+@app.route('/cart', methods=['GET'])
+def view_cart():
+    """View shopping cart"""
+    if 'cart' not in session or not session['cart']:
+        cart_html = """
+        {% extends "layout" %}
+        {% block content %}
+        <div class="hero" style="padding: 3rem;">
+            <h1>Your Cart is Empty</h1>
+            <p style="margin: 2rem 0;">Start shopping to add items to your cart!</p>
+            <a href="/products" class="btn">Browse Products</a>
+        </div>
+        {% endblock %}
+        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        return render_template_string(cart_html)
+    
+    conn = get_db()
+    cart_items = []
+    total = 0
+    
+    for product_id, quantity in session['cart'].items():
+        product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+        if product:
+            item_total = product['price'] * quantity
+            total += item_total
+            cart_items.append({
+                'id': product['id'],
+                'name': product['name'],
+                'price': product['price'],
+                'quantity': quantity,
+                'subtotal': item_total,
+                'stock': product['stock']
+            })
+    
+    conn.close()
+    msg = request.args.get('msg', '')
+    
+    cart_html = """
+    {% extends "layout" %}
+    {% block content %}
+    <div style="margin-top: 2rem;">
+        <h1 style="color: var(--primary); margin-bottom: 2rem;">Shopping Cart</h1>
+        {% if msg %}
+        <div class="alert" style="background: rgba(0, 242, 255, 0.2); color: var(--primary); border-color: var(--primary);">
+            {{ msg }}
+        </div>
+        {% endif %}
+        
+        <div class="card" style="margin-bottom: 2rem;">
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border);">
+                        <th style="text-align: left; padding: 1rem;">Product</th>
+                        <th style="text-align: center; padding: 1rem;">Price</th>
+                        <th style="text-align: center; padding: 1rem;">Quantity</th>
+                        <th style="text-align: right; padding: 1rem;">Subtotal</th>
+                        <th style="text-align: center; padding: 1rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in cart_items %}
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 1rem;">
+                            <strong>{{ item.name }}</strong>
+                        </td>
+                        <td style="text-align: center; padding: 1rem;">${{ "%.2f"|format(item.price) }}</td>
+                        <td style="text-align: center; padding: 1rem;">
+                            <form method="POST" action="/api/cart/update" style="display: inline;">
+                                <input type="hidden" name="product_id" value="{{ item.id }}">
+                                <input type="number" name="quantity" value="{{ item.quantity }}" min="1" 
+                                       style="width: 60px; padding: 0.3rem; background: var(--card-bg); border: 1px solid var(--border); color: var(--text);">
+                                <button type="submit" style="margin-left: 0.5rem; padding: 0.3rem 0.8rem; background: var(--primary); border: none; color: #000; cursor: pointer;">Update</button>
+                            </form>
+                        </td>
+                        <td style="text-align: right; padding: 1rem; font-weight: 600;">${{ "%.2f"|format(item.subtotal) }}</td>
+                        <td style="text-align: center; padding: 1rem;">
+                            <a href="/api/cart/remove/{{ item.id }}" style="color: var(--accent); text-decoration: none;">Remove</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right; padding: 1rem; font-weight: 700; font-size: 1.2rem;">Total:</td>
+                        <td style="text-align: right; padding: 1rem; font-weight: 700; font-size: 1.5rem; color: var(--primary);">${{ "%.2f"|format(total) }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <div style="display: flex; gap: 1rem; justify-content: space-between;">
+            <a href="/products" class="btn btn-secondary">Continue Shopping</a>
+            <a href="/checkout" class="btn" style="width: auto; padding: 1rem 3rem;">Proceed to Checkout</a>
+        </div>
+    </div>
+    {% endblock %}
+    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+    return render_template_string(cart_html, cart_items=cart_items, total=total, msg=msg)
+
+@app.route('/api/cart/update', methods=['POST'])
+def update_cart():
+    """Update cart quantity"""
+    product_id = request.form.get('product_id')
+    quantity = int(request.form.get('quantity', 1))
+    
+    if 'cart' not in session:
+        session['cart'] = {}
+    
+    if quantity <= 0:
+        session['cart'].pop(str(product_id), None)
+    else:
+        session['cart'][str(product_id)] = quantity
+    
+    session.modified = True
+    return redirect('/cart')
+
+@app.route('/api/cart/remove/<product_id>')
+def remove_from_cart(product_id):
+    """Remove item from cart"""
+    if 'cart' in session:
+        session['cart'].pop(str(product_id), None)
+        session.modified = True
+    return redirect('/cart')
+
+@app.route('/checkout', methods=['GET', 'POST'])
+def checkout_page():
+    """Checkout page"""
+    if 'user' not in session:
+        return redirect('/login?redirect=/checkout')
+    
+    if 'cart' not in session or not session['cart']:
+        return redirect('/cart')
+    
+    if request.method == 'GET':
+        conn = get_db()
+        cart_items = []
+        subtotal = 0
+        
+        for product_id, quantity in session['cart'].items():
+            product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+            if product:
+                item_total = product['price'] * quantity
+                subtotal += item_total
+                cart_items.append({
+                    'id': product['id'],
+                    'name': product['name'],
+                    'price': product['price'],
+                    'quantity': quantity,
+                    'subtotal': item_total
+                })
+        
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user']['id'],)).fetchone()
+        conn.close()
+        
+        checkout_html = """
+        {% extends "layout" %}
+        {% block content %}
+        <div style="margin-top: 2rem;">
+            <h1 style="color: var(--primary); margin-bottom: 2rem;">Checkout</h1>
+            
+            <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 2rem;">
+                <div class="card">
+                    <h2 style="margin-bottom: 1.5rem;">Order Summary</h2>
+                    {% for item in cart_items %}
+                    <div style="display: flex; justify-content: space-between; padding: 1rem 0; border-bottom: 1px solid var(--border);">
+                        <div>
+                            <strong>{{ item.name }}</strong> × {{ item.quantity }}
+                        </div>
+                        <div>${{ "%.2f"|format(item.subtotal) }}</div>
+                    </div>
+                    {% endfor %}
+                    <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 2px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 700;">
+                            <span>Total:</span>
+                            <span style="color: var(--primary);">${{ "%.2f"|format(subtotal) }}</span>
+                        </div>
+                    </div>
+                    
+                    <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Payment Information</h3>
+                    <form method="POST" action="/checkout">
+                        <div class="form-group">
+                            <label>Card Number</label>
+                            <input type="text" name="card_number" class="form-control" placeholder="1234 5678 9012 3456" required>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                            <div class="form-group">
+                                <label>Expiry Date</label>
+                                <input type="text" name="expiry" class="form-control" placeholder="MM/YY" required>
+                            </div>
+                            <div class="form-group">
+                                <label>CVV</label>
+                                <input type="text" name="cvv" class="form-control" placeholder="123" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Coupon Code (Optional)</label>
+                            <input type="text" name="coupon_code" class="form-control" placeholder="Enter coupon code">
+                        </div>
+                        <button type="submit" class="btn" style="margin-top: 1rem;">Place Order</button>
+                    </form>
+                </div>
+                
+                <div class="card">
+                    <h2 style="margin-bottom: 1rem;">Shipping Information</h2>
+                    <p><strong>Name:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Balance:</strong> ${{ "%.2f"|format(user.balance) }}</p>
+                    <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 1rem;">
+                        Your balance will be used for this purchase.
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        return render_template_string(checkout_html, cart_items=cart_items, subtotal=subtotal, user=dict(user))
+    
+    # POST - Process checkout
+    if 'user' not in session:
+        return redirect('/login')
+    
+    coupon_code = request.form.get('coupon_code', '')
+    conn = get_db()
+    
+    # Build items from cart
+    items = []
+    for product_id, quantity in session['cart'].items():
+        product = conn.execute('SELECT * FROM products WHERE id = ?', (product_id,)).fetchone()
+        if product:
+            items.append({
+                'product_id': product['id'],
+                'quantity': quantity,
+                'price': product['price']  # VULN: Client can manipulate this
+            })
+    
+    # Calculate total (VULN: Price manipulation possible)
+    total = sum(item['price'] * item['quantity'] for item in items)
+    
+    # Apply coupon (VULN: Race condition, coupon abuse)
+    if coupon_code:
+        coupon = conn.execute('SELECT * FROM coupons WHERE code = ?', (coupon_code,)).fetchone()
+        if coupon and coupon['used_count'] < coupon['max_uses']:
+            total -= coupon['discount']
+            conn.execute('UPDATE coupons SET used_count = used_count + 1 WHERE code = ?', (coupon_code,))
+    
+    # Check balance
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user']['id'],)).fetchone()
+    if user['balance'] < total:
+        conn.close()
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', 
+            '<div class="alert">Insufficient balance. You have $' + str(user['balance']) + ' but need $' + str(total) + '</div>'))
+    
+    # Process order (VULN: Race condition on stock)
+    for item in items:
+        product = conn.execute('SELECT stock FROM products WHERE id = ?', (item['product_id'],)).fetchone()
+        if product and product['stock'] >= item['quantity']:
+            conn.execute('UPDATE products SET stock = stock - ? WHERE id = ?', 
+                        (item['quantity'], item['product_id']))
+    
+    # Create order
+    conn.execute('INSERT INTO orders (user_id, total, coupon_code, status) VALUES (?, ?, ?, ?)',
+                (session['user']['id'], total, coupon_code if coupon_code else None, 'pending'))
+    order_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    
+    # Add order items
+    for item in items:
+        conn.execute('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)',
+                    (order_id, item['product_id'], item['quantity'], item['price']))
+    
+    # Deduct balance
+    conn.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (total, session['user']['id']))
+    
+    conn.commit()
+    conn.close()
+    
+    # Clear cart
+    session['cart'] = {}
+    session.modified = True
+    
+    return redirect(f'/order/{order_id}')
+
+@app.route('/order/<order_id>')
+def view_order(order_id):
+    """View order details - VULN: IDOR"""
+    conn = get_db()
+    order = conn.execute(f"SELECT * FROM orders WHERE id = {order_id}").fetchone()
+    
+    if not order:
+        conn.close()
+        return "Order not found", 404
+    
+    items = conn.execute('SELECT oi.*, p.name FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?', 
+                        (order_id,)).fetchall()
+    conn.close()
+    
+    order_html = """
+    {% extends "layout" %}
+    {% block content %}
+    <div style="margin-top: 2rem;">
+        <h1 style="color: var(--primary); margin-bottom: 1rem;">Order Confirmation</h1>
+        <div class="alert" style="background: rgba(16, 185, 129, 0.2); color: #10B981; border-color: #10B981;">
+            <strong>Thank you for your order!</strong> Order #{{ order.id }} has been placed successfully.
+        </div>
+        
+        <div class="card" style="margin-top: 2rem;">
+            <h2>Order Details</h2>
+            <p><strong>Order ID:</strong> #{{ order.id }}</p>
+            <p><strong>Status:</strong> <span style="text-transform: uppercase; color: var(--primary);">{{ order.status }}</span></p>
+            <p><strong>Date:</strong> {{ order.created_at }}</p>
+            {% if order.coupon_code %}
+            <p><strong>Coupon Used:</strong> {{ order.coupon_code }}</p>
+            {% endif %}
+            
+            <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Items Ordered</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border);">
+                        <th style="text-align: left; padding: 0.75rem;">Product</th>
+                        <th style="text-align: center; padding: 0.75rem;">Quantity</th>
+                        <th style="text-align: right; padding: 0.75rem;">Price</th>
+                        <th style="text-align: right; padding: 0.75rem;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 0.75rem;">{{ item.name }}</td>
+                        <td style="text-align: center; padding: 0.75rem;">{{ item.quantity }}</td>
+                        <td style="text-align: right; padding: 0.75rem;">${{ "%.2f"|format(item.price) }}</td>
+                        <td style="text-align: right; padding: 0.75rem;">${{ "%.2f"|format(item.price * item.quantity) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right; padding: 1rem; font-weight: 700;">Total:</td>
+                        <td style="text-align: right; padding: 1rem; font-weight: 700; font-size: 1.2rem; color: var(--primary);">
+                            ${{ "%.2f"|format(order.total) }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <div style="margin-top: 2rem;">
+            <a href="/products" class="btn">Continue Shopping</a>
+            <a href="/dashboard" class="btn btn-secondary">View Dashboard</a>
+        </div>
+    </div>
+    {% endblock %}
+    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+    return render_template_string(order_html, order=dict(order), items=[dict(i) for i in items])
+
+@app.route('/dashboard')
+def dashboard():
+    """User dashboard"""
+    if 'user' not in session:
+        return redirect('/login?redirect=/dashboard')
+    
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user']['id'],)).fetchone()
+    orders = conn.execute('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC LIMIT 10', 
+                         (session['user']['id'],)).fetchall()
+    conn.close()
+    
+    dashboard_html = """
+    {% extends "layout" %}
+    {% block content %}
+    <div style="margin-top: 2rem;">
+        <h1 style="color: var(--primary); margin-bottom: 2rem;">Dashboard</h1>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 2rem;">
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">Account Balance</div>
+                <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary);">${{ "%.2f"|format(user.balance) }}</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">Total Orders</div>
+                <div style="font-size: 2.5rem; font-weight: 700; color: var(--secondary);">{{ orders|length }}</div>
+            </div>
+            <div class="card" style="text-align: center;">
+                <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">Account Type</div>
+                <div style="font-size: 1.5rem; font-weight: 700; color: var(--text); text-transform: uppercase;">{{ user.role }}</div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2 style="margin-bottom: 1.5rem;">Recent Orders</h2>
+            {% if orders %}
+            <table style="width: 100%; border-collapse: collapse;">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--border);">
+                        <th style="text-align: left; padding: 0.75rem;">Order ID</th>
+                        <th style="text-align: left; padding: 0.75rem;">Date</th>
+                        <th style="text-align: right; padding: 0.75rem;">Total</th>
+                        <th style="text-align: center; padding: 0.75rem;">Status</th>
+                        <th style="text-align: center; padding: 0.75rem;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr style="border-bottom: 1px solid var(--border);">
+                        <td style="padding: 0.75rem;">#{{ order.id }}</td>
+                        <td style="padding: 0.75rem;">{{ order.created_at }}</td>
+                        <td style="text-align: right; padding: 0.75rem; font-weight: 600;">${{ "%.2f"|format(order.total) }}</td>
+                        <td style="text-align: center; padding: 0.75rem;">
+                            <span style="padding: 0.3rem 0.8rem; border-radius: 4px; background: rgba(16, 185, 129, 0.2); color: #10B981; font-size: 0.85rem;">
+                                {{ order.status }}
+                            </span>
+                        </td>
+                        <td style="text-align: center; padding: 0.75rem;">
+                            <a href="/order/{{ order.id }}" style="color: var(--primary); text-decoration: none;">View</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No orders yet. <a href="/products" style="color: var(--primary);">Start shopping!</a></p>
+            {% endif %}
+        </div>
+    </div>
+    {% endblock %}
+    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+    return render_template_string(dashboard_html, user=dict(user), orders=[dict(o) for o in orders])
 
 @app.route('/api/checkout', methods=['POST'])
 def checkout():
@@ -667,11 +1178,11 @@ if __name__ == '__main__':
     print("  DELIBERATELY VULNERABLE - For Research & Training Only!")
     print("=" * 70)
     print("\nFocus Areas:")
-    print("   • Business logic flaws (negative quantities, price manipulation)")
-    print("   • Payment vulnerabilities (bypass, zero amount)")
-    print("   • Race conditions (checkout, stock, coupons)")
-    print("   • API security (IDOR, BAC, mass assignment)")
-    print("   • SQL injection in search and filters")
+    print("   - Business logic flaws (negative quantities, price manipulation)")
+    print("   - Payment vulnerabilities (bypass, zero amount)")
+    print("   - Race conditions (checkout, stock, coupons)")
+    print("   - API security (IDOR, BAC, mass assignment)")
+    print("   - SQL injection in search and filters")
     init_db()
     print("\n Starting on http://localhost:5002\n")
     print("=" * 70)
