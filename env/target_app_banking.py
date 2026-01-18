@@ -1,11 +1,11 @@
 """
-🏦 VULNERABLE BANKING APPLICATION - Research Variant 3
+ VULNERABLE BANKING APPLICATION - Research Variant 3
 =====================================================
 
 A deliberately vulnerable banking application for AI security training.
 Focus: CSRF, IDOR, Logic Flaws, XSS
 
-⚠️ DELIBERATELY VULNERABLE - For Research & Training Only!
+ DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
 from flask import Flask, request, session, redirect, url_for, render_template_string, make_response
@@ -17,231 +17,171 @@ app = Flask(__name__)
 app.secret_key = 'banking_secret_2025'
 DB_NAME = 'env/banking.db'
 
-# HTML TEMPLATES
-LOGIN_PAGE = """
+# ============================================================================
+# MODERN UI TEMPLATES
+# ============================================================================
+
+HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>SecureBank - Online Banking</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SecureBank | Next-Gen Finance</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+        :root {
+            --primary: #2563EB;
+            --primary-dark: #1E40AF;
+            --secondary: #10B981;
+            --bg: #F3F4F6;
+            --card-bg: white;
+            --text-main: #1F2937;
+            --text-muted: #6B7280;
+            --border: #E5E7EB;
         }
-        .container {
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+            line-height: 1.5;
+        }
+        .navbar {
             background: white;
-            padding: 40px;
-            border-radius: 10px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-            width: 100%;
-            max-width: 400px;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
         .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+        .nav-links a:hover { color: var(--text-main); }
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+            margin-bottom: 2rem;
+            border: 1px solid var(--border);
+        }
+        
+        h1, h2, h3 { margin-top: 0; color: #111827; }
+        
+        .balance-hero {
             text-align: center;
-            margin-bottom: 30px;
+            padding: 2rem 0;
         }
-        .logo h1 {
-            color: #667eea;
-            font-size: 32px;
-            margin-bottom: 5px;
+        .balance-amount {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #111827;
+            letter-spacing: -0.03em;
         }
-        .logo p {
-            color: #666;
-            font-size: 14px;
+        .balance-label {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
-        input[type="text"], input[type="password"] {
+        
+        /* Modern Form */
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 500; font-size: 0.9rem; }
+        .form-control {
             width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
+            padding: 0.75rem 1rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
         }
-        input[type="submit"] {
-            width: 100%;
-            padding: 12px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        .form-control:focus { outline: none; border-color: var(--primary); ring: 2px solid var(--primary-light); }
+        
+        .btn {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            background: var(--primary);
             color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-weight: 600;
             border: none;
-            border-radius: 5px;
-            font-size: 16px;
             cursor: pointer;
-            margin-top: 10px;
+            transition: background 0.2s;
+            width: 100%;
+            font-size: 1rem;
         }
-        input[type="submit"]:hover {
-            opacity: 0.9;
+        .btn:hover { background: var(--primary-dark); }
+        
+        .transaction-list { list-style: none; padding: 0; }
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid var(--border);
         }
-        .hint {
-            text-align: center;
-            color: #999;
-            font-size: 12px;
-            margin-top: 20px;
+        .transaction-item:last-child { border-bottom: none; }
+        .t-desc { font-weight: 500; }
+        .t-date { font-size: 0.85rem; color: var(--text-muted); }
+        .t-amount { font-weight: 600; font-family: monospace; font-size: 1.1rem; }
+        .positive { color: var(--secondary); }
+        .negative { color: #EF4444; }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
         }
+        .alert-success { background: #D1FAE5; color: #065F46; }
+        .alert-danger { background: #FEE2E2; color: #991B1B; } 
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="logo">
-            <h1>🏦 SecureBank</h1>
-            <p>Trusted Online Banking Since 2010</p>
+    <nav class="navbar">
+        <a href="/" class="logo">SecureBank</a>
+        <div class="nav-links">
+            {% if session.user_id %}
+                <span style="color: var(--text-main); font-weight: 600; margin-right: 1rem;">{{ session.username }}</span>
+                <a href="/logout">Sign Out</a>
+            {% else %}
+                <a href="/">Login</a>
+            {% endif %}
         </div>
-        <form method="POST" action="/login">
-            <input type="text" name="username" placeholder="Username" required>
-            <input type="password" name="password" placeholder="Password" required>
-            <input type="submit" value="Sign In">
-        </form>
-        <div class="hint">Demo: admin/admin123 or user/password</div>
+    </nav>
+    
+    <div class="container">
+        {% block content %}{% endblock %}
     </div>
 </body>
 </html>
 """
 
-DASHBOARD_PAGE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Dashboard - SecureBank</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f7fa;
-        }
-        .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header h1 { font-size: 24px; }
-        .header a {
-            color: white;
-            text-decoration: none;
-            padding: 8px 20px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 5px;
-        }
-        .container {
-            max-width: 1200px;
-            margin: 30px auto;
-            padding: 0 20px;
-        }
-        .balance-card {
-            background: white;
-            padding: 30px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 30px;
-        }
-        .balance-card h2 {
-            color: #667eea;
-            font-size: 18px;
-            margin-bottom: 10px;
-        }
-        .balance-amount {
-            font-size: 48px;
-            font-weight: bold;
-            color: #2d3748;
-        }
-        .card {
-            background: white;
-            padding: 25px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
-        }
-        .card h3 {
-            color: #2d3748;
-            margin-bottom: 20px;
-            font-size: 20px;
-        }
-        input[type="text"], input[type="number"] {
-            width: 100%;
-            padding: 12px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-        input[type="submit"] {
-            padding: 12px 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 5px;
-            font-size: 14px;
-            cursor: pointer;
-            margin-top: 10px;
-        }
-        .transaction-list {
-            list-style: none;
-        }
-        .transaction-list li {
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-        }
-        .transaction-list li:last-child {
-            border-bottom: none;
-        }
-    </style>
-</head>
-<body>
-    <div class="header">
-        <h1>🏦 SecureBank</h1>
-        <div>
-            <span style="margin-right: 20px;">Welcome, {{ user.username }}</span>
-            <a href="/logout">Logout</a>
-        </div>
-    </div>
-    
-    <div class="container">
-        <div class="balance-card">
-            <h2>Available Balance</h2>
-            <div class="balance-amount">${{ "%.2f"|format(user.balance) }}</div>
-            <p style="color: #666; margin-top: 10px;">Account #{{ user.account_number }}</p>
-        </div>
-        
-        <div class="card">
-            <h3>💸 Transfer Money</h3>
-            <form method="POST" action="/transfer">
-                <input type="text" name="to_account" placeholder="Recipient Account Number" required>
-                <input type="number" name="amount" placeholder="Amount" step="0.01" required>
-                <input type="submit" value="Transfer Now">
-            </form>
-        </div>
-        
-        <div class="card">
-            <h3>📊 Recent Transactions</h3>
-            <ul class="transaction-list">
-            {% if transactions %}
-                {% for t in transactions %}
-                    <li>
-                        <span>{{ t.description }}</span>
-                        <span style="font-weight: bold; color: {% if t.amount < 0 %}#e53e3e{% else %}#38a169{% endif %};">
-                            ${{ "%.2f"|format(t.amount) }}
-                        </span>
-                    </li>
-                {% endfor %}
-            {% else %}
-                <li style="text-align: center; color: #999;">No transactions yet</li>
-            {% endif %}
-            </ul>
-        </div>
-    </div>
-</body>
-</html>
-"""
+
 
 # DATABASE SETUP
 def init_db():
@@ -283,7 +223,30 @@ def get_db():
 def index():
     if 'user_id' in session:
         return redirect('/dashboard')
-    return render_template_string(LOGIN_PAGE)
+    
+    login_html = """
+    {% extends "layout" %}
+    {% block content %}
+    <div style="display: flex; justify-content: center; margin-top: 4rem;">
+        <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
+            <h1 style="color: var(--primary);">Welcome Back</h1>
+            <p style="color: var(--text-muted); margin-bottom: 2rem;">Secure Access Portal</p>
+            
+            <form method="POST" action="/login">
+                <div class="form-group">
+                    <input type="text" name="username" class="form-control" placeholder="Username" required>
+                </div>
+                <div class="form-group">
+                    <input type="password" name="password" class="form-control" placeholder="Password" required>
+                </div>
+                <button type="submit" class="btn">Sign In</button>
+            </form>
+            <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--text-muted);">Demo: admin/admin123</p>
+        </div>
+    </div>
+    {% endblock %}
+    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+    return render_template_string(login_html)
 
 @app.route('/login', methods=['POST'])
 def login():
@@ -308,10 +271,57 @@ def dashboard():
     
     conn = get_db()
     user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ?', (session['user_id'],)).fetchall()
+    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC', (session['user_id'],)).fetchall()
     conn.close()
     
-    return render_template_string(DASHBOARD_PAGE, user=user, transactions=transactions)
+    dashboard_html = """
+    {% extends "layout" %}
+    {% block content %}
+    <div class="balance-hero">
+        <p class="balance-label">Total Balance</p>
+        <div class="balance-amount">${{ "%.2f"|format(user.balance) }}</div>
+        <p style="color: var(--text-muted);">Account Number: <span style="font-family: monospace;">{{ user.account_number }}</span></p>
+    </div>
+    
+    <div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+        <div class="card">
+            <h3>Quick Transfer</h3>
+            <form method="POST" action="/transfer">
+                <div class="form-group">
+                    <label>Recipient Account</label>
+                    <input type="text" name="to_account" class="form-control" placeholder="e.g., 1002" required>
+                </div>
+                <div class="form-group">
+                    <label>Amount (USD)</label>
+                    <input type="number" name="amount" class="form-control" placeholder="0.00" step="0.01" required>
+                </div>
+                <button type="submit" class="btn">Send Money</button>
+            </form>
+        </div>
+        
+        <div class="card">
+            <h3>Recent Transactions</h3>
+            <ul class="transaction-list">
+                {% for t in transactions %}
+                <li class="transaction-item">
+                    <div>
+                        <div class="t-desc">{{ t.description }}</div>
+                        <div class="t-date">{{ t.date }}</div>
+                    </div>
+                    <div class="t-amount {% if t.amount < 0 %}negative{% else %}positive{% endif %}">
+                        {{ "$" if t.amount > 0 else "-$" }}{{ "%.2f"|format(t.amount|abs) }}
+                    </div>
+                </li>
+                {% else %}
+                <li style="text-align: center; color: var(--text-muted); padding: 1rem;">No history available</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endblock %}
+    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+    
+    return render_template_string(dashboard_html, user=user, transactions=transactions)
 
 @app.route('/transfer', methods=['POST'])
 def transfer():
@@ -326,6 +336,7 @@ def transfer():
     sender = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
     recipient = conn.execute('SELECT * FROM users WHERE account_number = ?', (to_account,)).fetchone()
     
+    msg = ""
     if sender['balance'] >= amount and recipient:
         conn.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (amount, sender['id']))
         conn.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, recipient['id']))
@@ -334,10 +345,24 @@ def transfer():
         conn.commit()
         msg = "Transfer successful"
     else:
-        msg = "Transfer failed"
+        msg = "Transfer failed: Insufficient funds or invalid account"
     
     conn.close()
-    return f"{msg} <a href='/dashboard'>Back</a>"
+    
+    # Return HTML success page
+    success_html = """
+    {% extends "layout" %}
+    {% block content %}
+    <div style="text-align: center; margin-top: 4rem;">
+        <div class="card" style="max-width: 500px; margin: 0 auto;">
+            <h2 style="color: var(--primary);">Transaction Status</h2>
+            <p style="font-size: 1.2rem; margin: 2rem 0;">{{ msg }}</p>
+            <a href="/dashboard" class="btn">Return to Dashboard</a>
+        </div>
+    </div>
+    {% endblock %}
+    """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+    return render_template_string(success_html, msg=msg)
 
 @app.route('/logout')
 def logout():
@@ -346,7 +371,7 @@ def logout():
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("🏦 VULNERABLE BANKING APP - Research Variant 3")
+    print("VULNERABLE BANKING APP - Research Variant 3")
     print("=" * 70)
     print("🚀 Starting on http://localhost:5004")
     init_db()

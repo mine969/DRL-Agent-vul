@@ -1,14 +1,14 @@
 """
-📱 VULNERABLE SOCIAL MEDIA PLATFORM - Research Variant 2
+ VULNERABLE SOCIAL MEDIA PLATFORM - Research Variant 2
 =========================================================
 
 A deliberately vulnerable social media application for AI security training.
 Focus: XSS, authentication, file uploads, IDOR
 
-⚠️ DELIBERATELY VULNERABLE - For Research & Training Only!
+ DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, jsonify, session, send_from_directory
+from flask import Flask, request, jsonify, session, send_from_directory, render_template_string, redirect, url_for
 import sqlite3
 import hashlib
 import os
@@ -22,6 +22,150 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# ============================================================================
+# MODERN UI TEMPLATES
+# ============================================================================
+
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SocialNet | Connect the World</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2D88FF;
+            --bg: #18191A;
+            --card-bg: #242526;
+            --text-main: #E4E6EB;
+            --text-muted: #B0B3B8;
+            --border: #3E4042;
+        }
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
+            margin: 0;
+        }
+        .navbar {
+            background: var(--card-bg);
+            padding: 0.8rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            margin-left: 2rem;
+            font-weight: 500;
+        }
+        .nav-links a:hover { color: var(--text-main); }
+        .container {
+            max-width: 900px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        /* Cards & Feed */
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        .post-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #3a3b3c;
+            margin-right: 1rem;
+        }
+        .post-content { font-size: 1.1rem; margin-bottom: 1rem; }
+        .post-actions {
+            border-top: 1px solid var(--border);
+            padding-top: 0.5rem;
+            display: flex;
+            gap: 1rem;
+        }
+        
+        /* Forms */
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            background: #3A3B3C;
+            border: none;
+            border-radius: 6px;
+            color: white;
+            margin-bottom: 1rem;
+            box-sizing: border-box;
+        }
+        .btn {
+            background: var(--primary);
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+        
+        .alert {
+            padding: 1rem;
+            background: rgba(255, 76, 76, 0.2);
+            color: #ff4c4c;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="/" class="logo">SocialNet</a>
+        <div class="nav-links">
+            <a href="/">Feed</a>
+            {% if session.user_id %}
+                <a href="/profile/{{ session.user_id }}">My Profile</a>
+                <a href="/messages/{{ session.user_id }}">Messages</a>
+            {% else %}
+                <a href="/login">Login</a>
+                <a href="/register">Join</a>
+            {% endif %}
+        </div>
+    </nav>
+    
+    <div class="container">
+        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>
+"""
 
 # ============================================================================
 # DATABASE SETUP
@@ -105,30 +249,66 @@ def get_db():
 # AUTHENTICATION
 # ============================================================================
 
-@app.route('/api/register', methods=['POST'])
+@app.route('/register', methods=['GET', 'POST'])
 def register():
     """User registration - VULN: Weak password validation"""
-    data = request.json
+    if request.method == 'GET':
+        form_html = """
+        {% extends "layout" %}
+        {% block content %}
+        <div class="card" style="max-width: 500px; margin: 0 auto;">
+            <h2 style="text-align: center; color: var(--primary);">Join SocialNet</h2>
+            <form method="POST" action="/register">
+                <input type="text" name="username" class="form-control" placeholder="Username" required>
+                <input type="email" name="email" class="form-control" placeholder="Email" required>
+                <input type="password" name="password" class="form-control" placeholder="Password" required>
+                <button type="submit" class="btn">Sign Up</button>
+            </form>
+        </div>
+        {% endblock %}
+        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        return render_template_string(form_html)
+
+    # POST Logic
+    data = request.form if request.form else request.json
     username = data.get('username', '')
     email = data.get('email', '')
     password = data.get('password', '')
     
-    # VULN: No password strength validation
     conn = get_db()
     try:
         conn.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
                     (username, email, hashlib.md5(password.encode()).hexdigest()))
         conn.commit()
-        return jsonify({'message': 'User registered', 'vuln': 'Weak Password Validation'}), 201
+        return redirect('/login?msg=Welcome! Please login.')
     except Exception as e:
-        return jsonify({'error': str(e)}), 400
+        return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', f'<div class="alert">Error: {str(e)}</div>'))
     finally:
         conn.close()
 
-@app.route('/api/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     """Login - VULN: Session fixation"""
-    data = request.json
+    if request.method == 'GET':
+        msg = request.args.get('msg', '')
+        form_html = """
+        {% extends "layout" %}
+        {% block content %}
+        <div class="card" style="max-width: 400px; margin: 0 auto; margin-top: 50px;">
+            <h2 style="text-align: center; color: var(--primary);">Login</h2>
+            {% if msg %}<div class="alert" style="background: rgba(45, 136, 255, 0.2); color: white;">{{ msg }}</div>{% endif %}
+            <form method="POST" action="/login">
+                <input type="text" name="username" class="form-control" placeholder="Username" required>
+                <input type="password" name="password" class="form-control" placeholder="Password" required>
+                <button type="submit" class="btn">Log In</button>
+            </form>
+        </div>
+        {% endblock %}
+        """.replace('{% extends "layout" %}', HTML_TEMPLATE).replace('{{ msg }}', msg)
+        return render_template_string(form_html, msg=msg)
+
+    # POST Logic
+    data = request.form if request.form else request.json
     username = data.get('username', '')
     password = data.get('password', '')
     
@@ -138,12 +318,12 @@ def login():
     conn.close()
     
     if user:
-        # VULN: Session fixation - doesn't regenerate session ID
+        # VULN: Session fixation
         session['user_id'] = user['id']
         session['username'] = user['username']
-        return jsonify({'message': 'Login successful', 'user': dict(user), 'vuln': 'Session Fixation'})
+        return redirect('/posts')
     
-    return jsonify({'error': 'Invalid credentials'}), 401
+    return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', '<div class="alert">Invalid Credentials</div>'))
 
 @app.route('/api/password-reset', methods=['POST'])
 def password_reset():
@@ -169,52 +349,106 @@ def password_reset():
 # PROFILES
 # ============================================================================
 
-@app.route('/api/profile/<user_id>', methods=['GET', 'PUT'])
+@app.route('/profile/<user_id>', methods=['GET'])
 def profile(user_id):
     """User profile - VULN: IDOR"""
     conn = get_db()
     
-    if request.method == 'GET':
-        # VULN: No privacy check - can view private profiles
-        user = conn.execute(f"SELECT * FROM users WHERE id = {user_id}").fetchone()
-        conn.close()
-        return jsonify(dict(user)) if user else ('', 404)
+    # VULN: No privacy check - can view private profiles
+    user = conn.execute(f"SELECT * FROM users WHERE id = {user_id}").fetchone()
+    conn.close()
     
-    elif request.method == 'PUT':
-        # VULN: No authorization - can edit any profile
-        data = request.json
-        conn.execute('UPDATE users SET bio = ?, is_private = ? WHERE id = ?',
-                    (data.get('bio'), data.get('is_private'), user_id))
-        conn.commit()
-        conn.close()
-        return jsonify({'message': 'Profile updated', 'vuln': 'IDOR'})
+    if user:
+        profile_html = """
+        {% extends "layout" %}
+        {% block content %}
+        <div class="card" style="margin-top: 2rem;">
+            <div style="background: linear-gradient(90deg, var(--primary), #888); height: 150px; border-radius: 8px 8px 0 0;"></div>
+            <div style="padding: 2rem; position: relative;">
+                <div style="width: 120px; height: 120px; border-radius: 50%; background: #333; border: 4px solid var(--card-bg); position: absolute; top: -60px;"></div>
+                <div style="margin-top: 40px;">
+                    <h1>{{ u.username }}</h1>
+                    <p style="color: #ccc;">{{ u.bio }}</p>
+                    <div style="margin-top: 1rem;">
+                        <button class="btn" style="width: auto;">Follow</button>
+                        <button class="btn btn-outline" style="width: auto;">Message</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endblock %}
+        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        return render_template_string(profile_html, u=user)
+    
+    return "User not found", 404
 
 # ============================================================================
 # POSTS
 # ============================================================================
 
-@app.route('/api/posts', methods=['GET', 'POST'])
+@app.route('/posts', methods=['GET', 'POST'])
 def posts():
     """Posts - VULN: Stored XSS"""
     conn = get_db()
     
     if request.method == 'GET':
-        posts = conn.execute('SELECT * FROM posts ORDER BY created_at DESC').fetchall()
+        posts = conn.execute('SELECT p.*, u.username, u.avatar FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC').fetchall()
         conn.close()
-        return jsonify({'posts': [dict(p) for p in posts]})
+        
+        feed_html = """
+        {% extends "layout" %}
+        {% block content %}
+        <div class="row">
+            <div class="col" style="max-width: 600px; margin: 0 auto;">
+                {% if session.user_id %}
+                <div class="card">
+                    <form action="/posts" method="POST">
+                        <textarea name="content" class="form-control" placeholder="What's on your mind?" rows="3"></textarea>
+                        <div style="text-align: right;">
+                            <button type="submit" class="btn" style="width: auto;">Post</button>
+                        </div>
+                    </form>
+                </div>
+                {% endif %}
+                
+                {% for p in posts %}
+                <div class="card">
+                    <div class="post-header">
+                        <div class="avatar"></div> <!-- Placeholder for avatar img -->
+                        <div>
+                            <div style="font-weight: bold;">{{ p.username }}</div>
+                            <div style="font-size: 0.8rem; color: #B0B3B8;">{{ p.created_at }}</div>
+                        </div>
+                    </div>
+                    <div class="post-content">
+                        {{ p.content | safe }} <!-- VULN: XSS is rendered here -->
+                    </div>
+                    {% if p.image_url %}
+                    <img src="/static/{{ p.image_url }}" style="width: 100%; border-radius: 8px; margin-top: 10px;">
+                    {% endif %}
+                    <div class="post-actions">
+                        <button class="btn btn-outline" style="width: auto;">Like ({{ p.likes }})</button>
+                        <a href="/posts/{{ p.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">Comment</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endblock %}
+        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        return render_template_string(feed_html, posts=posts)
     
     elif request.method == 'POST':
-        data = request.json
+        data = request.form if request.form else request.json
         user_id = session.get('user_id', 1)
         content = data.get('content', '')
         
         # VULN: Stored XSS - no sanitization
         conn.execute('INSERT INTO posts (user_id, content) VALUES (?, ?)', (user_id, content))
         conn.commit()
-        post_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
         conn.close()
         
-        return jsonify({'message': 'Post created', 'post_id': post_id, 'vuln': 'Stored XSS'}), 201
+        return redirect('/posts')
 
 @app.route('/api/posts/<post_id>', methods=['GET', 'DELETE'])
 def post_detail(post_id):
@@ -359,7 +593,7 @@ def add_friend():
 # SEARCH
 # ============================================================================
 
-@app.route('/api/search', methods=['GET'])
+@app.route('/search', methods=['GET'])
 def search():
     """Search - VULN: SQL Injection"""
     query = request.args.get('q', '')
@@ -371,10 +605,36 @@ def search():
     try:
         results = conn.execute(sql).fetchall()
         conn.close()
-        return jsonify({'results': [dict(r) for r in results], 'vuln': 'SQL Injection'})
+        
+        search_html = """
+        {% extends "layout" %}
+        {% block content %}
+        <div style="margin-bottom: 2rem;">
+            <h1>Search Results for "{{ q }}"</h1>
+        </div>
+        
+        {% for u in results %}
+        <div class="card">
+            <div style="display: flex; align-items: center;">
+                <div class="avatar" style="width: 60px; height: 60px;"></div>
+                <div>
+                    <h2><a href="/profile/{{ u.id }}" style="color: white; text-decoration: none;">{{ u.username }}</a></h2>
+                    <p>{{ u.bio }}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not results %}
+        <p>No users found.</p>
+        {% endif %}
+        {% endblock %}
+        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        return render_template_string(search_html, results=results, q=query)
+
     except Exception as e:
         conn.close()
-        return jsonify({'error': str(e), 'vuln': 'SQL Injection'}), 500
+        return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', f'<div class="alert">Database Error: {str(e)}</div>'))
 
 # ============================================================================
 # MISC
@@ -386,18 +646,15 @@ def health():
 
 @app.route('/')
 def index():
-    return jsonify({
-        'message': 'Social Media API',
-        'endpoints': ['/api/register', '/api/login', '/api/profile/<id>', '/api/posts', '/api/upload', '/api/messages/<id>', '/api/search']
-    })
+    return redirect('/posts')
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("📱 VULNERABLE SOCIAL MEDIA PLATFORM - Research Variant 2")
+    print("VULNERABLE SOCIAL MEDIA - Research Variant 2")
     print("=" * 70)
-    print("⚠️  DELIBERATELY VULNERABLE - For Research & Training Only!")
+    print("DELIBERATELY VULNERABLE - For Research & Training Only!")
     print("=" * 70)
-    print("\n📋 Focus Areas:")
+    print("\nFocus Areas:")
     print("   • XSS (stored in posts/comments, reflected in search)")
     print("   • Authentication (weak passwords, session fixation, predictable tokens)")
     print("   • File uploads (unrestricted, path traversal)")
@@ -405,6 +662,6 @@ if __name__ == '__main__':
     print("   • CSRF (friend requests)")
     print("   • SQL injection in search")
     init_db()
-    print("\n🚀 Starting on http://localhost:5003\n")
+    print("\n Starting on http://localhost:5003\n")
     print("=" * 70)
     app.run(port=5003, debug=True)

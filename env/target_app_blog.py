@@ -559,8 +559,8 @@ def logout():
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("📝 VULNERABLE BLOG PLATFORM - Research Variant 4")
+    print("VULNERABLE BLOG PLATFORM - Research Variant 4")
     print("=" * 70)
-    print("🚀 Starting on http://localhost:5005")
+    print("Starting on http://localhost:5005")
     init_db()
     app.run(port=5005, debug=True)

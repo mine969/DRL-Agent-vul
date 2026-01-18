@@ -111,8 +111,8 @@ d:\github\RL\                           # Main Project Root
 
 ## 📊 File Count Summary
 
-| Category                | Count                      | Size             |
-| ----------------------- | -------------------------- | ---------------- |
+| Category                      | Count                      | Size             |
+| ----------------------------- | -------------------------- | ---------------- |
 | **Core Agent Files**    | 6                          | ~130KB           |
 | **Target Environments** | 10                         | ~120KB + DBs     |
 | **OSINT Agent**         | 12                         | ~1,400 lines     |

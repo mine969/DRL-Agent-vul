@@ -30,7 +30,7 @@ class WebSecurityGym(gym.Env):
     Think of this as the game engine.
     """
     
-    def __init__(self, target_url: str = "http://localhost:5001", discovered_endpoints: list = None, session=None):
+    def __init__(self, target_url: str = "http://localhost:5001", discovered_endpoints: list = None):
         super(WebSecurityGym, self).__init__()
         self.target_url = target_url
         self.discovered_endpoints = discovered_endpoints or []
@@ -65,7 +65,7 @@ class WebSecurityGym(gym.Env):
         self.observation_space = spaces.Box(low=0, high=5, shape=(11,), dtype=np.float32)
         
         # Setup the "Browser" (HTTP Session)
-        self._setup_browser_session(session)
+        self._setup_browser_session()
         
         # Game State Variables
         self.current_page_id: int = 0
@@ -180,15 +180,6 @@ class WebSecurityGym(gym.Env):
             57: self.attack_ssi_injection,
             58: self.attack_websocket_hijacking,
             59: self.attack_api_rate_limit_bypass,
-            
-            # --- OWASP Top 10 2025 Additions ---
-            # A03:2025 - Software Supply Chain Failures
-            75: self.attack_dependency_check,
-            76: self.attack_cicd_exposure,
-            
-            # A10:2025 - Mishandling of Exceptional Conditions
-            77: self.attack_error_fuzzing,
-            78: self.attack_logic_bypass_error,
         }
         
         # ADVANCED ATTACK EXTENSION: Load additional attack methods
@@ -201,8 +192,8 @@ class WebSecurityGym(gym.Env):
             for action_id, method_name in JUICE_SHOP_ACTIONS.items():
                 self.action_book[action_id] = getattr(self.advanced_ext, method_name)
             
-            # Update action_space to include new actions
-            self.action_space = spaces.Discrete(79)  # 0-78 (Includes OWASP 2025)
+            # Update action space to include new actions
+            self.action_space = spaces.Discrete(75)  # 0-74 (15 new attacks)
             
             # Only print if verbose or targeting Juice Shop
             if 'localhost:3000' in target_url or 'juice' in target_url.lower():
@@ -210,29 +201,26 @@ class WebSecurityGym(gym.Env):
         except ImportError:
             pass  # Extension not available, continue with base actions
     
-    def _setup_browser_session(self, session=None) -> None:
-        """Configures the HTTP client to be fast and reliable, or uses an existing session."""
-        if session:
-            self.session = session
-        else:
-            self.session = requests.Session()
-            
-            # Retry if the server hiccups
-            retry_strategy = Retry(
-                total=2,
-                backoff_factor=0.1,
-                status_forcelist=[500, 502, 503, 504]
-            )
-            
-            # Use connection pooling (keep the line open)
-            adapter = HTTPAdapter(
-                pool_connections=5,
-                pool_maxsize=10,
-                max_retries=retry_strategy
-            )
-            
-            self.session.mount("http://", adapter)
-            self.session.mount("https://", adapter)
+    def _setup_browser_session(self) -> None:
+        """Configures the HTTP client to be fast and reliable."""
+        self.session = requests.Session()
+        
+        # Retry if the server hiccups
+        retry_strategy = Retry(
+            total=2,
+            backoff_factor=0.1,
+            status_forcelist=[500, 502, 503, 504]
+        )
+        
+        # Use connection pooling (keep the line open)
+        adapter = HTTPAdapter(
+            pool_connections=5,
+            pool_maxsize=10,
+            max_retries=retry_strategy
+        )
+        
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
     
     def reset(self, seed: int = None, options: Dict = None) -> Tuple[np.ndarray, Dict]:
         """Resets the game to the beginning."""
@@ -941,7 +929,7 @@ class WebSecurityGym(gym.Env):
             
         # 3. Got a 500 Error (Potential Breakage)
         if response.status_code == 500:
-            reward += 2.0
+            reward += 5.0
             
         # 4. Got a 403 Forbidden (Potential Sensitive Area)
         if response.status_code == 403:
@@ -984,13 +972,7 @@ class WebSecurityGym(gym.Env):
             "RACE_CONDITION": ["Race Condition", "Coupon Abuse"],
             "JWT_NONE": ["admin", "role", "success"],
             "OAUTH_BYPASS": ["redirect", "callback"],
-            "SESSION_FIXATION": ["Session Fixation", "session_id"],
-            
-            # --- OWASP Top 10 2025 Indicators ---
-            "SUPPLY_CHAIN": ["dependencies", "require", "artifactId", "gem", "module", "devDependencies"],
-            "CICD_EXPOSURE": ["build:", "steps:", "stages:", "pipeline", "job:", "image:"],
-            "ERROR_FUZZING": ["Traceback", "java.lang", "SQLSTATE", "Division by zero", "npm ERR!", "at org.springframework"],
-            "FAIL_OPEN": ["auth_token", "access_token", "admin", "dashboard", "Welcome"]
+            "SESSION_FIXATION": ["Session Fixation", "session_id"]
         }
         
         indicators = success_indicators.get(vuln_type, [])
@@ -1004,7 +986,7 @@ class WebSecurityGym(gym.Env):
                     self.found_vulnerability = 1
                     self.discovered_vulns.add(vuln_id)
                     
-                    base_reward = 150.0 # CRITICAL UPDATE: Increased from 100 to 150 to prioritize exploits
+                    base_reward = 100.0 # Big points for NEW discovery!
                     
                     # Bonus: Found a CTF Flag
                     if "CTF{" in response.text:
@@ -1294,99 +1276,6 @@ class WebSecurityGym(gym.Env):
             return r, 70.0
         
         return r, 0.0
-
-    # --- OWASP Top 10 2025 Implementation ---
-
-    def attack_dependency_check(self) -> Tuple[requests.Response, float]:
-        """Action 75: A03:2025 - Supply Chain (Dependency Check)"""
-        files = ['package.json', 'requirements.txt', 'pom.xml', 'composer.json', 'Gemfile', 'go.mod']
-        last_r = None
-        
-        for file in files:
-            url = f"{self.target_url}/{file}"
-            try:
-                r = self.session.get(url, timeout=3)
-                last_r = r
-                # Use centralized reward system
-                reward = self._calculate_reward(r, "SUPPLY_CHAIN")
-                if reward > 5.0: # If we got a hit
-                    return r, reward
-            except:
-                pass
-        
-        return last_r if last_r else self.session.get(self.target_url), 0.0
-
-    def attack_cicd_exposure(self) -> Tuple[requests.Response, float]:
-        """Action 76: A03:2025 - Supply Chain (CI/CD Exposure)"""
-        paths = [
-            '.github/workflows/main.yml', 
-            '.gitlab-ci.yml', 
-            'Jenkinsfile', 
-            '.circleci/config.yml',
-            'bitbucket-pipelines.yml'
-        ]
-        last_r = None
-        
-        for path in paths:
-            url = f"{self.target_url}/{path}"
-            try:
-                r = self.session.get(url, timeout=3)
-                last_r = r
-                reward = self._calculate_reward(r, "CICD_EXPOSURE")
-                if reward > 5.0:
-                    return r, reward
-            except:
-                pass
-                
-        return last_r if last_r else self.session.get(self.target_url), 0.0
-
-    def attack_error_fuzzing(self) -> Tuple[requests.Response, float]:
-        """Action 77: A10:2025 - Mishandling of Exceptional Conditions (Fuzzing)"""
-        url = self._find_best_url(['api', 'login', 'search'], '/api/search')
-        payloads = [
-            '{"json": "broken', # Broken JSON
-            '<xml>broken', # Broken XML
-            '99999999999999999999999999999', # Integer overflow
-            '%00', # Null byte
-            '{{7*7}}' # SSTI probe often causes errors
-        ]
-        
-        for payload in payloads:
-            try:
-                r = self.session.get(url, params={'q': payload}, timeout=3)
-                reward = self._calculate_reward(r, "ERROR_FUZZING")
-                if reward > 5.0: return r, reward
-                
-                r = self.session.post(url, data=payload, timeout=3)
-                reward = self._calculate_reward(r, "ERROR_FUZZING")
-                if reward > 5.0: return r, reward
-            except:
-                pass
-        return self.session.get(url), 0.0
-
-    def attack_logic_bypass_error(self) -> Tuple[requests.Response, float]:
-        """Action 78: A10:2025 - Mishandling of Exceptional Conditions (Fail Open)"""
-        url = self._find_best_url(['login', 'auth'], '/login')
-        json_payload = {"username": ["admin"], "password": ["admin"]}
-        try:
-            r = self.session.post(url, json=json_payload, timeout=3)
-            # Use centralized reward - checking for auth tokens
-            return r, self._calculate_reward(r, "FAIL_OPEN")
-        except:
-            pass
-        return self.session.get(url), 0.0
-
-    def _check_stack_trace(self, response) -> bool:
-        """Helper to detect stack traces in response."""
-        signatures = [
-            'Traceback (most recent call last)',
-            'at java.lang.',
-            'at org.springframework.',
-            'npm ERR!',
-            'Warning: Division by zero',
-            'SQLSTATE'
-        ]
-        return any(sig in response.text for sig in signatures)
 
     def close(self) -> None:
         """Clean up resources."""

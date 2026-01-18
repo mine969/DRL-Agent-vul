@@ -1,56 +1,40 @@
-# DRL Web Security Agent - Kill Chain Architecture
+# DRL Web Security Agent 2.0 - OWASP Top 10 2025 Aligned
 
 ## Overview
 
-This project implements a Deep Reinforcement Learning agent that autonomously discovers web vulnerabilities using a **Kill Chain** approach. The agent progresses through 4 phases: Reconnaissance → Discovery → Exploitation → Post-Exploitation.
+This project implements a Deep Reinforcement Learning agent specifically refactored to verify vulenrabilities with high precision (**Agent 2.0**). It autonomously discovers web vulnerabilities using a **Kill Chain** approach and has been upgraded to support the **OWASP Top 10 2025** draft standards.
 
-## 🚀 Latest Features (2025)
+## 🚀 New in Agent 2.0 (2025 Edition)
+
+### Core Agent Enhancements
+
+- **🧠 Simplified "Smart" Brain** - Optimized Neural Network (128/256 neurons) for faster learning and better pattern recognition.
+- **✅ False Positive Validator** - New `VulnerabilityValidator` engine that double-checks every finding (e.g., executing the XSS payload) before reporting.
+- **🛡️ OWASP Top 10 2025 Support** - New skills for "Software Supply Chain Failures" (A03) and "Mishandling of Exceptional Conditions" (A10).
+- **🔧 Scanner Stability** - Fixed hanging issues in the reconnaissance phase.
 
 ### GUI Enhancements
 
 - **🔥 Aggressive Scan Mode** - 1.5x deeper crawling, 2x attack intensity
 - **💀 Zero-Day Hunter** - Fuzzing, CVE Intelligence, and Config Scanning
 - **🌍 Targetless Hunter** - Auto-discover targets via Google Dorks, Shodan, CRT.sh, DuckDuckGo, and Censys
-  - **🤖 Auto-Generate Mode** - Automatically creates queries from 100+ database (60+ Google dorks, 30+ Shodan queries)
-  - **Manual Mode** - Provide your own custom queries
-- **📋 Full Exploit URLs** - Ready-to-paste URLs with payloads (e.g., `http://target.com?id=1' OR 1=1--`)
-- **🔄 Auto-Fetch Proxies** - Automatically fetch from 6 sources (200+ proxies)
-- **💡 Tooltips & Status Bar** - Improved UX with hover hints and real-time status
-- **📊 Responsive Layout** - Panels resize correctly with window
+- **📋 Full Exploit URLs** - Ready-to-paste URLs with payloads
+- **🔄 Auto-Fetch Proxies** - Automatically fetch from 6 sources
 
 ### Payload Database
 
 - **200+ Attack Payloads** - Comprehensive coverage for all attack types
+- **[NEW] Supply Chain** - Dependency checks (package.json, requirements.txt) & CI/CD pipeline exposure
+- **[NEW] Error Handling** - Fuzzing for stack traces & Fail-Open logic checks
 - **15+ SQL Injection** variants (time-based, union, blind)
 - **18+ XSS** payloads (CSP bypass, polyglots, DOM-based)
-- **14+ LFI/Path Traversal** techniques
-- **13+ Command Injection** methods
-- **12+ SSTI** (Jinja2, Freemarker, Ruby)
-- **11+ SSRF** (AWS, Azure, GCP metadata)
-- **8+ Prototype Pollution** payloads
-- **5+ XXE** (file disclosure, SSRF)
-- **NoSQL, LDAP, OAuth** injection payloads
-
-### Proxy System
-
-- **6 Proxy Sources:**
-  - free-proxy-list.net
-  - proxyscrape.com
-  - geonode.com
-  - proxy-list.download
-  - pubproxy.com
-  - GitHub proxy lists
-- **Auto-Validation** - Removes duplicates
-- **Manual Upload** - Browse for custom proxy files
 
 ### Enhanced Reports
 
-- **📝 Description** - Detailed vulnerability explanation
+- **📝 OWASP 2025 Mapping** - Findings categorized by latest standards
 - **💥 Real-World Impact** - Business consequences
 - **⚔️ Exploitation Steps** - Step-by-step attack guide
-- **💣 Potential Damage** - What attackers can achieve
-- **🛠️ Remediation** - How to fix the vulnerability
-- **Severity & CVSS** - Risk scoring
+- **severity & CVSS** - Risk scoring
 
 ## Architecture
 

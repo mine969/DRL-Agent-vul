@@ -1,11 +1,11 @@
 """
-📁 VULNERABLE FILE SHARING PLATFORM - Research Variant 5
+ VULNERABLE FILE SHARING PLATFORM - Research Variant 5
 ========================================================
 
 A deliberately vulnerable file sharing application for AI security training.
 Focus: File Upload, Path Traversal, IDOR, XXE
 
-⚠️ DELIBERATELY VULNERABLE - For Research & Training Only!
+ DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
 from flask import Flask, request, session, redirect, render_template_string, send_file
@@ -27,7 +27,7 @@ HOME_PAGE = """
 <html>
 <head><title>FileShare Pro</title></head>
 <body style="font-family: Arial; max-width: 900px; margin: 50px auto;">
-    <h1>📁 FileShare Pro</h1>
+    <h1> FileShare Pro</h1>
     {% if session.get('username') %}
         <p>Welcome, {{ session.get('username') }}! <a href="/logout">Logout</a></p>
         
@@ -222,8 +222,8 @@ def logout():
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("📁 VULNERABLE FILE SHARING PLATFORM - Research Variant 5")
+    print("VULNERABLE FILE SHARE - Research Variant 5")
     print("=" * 70)
-    print("🚀 Starting on http://localhost:5006")
+    print("Starting on http://localhost:5006")
     init_db()
     app.run(port=5006, debug=True)

@@ -37,7 +37,7 @@ class MockTargetsTrainer:
     def __init__(self, model_path="dqn_web_sec_model.pth", verbose=True):
         self.model_path = model_path
         self.verbose = verbose
-        self.checkpoint_prefix = "multi_target_10k"
+        self.checkpoint_prefix = "agent_v2.0"
         
         # Initialize agent
         self.agent = DQNAgent(state_dim=11, action_dim=100)
@@ -55,7 +55,8 @@ class MockTargetsTrainer:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
             # Try to find latest checkpoint
             from utils.model_loader import find_latest_checkpoint
-            latest_ep, latest_path = find_latest_checkpoint(pattern="multi_target_10k_ep*.pth")
+            # Look for 2.0 checkpoints first
+            latest_ep, latest_path = find_latest_checkpoint(pattern="agent_v2.0_ep*.pth")
             
             if latest_path:
                 print(f"✅ Resuming from checkpoint: {latest_path}")

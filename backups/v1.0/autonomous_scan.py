@@ -792,22 +792,14 @@ class SecurityAuditor:
         """
         Deploys the AI Agent to test a specific page.
         """
-        from utils.validator import VulnerabilityValidator
-        validator = VulnerabilityValidator()
         findings: List[Finding] = []
         
         try:
             # Enable exploration for research variants
             self.ai_agent.epsilon = epsilon
             
-            # Pass discovered endpoints AND SESSION to the environment
-            # This fixes the "Not Logged In" issue
-            # We access the session from the explorer's session object (OptimizedSession.session)
-            env = WebSecEnv(
-                target_url=self.base_url, 
-                discovered_endpoints=list(self.explorer.discovered_urls),
-                session=self.explorer.session.session 
-            )
+            # Pass discovered endpoints so the environment knows where to go
+            env = WebSecEnv(target_url=self.base_url, discovered_endpoints=list(self.explorer.discovered_urls))
             
             # Identify allowed actions based on mode
             allowed_actions = []
@@ -825,54 +817,8 @@ class SecurityAuditor:
                     print(f"    👉 Executing: {self.action_map.get(action)}")
                     next_state, reward, terminated, truncated, info = env.step(action)
                     
-                    if reward > 0: 
+                    if reward > 0: # Any positive reward is good in specific modes
                         vuln_name = self._map_action_to_vuln(action)
-                        # VALIDATOR CHECK
-                        if validator.validate(vuln_name, env.last_response, info.get('payload')):
-                            finding = Finding(
-                                url=info.get('url', url),
-                                vuln_type=vuln_name,
-                                confidence='High',
-                                reward=reward,
-                                payload=info.get('payload', ''),
-                                method=info.get('method', 'GET')
-                            )
-                            findings.append(finding)
-                            self.log_finding(finding)
-                return findings
-
-            # Zero-Day Hunter Mode
-            if scan_mode == "zeroday":
-                # ... (Keep existing code) ...
-                pass 
-
-            # Deep Skill Check Mode
-            if scan_mode == "deep_skill":
-                # ... (Keep existing code) ...
-                pass
-
-            # --- AUTO MODE (MAIN AI LOOP) ---
-            # Reset environment for new page
-            state, _ = env.reset()
-            env.current_page_id = 0 # Force focus on current page (simplified)
-            
-            for step in range(attempts):
-                # 1. AI Decides Action
-                action = self.ai_agent.select_action(state, allowed_actions=None) # All actions allowed in Auto
-                
-                # 2. Execute Action
-                next_state, reward, terminated, truncated, info = env.step(action)
-                
-                # 3. Learn (Optional - we are in Audit mode, but we can store experiences)
-                # self.ai_agent.store_experience(...) 
-                
-                # 4. Check for Findings
-                if reward > 0 and info.get('vuln_found'):
-                    vuln_name = self._map_action_to_vuln(action)
-                    
-                    # --- ROBUST VALIDATION ---
-                    # Fixes False Positives by verifying the vulnerability
-                    if validator.validate(vuln_name, env.last_response, info.get('payload')):
                         finding = Finding(
                             url=info.get('url', url),
                             vuln_type=vuln_name,
@@ -881,22 +827,153 @@ class SecurityAuditor:
                             payload=info.get('payload', ''),
                             method=info.get('method', 'GET')
                         )
-                        # Avoid duplicates
-                        if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
+                        findings.append(finding)
+                        self.log_finding(finding)
+                return findings
+
+            # Zero-Day Hunter Mode
+            if scan_mode == "zeroday":
+                print(f"  💀 Running Zero-Day Hunter on {url}...")
+                hunter = ZeroDayHunter()
+                
+                # 1. Check Weak Configurations
+                print("    🔍 Checking for weak configurations...")
+                config_findings = hunter.check_weak_configuration(url)
+                for f in config_findings:
+                    finding = Finding(
+                        url=url + f['endpoint'],
+                        vuln_type=f['type'],
+                        confidence='High',
+                        reward=50.0,
+                        payload=f.get('description', ''),
+                        method='GET'
+                    )
+                    findings.append(finding)
+                    self.log_finding(finding)
+                    print(f"      🚨 Found: {f['type']}")
+
+                # 2. Fuzzing
+                print("    💣 Fuzzing for anomalies...")
+                # Simple fuzzing integration (sending payloads to URL params)
+                if "?" in url:
+                    base_url_only = url.split("?")[0]
+                    params = url.split("?")[1]
+                    # Very basic param parsing for demo
+                    for param in params.split("&"):
+                        if "=" in param:
+                            key = param.split("=")[0]
+                            
+                            # Try a few fuzzing payloads
+                            fuzz_payloads = hunter.generate_fuzzing_payloads('buffer_overflow')[:5] # Limit to 5 for speed
+                            for payload in fuzz_payloads:
+                                try:
+                                    # Construct fuzzed URL
+                                    fuzzed_url = f"{base_url_only}?{key}={payload}"
+                                    # We use the session from explorer if possible, but here we just use requests for simplicity
+                                    # In a real integration, we'd use self.explorer.session
+                                    resp = requests.get(fuzzed_url, timeout=3)
+                                    if resp.status_code >= 500 or resp.elapsed.total_seconds() > 2:
+                                        finding = Finding(
+                                            url=fuzzed_url,
+                                            vuln_type="Potential Zero-Day (Anomaly)",
+                                            confidence='Medium',
+                                            reward=100.0,
+                                            payload=payload,
+                                            method='GET'
+                                        )
+                                        findings.append(finding)
+                                        self.log_finding(finding)
+                                        print(f"      🚨 Anomaly detected: {resp.status_code} / {resp.elapsed.total_seconds()}s")
+                                except:
+                                    pass
+                return findings
+
+            # Deep Skill Check Mode
+            if scan_mode == "deep_skill":
+                print(f"  🧠 Running Deep Skill Check on {url}...")
+                
+                # Define skill categories to test
+                skill_categories = {
+                    "SQL Injection": ["sql", "injection", "database"],
+                    "XSS": ["xss", "script", "alert"],
+                    "Command Injection": ["command", "exec", "shell", "cmd"],
+                    "Path Traversal": ["path", "traversal", "file", "etc"],
+                    "Auth Bypass": ["auth", "login", "bypass", "cookie"],
+                    "Fuzzing": ["fuzz", "overflow", "random"]
+                }
+                
+                for category, keywords in skill_categories.items():
+                    if self.stop_requested: break
+                    
+                    print(f"    👉 Testing Skill: {category}")
+                    
+                    # Find relevant actions for this category
+                    relevant_actions = []
+                    for action_id, action_name in self.action_map.items():
+                        if any(k in action_name.lower() for k in keywords):
+                            relevant_actions.append(action_id)
+                    
+                    if not relevant_actions:
+                        continue
+                        
+                    # Execute a few relevant actions
+                    # We limit to 3 actions per category to avoid taking too long
+                    for action in random.sample(relevant_actions, min(3, len(relevant_actions))):
+                        if self.stop_requested: break
+                        
+                        state, _ = env.reset()
+                        # Force the specific action
+                        next_state, reward, terminated, truncated, info = env.step(action)
+                        
+                        # Lower threshold for deep skill check - we want to see everything the model "thinks" might work
+                        if reward > 10: 
+                            vuln_name = self._map_action_to_vuln(action)
+                            finding = Finding(
+                                url=info.get('url', url),
+                                vuln_type=f"{vuln_name} (Deep Check)",
+                                confidence='Medium',
+                                reward=reward,
+                                payload=info.get('payload', ''),
+                                method=info.get('method', 'GET')
+                            )
                             findings.append(finding)
                             self.log_finding(finding)
-                            print(f"    🚨 CONFIRMED: {vuln_name}")
+                            print(f"      🚨 Potential Issue: {vuln_name} (Reward: {reward:.1f})")
                 
-                state = next_state
-                
-                if terminated or truncated:
-                    break
-        
-        except Exception as e:
-            print(f"  ❌ Error auditing page: {e}")
-            
-        return findings
+                return findings
 
+            # Default AUTO mode (AI Agent)
+            for _ in range(attempts):
+                if self.stop_requested:
+                    break
+                state, _ = env.reset()
+                done = False
+                steps = 0
+                
+                while not done and steps < 30:
+                    action = self.ai_agent.act(state)
+                    next_state, reward, terminated, truncated, info = env.step(action)
+                    done = terminated or truncated
+                    
+                    if reward > 50:
+                        vuln_name = self._map_action_to_vuln(action)
+                        finding = Finding(
+                            url=info.get('url', url),
+                            vuln_type=vuln_name,
+                            confidence='High' if reward > 80 else 'Medium',
+                            reward=reward,
+                            payload=info.get('payload', ''),
+                            method=info.get('method', 'GET')
+                        )
+                        findings.append(finding)
+                        self.log_finding(finding)
+                    
+                    state = next_state
+                    steps += 1
+        except Exception as e:
+            pass
+        
+        return findings
     
     def _map_action_to_vuln(self, action: int) -> str:
         """Translates the Agent's action ID into a human-readable vulnerability name."""

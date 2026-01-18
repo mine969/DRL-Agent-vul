@@ -387,7 +387,7 @@ else:
 class SecurityScannerGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("💀 DRL AI RED TEAM - AUTONOMOUS ATTACKER")
+        self.root.title("💀 DRL AI RED TEAM - AGENT 2.0 (OWASP 2025)")
         self.root.geometry("1920x1080")  # Increased default size
         self.root.minsize(1280, 720)    # Increased minimum size to prevent content cutoff
         
@@ -521,7 +521,10 @@ class SecurityScannerGUI:
         self.attack_frame.pack(fill=tk.X, padx=15, pady=5)
         tk.Label(self.attack_frame, text="ATTACK TYPE:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
         self.attack_combo = ttk.Combobox(self.attack_frame, textvariable=self.specific_attack_type, state="readonly")
-        self.attack_combo['values'] = ["SQL Injection", "XSS", "SSRF", "Command Injection", "LFI", "RFI", "Broken Access Control", "XXE"]
+        self.attack_combo['values'] = [
+            "SQL Injection", "XSS", "SSRF", "Command Injection", "LFI", "RFI", "Broken Access Control", "XXE",
+            "Dependency Check (A03:2025)", "CI/CD Exposure (A03:2025)", "Error Fuzzing (A10:2025)", "Auth Fail Open (A10:2025)"
+        ]
         self.attack_combo.current(0)
         self.attack_combo.pack(fill=tk.X)
         self.attack_combo.config(state=tk.DISABLED)
