@@ -685,7 +685,8 @@ def register():
             </form>
         </div>
         """
-        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
+        full_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Join ConnectHub').replace('{% block content %}{% endblock %}', page_content)
+        return render_template_string(full_html)
 
     # POST Logic
     data = request.form if request.form else request.json
@@ -700,7 +701,8 @@ def register():
         conn.commit()
         return redirect('/login?msg=Welcome! Please login.')
     except Exception as e:
-        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', f'<div class="alert">Error: {str(e)}</div>'))
+        error_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Sign Up').replace('{% block content %}{% endblock %}', f'<div class="alert">Error: {str(e)}</div>')
+        return render_template_string(error_html)
     finally:
         conn.close()
 
@@ -720,7 +722,7 @@ def login():
             </form>
         </div>
         """
-        full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+        full_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Log In').replace('{% block content %}{% endblock %}', page_content)
         return render_template_string(full_html, msg=msg)
     
     # POST Logic
@@ -739,7 +741,8 @@ def login():
         session['username'] = user['username']
         return redirect('/posts')
     
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', '<div class="alert">Invalid Credentials</div>'))
+    error_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Log In').replace('{% block content %}{% endblock %}', '<div class="alert">Invalid Credentials</div>')
+    return render_template_string(error_html)
 
 @app.route('/api/password-reset', methods=['POST'])
 def password_reset():
@@ -1283,7 +1286,7 @@ def get_messages(user_id):
     </div>
     """
     
-    full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+    full_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Messages').replace('{% block content %}{% endblock %}', page_content)
     return render_template_string(full_html, messages=[dict(m) for m in messages], 
                                  partner=dict(partner), session=session)
 
@@ -1363,7 +1366,7 @@ def search():
             </form>
         </div>
         """
-        full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+        full_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Explore').replace('{% block content %}{% endblock %}', page_content)
         return render_template_string(full_html)
     
     conn = get_db()
@@ -1415,7 +1418,7 @@ def search():
             {% endif %}
         </div>
         """
-        full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+        full_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Search').replace('{% block content %}{% endblock %}', page_content)
         return render_template_string(full_html, results=[dict(u) for u in results], q=query)
 
     except Exception as e:
@@ -1426,7 +1429,8 @@ def search():
             <br><small>This might indicate a SQL injection vulnerability!</small>
         </div>
         """
-        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', error_content))
+        error_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Search').replace('{% block content %}{% endblock %}', error_content)
+        return render_template_string(error_html)
 
 # ============================================================================
 # MISC
