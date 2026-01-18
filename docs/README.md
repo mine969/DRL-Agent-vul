@@ -6,6 +6,7 @@ Welcome to the DRL Web Security Agent documentation! This index will help you fi
 
 - **[Code Style Guide](CODE_STYLE.md)** - Coding standards and best practices
 - **[Architecture Overview](ARCHITECTURE.md)** - System architecture and design
+- **[Improved Algorithms](IMPROVED_ALGORITHMS.md)** - Advanced algorithms for better performance
 - **[Project Overview](PROJECT_OVERVIEW.md)** - High-level overview
 - **[Technical Architecture](TECHNICAL_ARCHITECTURE.md)** - Technical details
 
@@ -49,6 +50,7 @@ Welcome to the DRL Web Security Agent documentation! This index will help you fi
 
 | Document                                                     | Description                    | Audience    |
 | ------------------------------------------------------------ | ------------------------------ | ----------- |
+| [AGENT_CAPABILITIES.md](AGENT_CAPABILITIES.md)               | What the agent can do          | All users   |
 | [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)                   | High-level project description | All users   |
 | [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)                 | Codebase structure             | Developers  |
 | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)       | System architecture            | Developers  |
