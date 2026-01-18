@@ -8,16 +8,111 @@ Focus: Business logic flaws, payment vulnerabilities, API security
 ⚠️ DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, jsonify, session, render_template_string, redirect, url_for
+from flask import Flask, request, jsonify, session, render_template_string, redirect, url_for, make_response
 import sqlite3
 import hashlib
 import datetime
 import jwt
+import secrets
+import time
+from functools import wraps
 
 app = Flask(__name__)
 app.secret_key = 'ecommerce_secret_2025'
 JWT_SECRET = 'ecommerce_jwt_secret'
 DB_NAME = 'env/ecommerce.db'
+
+# ============================================================================
+# MODERN SECURITY CONTROLS - For Advanced Agent Training
+# ============================================================================
+
+# Rate limiting (simulates WAF)
+request_counts = {}
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX = 30    # requests per window
+
+# CSRF protection
+csrf_tokens = {}
+
+# Security headers for modern web apps
+SECURITY_HEADERS = {
+    'X-Frame-Options': 'SAMEORIGIN',  # Clickjacking protection
+    'X-Content-Type-Options': 'nosniff',  # MIME sniffing protection
+    'X-XSS-Protection': '1; mode=block',  # XSS protection
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',  # HSTS
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'",  # CSP
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
+}
+
+def generate_csrf_token():
+    """Generate CSRF token for forms."""
+    token = secrets.token_urlsafe(32)
+    session_id = session.get('session_id', 'anonymous')
+    csrf_tokens[session_id] = token
+    return token
+
+def validate_csrf_token(token):
+    """Validate CSRF token."""
+    session_id = session.get('session_id', 'anonymous')
+    stored_token = csrf_tokens.get(session_id)
+    return stored_token and stored_token == token
+
+def rate_limit_check():
+    """Simple rate limiting to simulate WAF."""
+    client_ip = request.remote_addr or '127.0.0.1'
+    current_time = time.time()
+
+    if client_ip not in request_counts:
+        request_counts[client_ip] = []
+
+    # Clean old requests
+    request_counts[client_ip] = [
+        req_time for req_time in request_counts[client_ip]
+        if current_time - req_time < RATE_LIMIT_WINDOW
+    ]
+
+    if len(request_counts[client_ip]) >= RATE_LIMIT_MAX:
+        return False  # Rate limited
+
+    request_counts[client_ip].append(current_time)
+    return True
+
+def add_security_headers(response):
+    """Add modern security headers to response."""
+    for header, value in SECURITY_HEADERS.items():
+        response.headers[header] = value
+    return response
+
+def jwt_required(f):
+    """JWT authentication decorator."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        auth_header = request.headers.get('Authorization', '')
+        if not auth_header.startswith('Bearer '):
+            return jsonify({'error': 'Missing or invalid JWT token'}), 401
+
+        token = auth_header.split(' ')[1]
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+            request.user_id = payload['user_id']
+            request.user_role = payload.get('role', 'user')
+        except jwt.ExpiredSignatureError:
+            return jsonify({'error': 'Token expired'}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({'error': 'Invalid token'}), 401
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+def cors_preflight_response():
+    """Handle CORS preflight requests."""
+    response = make_response()
+    response.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin', '*')
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-CSRF-Token'
+    response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 # ============================================================================
 # MODERN UI TEMPLATES
@@ -359,19 +454,31 @@ def get_db():
 # AUTHENTICATION
 # ============================================================================
 
-@app.route('/register', methods=['GET', 'POST'])
+@app.route('/register', methods=['GET', 'POST', 'OPTIONS'])
 def register():
-    """User registration - VULN: Mass assignment"""
+    """User registration - Enhanced with modern security controls"""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
+    # Rate limiting check (simulates WAF)
+    if not rate_limit_check():
+        response = make_response(jsonify({'error': 'Rate limit exceeded'}), 429)
+        return add_security_headers(response)
+
     if request.method == 'GET':
-        form_html = """
-        {% extends "layout" %}
-        {% block content %}
+        csrf_token = generate_csrf_token()
+        form_html = f"""
+        {{% extends "layout" %}}
+        {{% block content %}}
         <div class="row" style="margin-top: 50px;">
             <div class="col-md-6 offset-md-3">
                 <div class="card">
                     <div class="card-body">
                         <h2 class="text-center" style="color: var(--primary);">Join the Network</h2>
                         <form method="POST" action="/register">
+                            <input type="hidden" name="csrf_token" value="{csrf_token}">
                             <div class="form-group">
                                 <label>Username</label>
                                 <input type="text" name="username" class="form-control" required>
@@ -388,50 +495,98 @@ def register():
                                 <label>Initial Balance</label>
                                 <input type="number" name="balance" class="form-control" value="100">
                             </div>
+                            <!-- VULNERABILITY: Mass assignment - role field not shown but accepted -->
+                            <input type="hidden" name="role" value="user">
                             <button type="submit" class="btn" style="width: 100%;">Create Identity</button>
                         </form>
                     </div>
                 </div>
             </div>
         </div>
-        {% endblock %}
-        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        {{% endblock %}}
+        """.replace('{{% extends "layout" %}}', HTML_TEMPLATE)
         return render_template_string(form_html)
 
-    # POST Logic
+    # POST Logic with Modern Security Controls
     data = request.form if request.form else request.json
+
+    # CSRF Protection (with bypass vulnerability for research)
+    csrf_token = data.get('csrf_token') if data else None
+    if csrf_token and not validate_csrf_token(csrf_token):
+        response = make_response(jsonify({'error': 'Invalid CSRF token'}), 403)
+        return add_security_headers(response)
+
+    # Input validation (simulates WAF)
+    username = data.get('username', '').strip()
+    if len(username) < 3 or len(username) > 50:
+        response = make_response(jsonify({'error': 'Invalid username length'}), 400)
+        return add_security_headers(response)
+
+    # Check for suspicious patterns (simulates WAF)
+    suspicious_patterns = ['<script', 'javascript:', 'onload=', 'onerror=']
+    for field in ['username', 'email']:
+        field_value = data.get(field, '')
+        for pattern in suspicious_patterns:
+            if pattern in field_value.lower():
+                response = make_response(jsonify({'error': 'Suspicious input detected'}), 400)
+                return add_security_headers(response)
+
     conn = get_db()
-    
+
     try:
+        # VULNERABILITY: Mass assignment - accepts any role/balance from client
         conn.execute(
             'INSERT INTO users (username, email, password, role, balance) VALUES (?, ?, ?, ?, ?)',
-            (data.get('username'), data.get('email'), 
+            (username, data.get('email'),
              hashlib.md5(data.get('password', '').encode()).hexdigest(),
-             data.get('role', 'customer'),
-             data.get('balance', 100.0))
+             data.get('role', 'customer'),  # VULN: Mass assignment
+             float(data.get('balance', 100.0)))  # VULN: Mass assignment
         )
         conn.commit()
-        return redirect('/login?msg=Registered successfully')
+
+        # Set session for successful registration
+        session['user_id'] = username
+        session['session_id'] = secrets.token_urlsafe(16)
+
+        response = make_response(redirect('/login?msg=Registered successfully'))
+        return add_security_headers(response)
+
     except Exception as e:
-        return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', f'<div class="alert">Error: {str(e)}</div>'))
+        error_msg = f'<div class="alert alert-danger">Error: {str(e)}</div>'
+        response = make_response(render_template_string(
+            HTML_TEMPLATE.replace('{% block content %}{% endblock %}', error_msg)
+        ))
+        return add_security_headers(response)
     finally:
         conn.close()
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/login', methods=['GET', 'POST', 'OPTIONS'])
 def login():
-    """Login - VULN: SQL Injection"""
+    """Login with JWT and session management - VULN: SQL Injection"""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
+    # Rate limiting check
+    if not rate_limit_check():
+        response = make_response(jsonify({'error': 'Too many login attempts'}), 429)
+        return add_security_headers(response)
+
     if request.method == 'GET':
         msg = request.args.get('msg', '')
-        form_html = """
-        {% extends "layout" %}
-        {% block content %}
+        csrf_token = generate_csrf_token()
+        form_html = f"""
+        {{% extends "layout" %}}
+        {{% block content %}}
         <div class="row" style="margin-top: 50px;">
             <div class="col-md-6 offset-md-3">
                 <div class="card">
                     <div class="card-body">
                         <h2 class="text-center" style="color: var(--primary);">System Access</h2>
-                        {% if msg %}<div class="alert">{{ msg }}</div>{% endif %}
+                        {{% if msg %}}<div class="alert alert-success">{{{{ msg }}}}</div>{{% endif %}}
                         <form method="POST" action="/login">
+                            <input type="hidden" name="csrf_token" value="{csrf_token}">
                             <div class="form-group">
                                 <label>Username</label>
                                 <input type="text" name="username" class="form-control" required>
@@ -446,32 +601,67 @@ def login():
                 </div>
             </div>
         </div>
-        {% endblock %}
+        {{% endblock %}}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE, 1).replace('{{ msg }}', msg) # Simple replace for msg
         return render_template_string(form_html, msg=msg)
 
-    # POST Logic
+    # POST Logic with Enhanced Security
     data = request.form if request.form else request.json
-    username = data.get('username', '')
+
+    # CSRF Protection (with bypass for research)
+    csrf_token = data.get('csrf_token') if data else None
+    if request.content_type == 'application/x-www-form-urlencoded' and csrf_token:
+        if not validate_csrf_token(csrf_token):
+            response = make_response(jsonify({'error': 'Invalid CSRF token'}), 403)
+            return add_security_headers(response)
+
+    username = data.get('username', '').strip()
     password = data.get('password', '')
-    
+
+    # Input validation (simulates WAF)
+    if not username or not password:
+        response = make_response(jsonify({'error': 'Username and password required'}), 400)
+        return add_security_headers(response)
+
     conn = get_db()
-    # VULN: SQL Injection
-    query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{hashlib.md5(password.encode()).hexdigest()}'"
-    
+    # VULN: SQL Injection in login query
+    query = f"SELECT id, username, email, role, balance FROM users WHERE username = '{username}' AND password = '{hashlib.md5(password.encode()).hexdigest()}'"
+
     try:
         user = conn.execute(query).fetchone()
         if user:
-            session['user'] = dict(user)
-            # Token logic kept for legacy API support if needed, but session is main
+            # Set session with proper session management
+            session['user_id'] = user['id']
+            session['username'] = user['username']
+            session['role'] = user['role']
+            session['session_id'] = secrets.token_urlsafe(16)
+            session.permanent = True  # Enable session persistence
+
+            # Generate JWT token for API access
             token = jwt.encode({
                 'user_id': user['id'],
                 'username': user['username'],
                 'role': user['role'],
+                'session_id': session['session_id'],
                 'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
             }, JWT_SECRET, algorithm='HS256')
-            
-            return redirect('/products')
+
+            # Check if this is an API request
+            if request.is_json or 'application/json' in request.headers.get('Accept', ''):
+                response = make_response(jsonify({
+                    'token': token,
+                    'user': {
+                        'id': user['id'],
+                        'username': user['username'],
+                        'role': user['role']
+                    },
+                    'message': 'Login successful'
+                }))
+                return add_security_headers(response)
+
+            # Web form login
+            response = make_response(redirect('/products'))
+            return add_security_headers(response)
         
         return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', '<div class="alert">Invalid Credentials</div>'))
     except Exception as e:
@@ -534,7 +724,7 @@ def get_products():
             </div>
             {% endfor %}
         </div>
-        {% endblock %}
+        {{% endblock %}}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE)
         
         return render_template_string(products_html, products=products)
@@ -580,7 +770,7 @@ def product_detail(product_id):
                 </div>
             </div>
         </div>
-        {% endblock %}
+        {{% endblock %}}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE)
         return render_template_string(detail_html, p=product)
     return "Product not found", 404
@@ -625,7 +815,7 @@ def view_cart():
             <p style="margin: 2rem 0;">Start shopping to add items to your cart!</p>
             <a href="/products" class="btn">Browse Products</a>
         </div>
-        {% endblock %}
+        {{% endblock %}}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE)
         return render_template_string(cart_html)
     
@@ -827,7 +1017,7 @@ def checkout_page():
                 </div>
             </div>
         </div>
-        {% endblock %}
+        {{% endblock %}}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE)
         return render_template_string(checkout_html, cart_items=cart_items, subtotal=subtotal, user=dict(user))
     
@@ -1170,6 +1360,158 @@ def index():
     {% endblock %}
     """.replace('{% extends "layout" %}', HTML_TEMPLATE)
     return render_template_string(home_html)
+
+# ============================================================================
+# JWT API ENDPOINTS - Modern Authentication for Advanced Agent Training
+# ============================================================================
+
+@app.route('/api/auth/login', methods=['POST', 'OPTIONS'])
+def api_login():
+    """JWT-based API login endpoint."""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
+    # Rate limiting
+    if not rate_limit_check():
+        response = make_response(jsonify({'error': 'Rate limit exceeded'}), 429)
+        return add_security_headers(response)
+
+    try:
+        data = request.get_json()
+        username = data.get('username', '').strip()
+        password = data.get('password', '')
+
+        if not username or not password:
+            response = make_response(jsonify({'error': 'Username and password required'}), 400)
+            return add_security_headers(response)
+
+        conn = get_db()
+        # VULN: SQL Injection in API login
+        query = f"SELECT id, username, email, role, balance FROM users WHERE username = '{username}' AND password = '{hashlib.md5(password.encode()).hexdigest()}'"
+
+        user = conn.execute(query).fetchone()
+        conn.close()
+
+        if user:
+            # VULNERABILITY: JWT Algorithm Confusion possible
+            # The JWT library might accept "none" algorithm if configured poorly
+            token = jwt.encode({
+                'user_id': user['id'],
+                'username': user['username'],
+                'role': user['role'],
+                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=24)
+            }, JWT_SECRET, algorithm='HS256')
+
+            response = make_response(jsonify({
+                'token': token,
+                'user': {
+                    'id': user['id'],
+                    'username': user['username'],
+                    'role': user['role'],
+                    'balance': user['balance']
+                }
+            }))
+            return add_security_headers(response)
+
+        response = make_response(jsonify({'error': 'Invalid credentials'}), 401)
+        return add_security_headers(response)
+
+    except Exception as e:
+        response = make_response(jsonify({'error': f'Login failed: {str(e)}'}), 500)
+        return add_security_headers(response)
+
+@app.route('/api/auth/me', methods=['GET', 'OPTIONS'])
+@jwt_required
+def api_me():
+    """Get current user info via JWT."""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
+    try:
+        conn = get_db()
+        user = conn.execute(
+            'SELECT id, username, email, role, balance FROM users WHERE id = ?',
+            (request.user_id,)
+        ).fetchone()
+        conn.close()
+
+        if user:
+            response = make_response(jsonify({
+                'user': dict(user)
+            }))
+            return add_security_headers(response)
+
+        response = make_response(jsonify({'error': 'User not found'}), 404)
+        return add_security_headers(response)
+
+    except Exception as e:
+        response = make_response(jsonify({'error': str(e)}), 500)
+        return add_security_headers(response)
+
+@app.route('/api/admin/users', methods=['GET', 'OPTIONS'])
+@jwt_required
+def api_admin_users():
+    """Admin endpoint with JWT auth - VULN: No role check."""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
+    # VULNERABILITY: Missing role authorization check
+    # Any authenticated user can access admin endpoints
+    try:
+        conn = get_db()
+        users = conn.execute('SELECT id, username, email, role FROM users').fetchall()
+        conn.close()
+
+        response = make_response(jsonify({
+            'users': [dict(user) for user in users]
+        }))
+        return add_security_headers(response)
+
+    except Exception as e:
+        response = make_response(jsonify({'error': str(e)}), 500)
+        return add_security_headers(response)
+
+@app.route('/api/admin/stats', methods=['GET', 'OPTIONS'])
+def api_admin_stats():
+    """Admin stats endpoint - VULN: Info disclosure."""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
+    # VULNERABILITY: No authentication required
+    # Leaks sensitive information
+    try:
+        conn = get_db()
+        stats = conn.execute('SELECT COUNT(*) as user_count, SUM(balance) as total_balance FROM users').fetchone()
+        conn.close()
+
+        response = make_response(jsonify({
+            'stats': dict(stats),
+            'secret_key': JWT_SECRET,  # VULN: Info disclosure
+            'jwt_secret': JWT_SECRET   # VULN: Info disclosure
+        }))
+        return add_security_headers(response)
+
+    except Exception as e:
+        response = make_response(jsonify({'error': str(e)}), 500)
+        return add_security_headers(response)
+
+# ============================================================================
+# ENHANCED EXISTING ROUTES WITH SECURITY HEADERS
+# ============================================================================
+
+# Add security headers to all responses
+@app.after_request
+def apply_security_headers(response):
+    """Apply security headers to all responses."""
+    return add_security_headers(response)
 
 if __name__ == '__main__':
     print("=" * 70)

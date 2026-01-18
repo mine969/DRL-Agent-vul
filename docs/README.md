@@ -51,6 +51,8 @@ Welcome to the DRL Web Security Agent documentation! This index will help you fi
 | Document                                                     | Description                    | Audience    |
 | ------------------------------------------------------------ | ------------------------------ | ----------- |
 | [AGENT_CAPABILITIES.md](AGENT_CAPABILITIES.md)               | What the agent can do          | All users   |
+| [REAL_WORLD_TRANSFER.md](REAL_WORLD_TRANSFER.md)             | Real-world performance analysis| All users   |
+| [TUNED_ACTION_SPACE.md](TUNED_ACTION_SPACE.md)               | Optimized action space design  | Researchers |
 | [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)                   | High-level project description | All users   |
 | [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)                 | Codebase structure             | Developers  |
 | [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)       | System architecture            | Developers  |

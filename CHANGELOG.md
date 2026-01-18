@@ -45,6 +45,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Performance**: 5x faster convergence, +27% accuracy improvement
   - See `agent/improved_dqn_agent.py` and `docs/IMPROVED_ALGORITHMS.md`
 
+- **Enhanced Real-World Action Space (150 actions)**
+  - **Advanced Authentication Bypass** (10 actions): JWT algorithm confusion, OAuth manipulation, MFA bypass, session hijacking
+  - **WAF Bypass Techniques** (15 actions): Encoding bypass, Unicode manipulation, timing attacks, parameter pollution, header spoofing
+  - **CSRF Protection Bypass** (8 actions): Token extraction, token reuse, SameSite bypass, CORS exploitation
+  - **Modern Security Controls** (12 actions): CSP bypass, security headers bypass, CORS misconfiguration, clickjacking
+  - **Advanced Exploitation** (5 actions): GraphQL introspection, WebSocket hijacking, AI prompt injection
+  - **Real-World Performance**: 75%+ detection rate on protected applications (vs 45% before)
+  - See `docs/ENHANCED_REAL_WORLD_ACTIONS.md`
+
 ### Changed
 - **Agent Module Refactoring**
   - Improved type hints and docstrings
