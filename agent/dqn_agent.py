@@ -39,10 +39,10 @@ except ImportError:
         learning_rate: float = 0.0001
         gamma: float = 0.99
         epsilon_start: float = 1.0
-        epsilon_end: float = 0.05
-        epsilon_decay: float = 0.9995
-        memory_size: int = 10000
-        batch_size: int = 64
+        epsilon_end: float = 0.01  # Match config.py (was 0.05)
+        epsilon_decay: float = 0.995  # Match config.py (was 0.9995)
+        memory_size: int = 100000  # Match config.py (was 10000)
+        batch_size: int = 4096  # Match config.py (was 64)
         target_update_frequency: int = 100
         device: str = "auto"
         hidden_sizes: List[int] = None

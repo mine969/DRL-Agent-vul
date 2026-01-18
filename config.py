@@ -25,7 +25,7 @@ class AgentConfig:
     memory_size: int = 100000
     batch_size: int = 4096
     target_update_frequency: int = 100
-    device: str = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "auto"
+    device: str = "auto"  # Let torch decide based on availability
     
     # Neural Network Architecture
     hidden_sizes: List[int] = None

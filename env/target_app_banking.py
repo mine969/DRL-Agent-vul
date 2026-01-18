@@ -506,10 +506,10 @@ def transfer():
     # VULNERABILITY: CSRF protection with bypass opportunities
     # The form includes CSRF tokens, but they can be bypassed
     csrf_token = request.form.get('csrf_token')
-    if csrf_token and not validate_csrf_token(csrf_token):
+    if not csrf_token or not validate_csrf_token(csrf_token):
         response = make_response(render_template_string(
             HTML_TEMPLATE.replace('{{ content | safe }}',
-            '<div class="alert alert-danger">Invalid security token.</div>')
+            '<div class="alert alert-danger">Missing or invalid security token.</div>')
         ), 403)
         return add_security_headers(response)
 
@@ -603,6 +603,7 @@ def transfer_form():
             </div>
             
             <form method="POST" action="/transfer">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="form-group">
                     <label>Recipient Account Number</label>
                     <input type="text" name="to_account" class="form-control" placeholder="e.g., 1002" required>
@@ -629,7 +630,7 @@ def transfer_form():
         </div>
     </div>
     """
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=dict(user))
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=dict(user), csrf_token=csrf_token)
 
 @app.route('/logout')
 def logout():
