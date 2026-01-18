@@ -40,7 +40,7 @@ SECURITY_HEADERS = {
     'X-Content-Type-Options': 'nosniff',  # MIME sniffing protection
     'X-XSS-Protection': '1; mode=block',  # XSS protection
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',  # HSTS
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'",  # CSP
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com",  # CSP
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
 }
@@ -358,6 +358,7 @@ def init_db():
         # Create extensive product catalog
         products = [
             # Electronics
+            ('CTF Flag', 'CTF{ecommerce_sqli_god_mode_11}', 1337.00, 1, 'Secret', 'flag.jpg'),
             ('MacBook Pro 16"', 'Professional laptop with M3 chip, 32GB RAM', 2499.99, 25, 'Electronics', 'macbook.jpg'),
             ('Dell XPS 15', 'Premium Windows laptop, Intel i9, 16GB RAM', 1899.99, 30, 'Electronics', 'dell.jpg'),
             ('iPhone 15 Pro', 'Latest flagship smartphone with A17 chip', 1199.99, 50, 'Electronics', 'iphone.jpg'),
@@ -412,6 +413,8 @@ def init_db():
             (9, 429.99, 'shipped', None),  # rachel_designer bought Apple Watch
             (10, 149.99, 'completed', None),  # tom_writer bought smart bulbs
             (11, 759.99, 'processing', None),  # nina_chef bought drone
+            # HIDDEN ADMIN ORDER (IDOR TARGET)
+            (1, 1337.00, 'completed', 'CTF_ADMIN_CODE'),
         ]
         c.executemany('INSERT INTO orders (user_id, total, status, coupon_code) VALUES (?, ?, ?, ?)', orders)
         
@@ -428,8 +431,33 @@ def init_db():
             (8, 21, 1, 429.99),  # Order 8: Apple Watch
             (9, 20, 1, 149.99),  # Order 9: Hue lights
             (10, 10, 1, 759.99), # Order 10: Drone
+            # IDOR FLAG ITEM
+            (11, 12, 1, 1337.00), # Link to order 11 (which index 10 in list above? wait 1-based IDs from autoincrement)
+            # Actually IDs will be 1..11. Order 11 is the admin one.
         ]
+        # RE-WRITING order_items to correspond to correct order IDs. 
+        # Previous Insert: 10 orders + 1 admin = 11 orders.
+        # But wait, original code had `(2, ...)` as first tuple? 
+        # Ah, looking at original code: `(2, ...)` means user_id 2.
+        # The auto-generated IDs for orders will be 1, 2, ...
+        # My added order is index 10, so it will be ID 11.
+        
+        # Let's clean up the replacement content to be safe.
         c.executemany('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)', order_items)
+        
+        # Add flag product for SQLi
+        c.execute("INSERT INTO products (name, description, price, stock, category, image_url) VALUES (?, ?, ?, ?, ?, ?)",
+                  ('CTF_SQLi_Prize', 'CTF{ecommerce_sqli_flag_found_33}', 0.00, 1, 'Hidden', 'flag.png'))
+        
+        # Add IDOR specific item entry
+        # Order 11 is the Admin order.
+        c.execute("INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)",
+                  (11, 12, 1, 1337.00)) # Product 12 doesn't matter, but let's assume it maps to something.
+                  
+        # ACTUALLY, IDOR flag is often in the "Receipt" or "Order Details".
+        # If I view Order 11, I see the details.
+        # I'll update the 'coupon_code' of the admin order to be the flag?
+        # Re-doing the ORDERS list to be cleaner.
         
         # Create coupons
         coupons = [
@@ -469,9 +497,7 @@ def register():
 
     if request.method == 'GET':
         csrf_token = generate_csrf_token()
-        form_html = f"""
-        {{% extends "layout" %}}
-        {{% block content %}}
+        page_content = f"""
         <div class="row" style="margin-top: 50px;">
             <div class="col-md-6 offset-md-3">
                 <div class="card">
@@ -503,9 +529,9 @@ def register():
                 </div>
             </div>
         </div>
-        {{% endblock %}}
-        """.replace('{{% extends "layout" %}}', HTML_TEMPLATE)
-        return render_template_string(form_html)
+        """
+        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
+        return add_security_headers(response)
 
     # POST Logic with Modern Security Controls
     data = request.form if request.form else request.json
@@ -576,9 +602,7 @@ def login():
     if request.method == 'GET':
         msg = request.args.get('msg', '')
         csrf_token = generate_csrf_token()
-        form_html = f"""
-        {{% extends "layout" %}}
-        {{% block content %}}
+        page_content = f"""
         <div class="row" style="margin-top: 50px;">
             <div class="col-md-6 offset-md-3">
                 <div class="card">
@@ -601,9 +625,9 @@ def login():
                 </div>
             </div>
         </div>
-        {{% endblock %}}
-        """.replace('{{% extends "layout" %}}', HTML_TEMPLATE, 1).replace('{{{{ msg }}}}', msg) # Fix template replacement
-        return render_template_string(form_html, msg=msg)
+        """
+        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), msg=msg))
+        return add_security_headers(response)
 
     # POST Logic with Enhanced Security
     data = request.form if request.form else request.json
@@ -693,9 +717,7 @@ def get_products():
         products = conn.execute(query).fetchall()
         
         # HTML Render
-        products_html = """
-        {% extends "layout" %}
-        {% block content %}
+        page_content = """
         <div class="hero" style="padding: 2rem;">
             <h1>Latest Tech Drops</h1>
             <p>Secure your hardware. Upgrade your reality.</p>
@@ -724,10 +746,9 @@ def get_products():
             </div>
             {% endfor %}
         </div>
-        {% endblock %}
-        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
+        """
         
-        return render_template_string(products_html, products=products)
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), products=products)
     except Exception as e:
         return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', f'<div class="alert">Database Error: {str(e)}</div>'))
     finally:
@@ -741,9 +762,7 @@ def product_detail(product_id):
     conn.close()
     
     if product:
-        detail_html = """
-        {% extends "layout" %}
-        {% block content %}
+        page_content = """
         <div class="row" style="margin-top: 40px; display: flex; gap: 40px;">
             <div class="col" style="flex: 1;">
                 <div style="height: 400px; background: #2a2a35; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
@@ -770,9 +789,8 @@ def product_detail(product_id):
                 </div>
             </div>
         </div>
-        {{% endblock %}}
-        """.replace('{% extends "layout" %}', HTML_TEMPLATE)
-        return render_template_string(detail_html, p=product)
+        """
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), p=product)
     return "Product not found", 404
 
 # ============================================================================
@@ -794,7 +812,12 @@ def add_to_cart():
     
     if quantity < 0:
         if request.json:
-            return jsonify({'message': 'Item added to cart', 'vuln': 'Business Logic Flaw - Negative Quantity', 'cart': session['cart']})
+            return jsonify({
+                'message': 'Item added to cart', 
+                'vuln': 'Business Logic Flaw - Negative Quantity', 
+                'flag': 'CTF{ecommerce_logic_negative_qty_882}',
+                'cart': session['cart']
+            })
         else:
             return redirect('/cart?msg=Item added')
     

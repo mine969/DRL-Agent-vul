@@ -353,6 +353,10 @@ def init_db():
             ('user', hashlib.md5(b'password').hexdigest())
         ]
         c.executemany('INSERT INTO users (username, password) VALUES (?, ?)', users)
+        
+        # Add hidden file (IDOR Flag) for admin (user_id 1)
+        c.execute('INSERT INTO files (user_id, filename, filepath, description) VALUES (?, ?, ?, ?)',
+                 (1, 'secret_plans.txt', 'uploads/flag.txt', 'CTF{fileshare_idor_description_flag_404}'))
     
     conn.commit()
     conn.close()

@@ -55,10 +55,8 @@ class MockTargetsTrainer:
         # Load existing model if possible
         self._load_model()
         
-        # Set high epsilon for exploration
-        self.agent.epsilon = 1.0
-        self.agent.epsilon_min = 0.1
-        self.agent.epsilon_decay = 0.995
+        # Noisy Networks handle exploration automatically
+        # self.agent.epsilon = 1.0 (Not used)
 
     def _load_model(self):
         try:
@@ -104,7 +102,7 @@ class MockTargetsTrainer:
                 reward, vulns = self._train_episode(target['url'], episode)
                 
                 if episode % 10 == 0:
-                    print(f"Episode {episode}: Target={target['name']} | Reward={reward:.1f} | Vulns={vulns} | Epsilon={self.agent.epsilon:.3f}")
+                    print(f"Episode {episode}: Target={target['name']} | Reward={reward:.1f} | Vulns={vulns}")
                 
                 # Save checkpoint
                 if episode % 100 == 0:
@@ -154,4 +152,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     trainer = MockTargetsTrainer()
-    trainer.train(total_episodes=args.episodes)
+    try:
+        trainer.train(total_episodes=args.episodes)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print("\n❌ CRITICAL ERROR DURING TRAINING")

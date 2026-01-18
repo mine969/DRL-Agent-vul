@@ -46,7 +46,7 @@ SECURITY_HEADERS = {
     'X-Content-Type-Options': 'nosniff',  # MIME sniffing protection
     'X-XSS-Protection': '1; mode=block',  # XSS protection
     'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',  # HSTS
-    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; img-src 'self' data: https:",  # CSP
+    'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:",  # CSP
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'Permissions-Policy': 'geolocation=(), microphone=(), camera=()'
 }
@@ -628,13 +628,15 @@ def init_db():
             ('science_nerd', 'science@email.com', hashlib.md5(b'password').hexdigest(), 'Physicist | Science Communicator | Space Geek 🔬', 'science.jpg', 0),
             ('pet_lover', 'pets@email.com', hashlib.md5(b'password').hexdigest(), 'Animal Rescuer | Dog Mom | Cat Dad 🐾', 'pets.jpg', 0),
             ('comedy_king', 'comedy@email.com', hashlib.md5(b'password').hexdigest(), 'Stand-up Comedian | Meme Lord | Laughter Therapist 😂', 'comedy.jpg', 0),
-            ('eco_warrior', 'eco@email.com', hashlib.md5(b'password').hexdigest(), 'Environmental Activist | Sustainability Advocate | Zero Waste', 'eco.jpg', 1)
+            ('eco_warrior', 'eco@email.com', hashlib.md5(b'password').hexdigest(), 'Environmental Activist | Sustainability Advocate | Zero Waste', 'eco.jpg', 1),
+            ('weak_user', 'weak@email.com', hashlib.md5(b'password').hexdigest(), 'Bio: CTF{social_weak_auth_flag_007}', 'default.jpg', 0)
         ]
         c.executemany('INSERT INTO users (username, email, password, bio, avatar, is_private) VALUES (?, ?, ?, ?, ?, ?)', users)
         
         # Create diverse posts
         posts = [
             (1, 'Welcome to SocialNet! Excited to connect with all of you. 🎉', None, 25),
+            (1, 'Confidential: System Flag', 'CTF{social_idor_private_post_77}', 0),
             (2, 'Just deployed my new AI project! Check it out on GitHub. The future is now! 🤖', 'ai_project.jpg', 42),
             (3, 'Sunset in Bali is absolutely breathtaking. This is why I travel! 🌅', 'bali_sunset.jpg', 89),
             (4, 'New workout routine: 100 push-ups, 100 sit-ups, 100 squats, 10km run. Every. Single. Day. 💪', None, 67),
@@ -794,7 +796,7 @@ def register():
             </form>
         </div>
         """
-        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
+        response = make_response(render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', page_content)))
         return add_security_headers(response)
 
     # POST Logic with Security Controls

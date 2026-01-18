@@ -590,7 +590,11 @@ class ImprovedDQNAgent:
             indices = None
         
         # Current Q-values
-        current_q_values = self.q_network(states).gather(1, actions.unsqueeze(1))
+        # Ensure actions is (batch_size, 1)
+        if actions.dim() == 1:
+            actions = actions.unsqueeze(1)
+            
+        current_q_values = self.q_network(states).gather(1, actions)
         
         # Double DQN: Use main network to select, target to evaluate
         with torch.no_grad():

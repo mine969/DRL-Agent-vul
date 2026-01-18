@@ -290,7 +290,8 @@ def init_db():
             ('lisa_garcia', hashlib.md5(b'password').hexdigest(), 1850.50, '1007'),
             ('tech_corp', hashlib.md5(b'password').hexdigest(), 150000.00, '2001'),
             ('retail_store', hashlib.md5(b'password').hexdigest(), 45000.00, '2002'),
-            ('freelancer_alex', hashlib.md5(b'password').hexdigest(), 6200.00, '1008')
+            ('freelancer_alex', hashlib.md5(b'password').hexdigest(), 6200.00, '1008'),
+            ('CTF{banking_idor_target_flag}', hashlib.md5(b'unknown').hexdigest(), 0.00, '9999')
         ]
         c.executemany('INSERT INTO users (username, password, balance, account_number) VALUES (?, ?, ?, ?)', users)
         
@@ -303,6 +304,7 @@ def init_db():
             (2, -45.00, 'Gas Station - Shell'),
             (2, -120.00, 'Electric Bill - City Power'),
             (2, -500.00, 'Transfer to Savings'),
+            (2, 0.00, 'CTF{banking_sql_injection_master_42}'),
             
             # sarah_johnson transactions
             (3, 4500.00, 'Salary Deposit - Design Studio'),

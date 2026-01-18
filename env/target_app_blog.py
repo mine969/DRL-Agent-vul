@@ -477,6 +477,7 @@ def init_db():
         # Create diverse blog posts
         posts = [
             (1, 'Welcome to VulnBlog!', 'This is a deliberately vulnerable blog platform for security research. Feel free to explore and test!'),
+            (1, 'Secret Admin Note', 'CTF{blog_stored_xss_champion_99} - Keep this hidden!'),
             (2, 'Getting Started with Python in 2024', 'Python continues to dominate as one of the most popular programming languages. Here are the essential tools and frameworks you need to know...'),
             (2, '10 VS Code Extensions Every Developer Needs', 'Boost your productivity with these must-have extensions. From code formatting to Git integration, these tools will transform your workflow...'),
             (3, 'Hidden Gems of Southeast Asia', 'Beyond the tourist hotspots, Southeast Asia offers incredible hidden destinations. Let me share my favorites from 3 years of travel...'),
@@ -495,7 +496,8 @@ def init_db():
             (2, 'TypeScript vs JavaScript in 2024', 'The debate continues. Here\'s my take after using both in production for 5 years...'),
             (3, 'Backpacking Through Patagonia', 'The trek through Torres del Paine was the most challenging and rewarding experience of my life. Here\'s my complete guide...'),
             (4, 'Fermentation 101: Making Kimchi at Home', 'Fermented foods are having a moment, and for good reason. Let\'s start with homemade kimchi...'),
-            (5, 'Work-Life Balance in the Remote Era', 'Working from home blurred all the boundaries. Here\'s how I reclaimed my work-life balance...')
+            (5, 'Work-Life Balance in the Remote Era', 'Working from home blurred all the boundaries. Here\'s how I reclaimed my work-life balance...'),
+            (1, 'Database Configuration (Private)', 'CTF{blog_sqli_hidden_post_flag_55} - DO NOT PUBLISH')
         ]
         c.executemany('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)', posts)
     
