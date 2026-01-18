@@ -882,10 +882,17 @@ def login():
                 <input type="text" name="username" class="form-control" placeholder="Username" required>
                 <input type="password" name="password" class="form-control" placeholder="Password" required>
                 <button type="submit" class="btn">Log In</button>
+                <div style="margin-top: 15px; text-align: center;">
+                    <span style="color: #666;">or</span>
+                </div>
+                <a href="/oauth/login?provider=google" class="btn" style="background: #ffffff; color: #757575; margin-top: 15px; border: 1px solid #ddd; display: flex; align-items: center; justify-content: center; gap: 10px; font-family: Roboto, sans-serif; font-weight: 500;">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="18" height="18" alt="G">
+                    Sign in with Google
+                </a>
             </form>
         </div>
         """
-        full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+        full_html = HTML_TEMPLATE.replace('{% block content %}{% endblock %}', page_content)
         response = make_response(render_template_string(full_html, msg=msg))
         return add_security_headers(response)
 
@@ -972,6 +979,48 @@ def password_reset():
 # ============================================================================
 # PROFILES
 # ============================================================================
+
+# ============================================================================
+# OAUTH 2.0 VULNERABILITY IMPLEMENTATION
+# ============================================================================
+
+@app.route('/oauth/login')
+def oauth_login():
+    """Initiate OAuth flow (VULNERABLE: Missing state parameter)"""
+    provider = request.args.get('provider', 'generic')
+    
+    # Simulate redirect to provider (e.g., accounts.google.com)
+    # in a real app this would go to https://accounts.google.com/o/oauth2/v2/auth...
+    return redirect(url_for('oauth_callback', code=f'simulated_{provider}_auth_code_12345'))
+
+@app.route('/oauth/callback')
+def oauth_callback():
+    """Handle OAuth callback (VULNERABLE: Implicit grant / State bypass)"""
+    code = request.args.get('code')
+    
+    # VULNERABILITY: No state parameter validation
+    # This allows CSRF attacks on the login flow
+    
+    if code == 'simulated_google_auth_code_12345':
+        # Simulate successful Google provider exchange
+        session['user_id'] = 999
+        session['username'] = 'google_user'
+        session['session_id'] = secrets.token_urlsafe(16)
+        return redirect('/posts?msg=Logged in via Google')
+
+    if code == 'simulated_auth_code_12345':
+        # Legacy/Generic ConnectID
+        session['user_id'] = 999
+        session['username'] = 'oauth_user'
+        session['session_id'] = secrets.token_urlsafe(16)
+        return redirect('/posts?msg=Logged in via ConnectID')
+    
+    # Check for flag condition (exploiting the vulnerability)
+    # If attacker sends specific code, give flag
+    if code == 'ATTACKER_CONTROLLED_CODE':
+        return "CTF{oauth_broken_state_validation_55}"
+        
+    return "OAuth Error", 400
 
 @app.route('/profile/<user_id>', methods=['GET'])
 def profile(user_id):

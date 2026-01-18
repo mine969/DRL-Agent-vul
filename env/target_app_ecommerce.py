@@ -620,6 +620,12 @@ def login():
                                 <input type="password" name="password" class="form-control" required>
                             </div>
                             <button type="submit" class="btn" style="width: 100%;">Authenticate</button>
+                            <div style="margin-top: 15px; text-align: center;">
+                                <span style="color: #666;">or</span>
+                            </div>
+                            <a href="/saml/login" class="btn btn-secondary" style="display: block; width: 100%; margin-top: 15px; text-align: center; text-decoration: none;">
+                                Corporate Login (SAML)
+                            </a>
                         </form>
                     </div>
                 </div>
@@ -925,6 +931,40 @@ def view_cart():
     {% endblock %}
     """.replace('{% extends "layout" %}', HTML_TEMPLATE)
     return render_template_string(cart_html, cart_items=cart_items, total=total, msg=msg)
+
+# ============================================================================
+# SAML 2.0 VULNERABILITY IMPLEMENTATION
+# ============================================================================
+
+@app.route('/saml/login')
+def saml_login():
+    """Initiate SAML flow"""
+    # Simulate redirection to proper IDP
+    return redirect('/saml/acs?SAMLResponse=PD94bWwgdmVyc2lvbj0iMS4wIj8%2bCjxhc3NlcnRpb24%2bCiAgPHN1YmplY3Q%2bdXNlckBxYS5jb3JwPC9zdWJqZWN0PgogIDxzaWduYXR1cmU%2bdmFsaWQ8L3NpZ25hdHVyZT4KPC9hc3NlcnRpb24%2b')
+
+@app.route('/saml/acs')
+def saml_acs():
+    """Handle SAML Assertion (VULNERABLE: XML Signature Bypass)"""
+    saml_response = request.args.get('SAMLResponse')
+    
+    # VULNERABILITY: Extremely naive XML parsing that ignores signature verification
+    # if a comment is injected or structure is slightly modified.
+    
+    # Simulating the check:
+    if saml_response and 'admin@corp.com' in saml_response and 'signature>valid' in saml_response:
+        # This is a flag condition
+        return jsonify({
+            'status': 'success',
+            'message': 'SAML Auth Successful',
+            'flag': 'CTF{saml_xml_signature_bypass_77}'
+        })
+        
+    if saml_response and 'signature>valid' in saml_response:
+         session['user_id'] = 888
+         session['username'] = 'corp_user'
+         return redirect('/products?msg=Logged in via CorpSSO')
+         
+    return "SAML Error: Invalid Signature", 400
 
 @app.route('/api/cart/update', methods=['POST'])
 def update_cart():

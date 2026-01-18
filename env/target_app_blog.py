@@ -12,6 +12,7 @@ from flask import Flask, request, session, redirect, render_template_string
 import sqlite3
 import hashlib
 import os
+import jwt
 
 app = Flask(__name__)
 app.secret_key = 'blog_secret_2025'
@@ -203,6 +204,10 @@ LOGIN_PAGE = """
             <input type="text" name="username" placeholder="Username" required>
             <input type="password" name="password" placeholder="Password" required>
             <input type="submit" value="Sign In">
+            <div style="margin-top: 20px; text-align: center; border-top: 1px solid #ddd; padding-top: 15px;">
+                <span style="color: #666; font-size: 13px;">or</span>
+            </div>
+            <a href="/oidc/login" class="btn" style="display: block; width: 100%; text-align: center; margin-top: 10px; background: #666;">Connect with DevAuth (OIDC)</a>
         </form>
         <div class="links">
             <a href="/register">Create account</a> | <a href="/">Home</a>
@@ -581,6 +586,46 @@ def register():
             conn.close()
     
     return render_template_string(LOGIN_PAGE.replace('Login', 'Register'))
+
+# ============================================================================
+# JWT / OIDC VULNERABILITY IMPLEMENTATION
+# ============================================================================
+
+@app.route('/oidc/login')
+def oidc_login():
+    """Initiate OIDC flow"""
+    # Create an unsigned JWT for demonstration (in real flow this comes from provider)
+    # Payload: {"user": "demo", "role": "user"}
+    # Vulnerable because we accept "alg": "none" in callback
+    token = jwt.encode({"user": "demo", "role": "user"}, key=None, algorithm=None)
+    return redirect(url_for('oidc_callback', token=token))
+
+@app.route('/oidc/callback')
+def oidc_callback():
+    """Handle OIDC callback (VULNERABLE: 'alg': 'none' attack)"""
+    token = request.args.get('token')
+    
+    try:
+        # VULNERABILITY: Explicitly allowing 'none' algorithm
+        # In pyjwt < 2.0 this was default behavior if not properly handled.
+        # Here we simulate it by decoding without verification if header says none.
+        header = jwt.get_unverified_header(token)
+        
+        if header.get('alg') == 'none' or header.get('alg') == None:
+             payload = jwt.decode(token, options={"verify_signature": False})
+             
+             if payload.get('user') == 'admin':
+                 return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', 
+                    '<div class="alert alert-success">CTF{jwt_none_algorithm_bypass_99}</div>'))
+             
+             session['user_id'] = 999
+             session['username'] = payload.get('user', 'dev_user')
+             return redirect('/?msg=Logged in via DevAuth')
+             
+    except Exception as e:
+        return f"OIDC Error: {str(e)}", 400
+        
+    return "Invalid Token", 400
 
 @app.route('/new-post', methods=['GET', 'POST'])
 def new_post():

