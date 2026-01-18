@@ -615,9 +615,13 @@ def oidc_callback():
              payload = jwt.decode(token, options={"verify_signature": False})
              
              if payload.get('user') == 'admin':
-                 return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', 
-                    '<div class="alert alert-success">CTF{jwt_none_algorithm_bypass_99}</div>'))
-             
+                 # Use HOME_PAGE as base but simpler content since HTML_TEMPLATE doesn't exist here
+                 flag_content = '<div class="post-card" style="margin-top: 50px;"><h3>🎉 Authentication Bypass Successful</h3><div style="background: #28a745; color: white; padding: 15px; border-radius: 5px; margin-top: 15px;">CTF{jwt_none_algorithm_bypass_99}</div></div>'
+                 full_html = HOME_PAGE.replace('<h2 style="margin-bottom: 30px; font-size: 32px;">Latest Stories</h2>', flag_content)
+                 # Remove the loop part which might cause render errors if posts not passed
+                 full_html = full_html.split('{% for post in posts %}')[0] + '</div></body></html>'
+                 return render_template_string(full_html, session=session, posts=[])
+                 
              session['user_id'] = 999
              session['username'] = payload.get('user', 'dev_user')
              return redirect('/?msg=Logged in via DevAuth')
