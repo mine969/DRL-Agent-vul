@@ -33,137 +33,424 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SocialNet</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <title>ConnectHub - Social Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #2D88FF;
-            --bg: #18191A;
-            --card-bg: #242526;
-            --text-main: #E4E6EB;
-            --text-muted: #B0B3B8;
-            --border: #3E4042;
+            --primary: #1DA1F2;
+            --primary-hover: #1a91da;
+            --bg: #000000;
+            --card-bg: #16181C;
+            --hover-bg: #1E1F23;
+            --text-main: #E7E9EA;
+            --text-muted: #71767A;
+            --border: #2F3336;
+            --success: #00BA7C;
+            --error: #F4212E;
         }
         body {
-            font-family: 'Roboto', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
             background-color: var(--bg);
             color: var(--text-main);
-            margin: 0;
+            line-height: 1.5;
         }
-        .navbar {
-            background: var(--card-bg);
-            padding: 0 1rem;
+        /* Sidebar Navigation */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 275px;
+            height: 100vh;
+            padding: 20px 16px;
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text-main);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin-bottom: 20px;
+        }
+        .logo:hover { background: var(--hover-bg); border-radius: 30px; }
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--text-main);
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: 500;
+            border-radius: 30px;
+            margin-bottom: 4px;
+            transition: background 0.2s;
+        }
+        .nav-item:hover { background: var(--hover-bg); }
+        .nav-item.active { font-weight: 700; }
+        .nav-item svg { width: 26px; height: 26px; margin-right: 20px; }
+        .nav-icon { width: 26px; height: 26px; margin-right: 20px; display: inline-block; }
+        
+        /* Main Content */
+        .main-container {
+            margin-left: 275px;
+            display: flex;
+            min-height: 100vh;
+        }
+        .feed-column {
+            flex: 1;
+            max-width: 600px;
+            border-right: 1px solid var(--border);
+            border-left: 1px solid var(--border);
+        }
+        .sidebar-column {
+            width: 350px;
+            padding: 20px;
+        }
+        .content-header {
+            position: sticky;
+            top: 0;
+            background: rgba(0, 0, 0, 0.65);
+            backdrop-filter: blur(12px);
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            font-size: 20px;
+            font-weight: 700;
+            z-index: 10;
+        }
+        
+        /* Post Composer */
+        .post-composer {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+        }
+        .composer-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 20px;
+            padding: 12px 0;
+            resize: none;
+            min-height: 60px;
+            font-family: inherit;
+        }
+        .composer-input:focus { outline: none; }
+        .composer-input::placeholder { color: var(--text-muted); }
+        .composer-actions {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            height: 60px;
-            border-bottom: 1px solid var(--border);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        .logo {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--primary);
-            text-decoration: none;
-        }
-        .nav-links { display: flex; gap: 20px; }
-        .nav-links a {
-            color: var(--text-muted);
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 12px;
-            border-radius: 8px;
-        }
-        .nav-links a:hover, .nav-links a.active {
-            background: rgba(45, 136, 255, 0.1);
-            color: var(--primary);
-        }
-        .nav-links a.active {
-            color: var(--primary);
-            font-weight: 600;
-        }
-        .container {
-            max-width: 900px;
-            margin: 20px auto;
-            padding: 0 1rem;
-        }
-        
-        /* Cards & Feed */
-        .card {
-            background: var(--card-bg);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 16px;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
-        }
-        .post-header { display: flex; gap: 10px; margin-bottom: 10px; }
-        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #555; }
-        .post-content { font-size: 1.1rem; margin-bottom: 1rem; }
-        .post-actions {
+            margin-top: 12px;
+            padding-top: 12px;
             border-top: 1px solid var(--border);
-            padding-top: 0.5rem;
-            display: flex;
-            gap: 1rem;
         }
-        
-        /* Forms */
-        .form-control {
-            width: 100%;
-            padding: 10px;
-            background: #3A3B3C;
-            border: 1px solid var(--border);
+        .composer-icons { display: flex; gap: 16px; }
+        .icon-btn {
+            color: var(--primary);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
             border-radius: 20px;
-            color: var(--text-main);
-            margin-bottom: 10px;
-            box-sizing: border-box;
+            transition: background 0.2s;
         }
+        .icon-btn:hover { background: rgba(29, 161, 242, 0.1); }
+        
+        /* Post Cards */
+        .post-card {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            transition: background 0.2s;
+        }
+        .post-card:hover { background: var(--hover-bg); }
+        .post-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 4px;
+        }
+        .avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 18px;
+        }
+        .post-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .post-author {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--text-main);
+            text-decoration: none;
+        }
+        .post-author:hover { text-decoration: underline; }
+        .post-handle {
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: 4px;
+        }
+        .post-time {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+        .post-time::before { content: "· "; }
+        .post-content {
+            font-size: 15px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            margin: 8px 0;
+        }
+        .post-image {
+            width: 100%;
+            border-radius: 16px;
+            margin-top: 12px;
+            max-height: 500px;
+            object-fit: cover;
+        }
+        .post-actions {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 12px;
+            padding-top: 8px;
+            max-width: 425px;
+        }
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 8px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .action-btn:hover { background: rgba(29, 161, 242, 0.1); color: var(--primary); }
+        .action-btn.liked { color: var(--error); }
+        .action-btn.comment:hover { background: rgba(0, 186, 124, 0.1); color: var(--success); }
+        .action-icon { width: 18px; height: 18px; }
+        
+        /* Buttons */
         .btn {
             background: var(--primary);
             color: white;
-            padding: 8px 30px;
             border: none;
-            border-radius: 6px;
-            font-weight: 600;
+            padding: 12px 24px;
+            border-radius: 30px;
+            font-weight: 700;
+            font-size: 15px;
             cursor: pointer;
-            width: 100%;
+            transition: background 0.2s;
         }
+        .btn:hover { background: var(--primary-hover); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .btn-outline {
             background: transparent;
-            border: 1px solid var(--primary);
-            color: var(--primary);
+            border: 2px solid var(--border);
+            color: var(--text-main);
+        }
+        .btn-outline:hover { background: var(--hover-bg); border-color: var(--primary); }
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 14px;
         }
         
+        /* Sidebar Widgets */
+        .widget {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        .widget-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+        .trend-item {
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+        }
+        .trend-item:last-child { border-bottom: none; }
+        .trend-item:hover { background: var(--hover-bg); margin: 0 -16px; padding: 12px 16px; }
+        .trend-category {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+        .trend-name {
+            font-weight: 700;
+            font-size: 15px;
+            margin-top: 2px;
+        }
+        .trend-count {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        
+        /* Profile */
+        .profile-header {
+            position: relative;
+            height: 200px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .profile-avatar {
+            position: absolute;
+            bottom: -60px;
+            left: 20px;
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            border: 4px solid var(--bg);
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .profile-info {
+            padding: 80px 20px 20px;
+        }
+        .profile-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .profile-stats {
+            display: flex;
+            gap: 24px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border);
+        }
+        .stat {
+            cursor: pointer;
+        }
+        .stat:hover .stat-label { text-decoration: underline; }
+        .stat-number {
+            font-weight: 700;
+            font-size: 20px;
+        }
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+        
+        /* Forms */
+        .form-group {
+            margin-bottom: 20px;
+        }
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 15px;
+            font-family: inherit;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        /* Alert */
         .alert {
-            padding: 1rem;
-            background: rgba(255, 76, 76, 0.2);
-            color: #ff4c4c;
-            border-radius: 6px;
-            margin-bottom: 1rem;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 16px;
+            background: rgba(244, 33, 46, 0.1);
+            border: 1px solid var(--error);
+            color: var(--error);
+        }
+        .alert-success {
+            background: rgba(0, 186, 124, 0.1);
+            border-color: var(--success);
+            color: var(--success);
         }
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <a href="/" class="logo">SocialNet</a>
-        <div class="nav-links">
-            <a href="/posts" {% if request.path == '/posts' or request.path == '/' %}class="active"{% endif %}>Feed</a>
-            {% if session.user_id %}
-                <a href="/profile/{{ session.user_id }}">Profile</a>
-                <a href="/search">Search</a>
-                <a href="/messages/{{ session.user_id }}">Messages</a>
-                <a href="/logout">Logout</a>
-            {% else %}
-                <a href="/login">Login</a>
-                <a href="/register">Join</a>
-            {% endif %}
-        </div>
-    </nav>
+    <div class="sidebar">
+        <a href="/posts" class="logo">🐦 ConnectHub</a>
+        <a href="/posts" class="nav-item {% if request.path == '/posts' or request.path == '/' %}active{% endif %}">
+            <span class="nav-icon">🏠</span> Home
+        </a>
+        {% if session.user_id %}
+            <a href="/search" class="nav-item {% if '/search' in request.path %}active{% endif %}">
+                <span class="nav-icon">🔍</span> Explore
+            </a>
+            <a href="/messages/{{ session.user_id }}" class="nav-item {% if '/messages' in request.path %}active{% endif %}">
+                <span class="nav-icon">💬</span> Messages
+            </a>
+            <a href="/profile/{{ session.user_id }}" class="nav-item {% if '/profile' in request.path %}active{% endif %}">
+                <span class="nav-icon">👤</span> Profile
+            </a>
+            <a href="/logout" class="nav-item">
+                <span class="nav-icon">🚪</span> Logout
+            </a>
+        {% else %}
+            <a href="/login" class="nav-item">
+                <span class="nav-icon">🔑</span> Login
+            </a>
+            <a href="/register" class="nav-item">
+                <span class="nav-icon">✨</span> Join
+            </a>
+        {% endif %}
+    </div>
     
-    <div class="container">
-        {% if error %}<div class="alert">{{ error }}</div>{% endif %}
-        {% block content %}{% endblock %}
+    <div class="main-container">
+        <div class="feed-column">
+            <div class="content-header">
+                {% block header %}Home{% endblock %}
+            </div>
+            {% if error %}<div class="alert">{{ error }}</div>{% endif %}
+            {% block content %}{% endblock %}
+        </div>
+        <div class="sidebar-column">
+            {% block sidebar %}
+            <div class="widget">
+                <div class="widget-title">Trending</div>
+                <div class="trend-item">
+                    <div class="trend-category">Technology · Trending</div>
+                    <div class="trend-name">AI & Machine Learning</div>
+                    <div class="trend-count">12.5K posts</div>
+                </div>
+                <div class="trend-item">
+                    <div class="trend-category">Entertainment · Trending</div>
+                    <div class="trend-name">New Movie Releases</div>
+                    <div class="trend-count">8.2K posts</div>
+                </div>
+                <div class="trend-item">
+                    <div class="trend-category">Sports · Trending</div>
+                    <div class="trend-name">Championship Finals</div>
+                    <div class="trend-count">15.3K posts</div>
+                </div>
+            </div>
+            {% endblock %}
+        </div>
     </div>
 </body>
 </html>
@@ -504,77 +791,103 @@ def profile(user_id):
     is_own_profile = session.get('user_id') == user['id']
     
     page_content = """
-    <div style="max-width: 700px; margin: 0 auto;">
-        <a href="/posts" style="color: var(--primary); text-decoration: none; margin-bottom: 1rem; display: inline-block;">
-            ← Back to Feed
-        </a>
-        
-        <div class="card" style="margin-top: 1rem;">
-            <div style="background: linear-gradient(90deg, var(--primary), #888); height: 200px; border-radius: 8px 8px 0 0;"></div>
-            <div style="padding: 2rem; position: relative;">
-                <div style="width: 120px; height: 120px; border-radius: 50%; background: #333; border: 4px solid var(--card-bg); position: absolute; top: -60px;"></div>
-                <div style="margin-top: 70px;">
-                    <h1 style="margin-bottom: 0.5rem;">{{ u.username }}</h1>
-                    <p style="color: var(--text-muted); margin-bottom: 1rem;">{{ u.bio }}</p>
-                    
-                    <div style="display: flex; gap: 2rem; margin-bottom: 1.5rem;">
-                        <div>
-                            <div style="font-weight: bold; font-size: 1.2rem;">{{ posts|length }}</div>
-                            <div style="font-size: 0.9rem; color: var(--text-muted);">Posts</div>
-                        </div>
-                        <div>
-                            <div style="font-weight: bold; font-size: 1.2rem;">{{ friend_count }}</div>
-                            <div style="font-size: 0.9rem; color: var(--text-muted);">Friends</div>
-                        </div>
-                    </div>
-                    
-                    {% if not is_own_profile %}
-                    <div style="display: flex; gap: 1rem;">
-                        <button class="btn" style="width: auto;">Follow</button>
-                        <a href="/messages/{{ u.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">Message</a>
-                    </div>
-                    {% else %}
-                    <div style="display: flex; gap: 1rem;">
-                        <a href="/messages/{{ u.id }}" class="btn" style="width: auto; text-decoration: none;">My Messages</a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        
-        <h2 style="margin-top: 2rem; margin-bottom: 1rem;">Posts</h2>
-        {% for post in posts %}
-        <div class="card" style="margin-bottom: 1rem;">
-            <div class="post-header">
-                <div class="avatar"></div>
-                <div>
-                    <div style="font-weight: bold;">{{ post.username }}</div>
-                    <div style="font-size: 0.8rem; color: #B0B3B8;">{{ post.created_at }}</div>
-                </div>
-            </div>
-            <div class="post-content">
-                {{ post.content | safe }}
-            </div>
-            {% if post.image_url %}
-            <img src="/static/{{ post.image_url }}" style="width: 100%; border-radius: 8px; margin-top: 10px;">
-            {% endif %}
-            <div class="post-actions">
-                <button class="btn btn-outline" style="width: auto;">Like ({{ post.likes }})</button>
-                <a href="/posts/{{ post.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">Comment</a>
-            </div>
-        </div>
-        {% endfor %}
-        
-        {% if not posts %}
-        <div class="card" style="text-align: center; padding: 3rem;">
-            <p style="color: var(--text-muted);">No posts yet.</p>
-        </div>
-        {% endif %}
+    <div class="profile-header">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); height: 100%;"></div>
     </div>
+    <div class="profile-info">
+        <div class="profile-avatar">
+            {{ u.username[0].upper() }}
+        </div>
+        <div class="profile-actions">
+            {% if not is_own_profile %}
+            <button class="btn">Follow</button>
+            <a href="/messages/{{ u.id }}" class="btn btn-outline" style="text-decoration: none;">Message</a>
+            {% else %}
+            <a href="/messages/{{ u.id }}" class="btn" style="text-decoration: none;">Messages</a>
+            {% endif %}
+        </div>
+        <h1 style="font-size: 24px; font-weight: 700; margin-bottom: 4px;">{{ u.username }}</h1>
+        <p style="color: var(--text-muted); font-size: 15px; margin-bottom: 12px;">@{{ u.username.lower() }}</p>
+        {% if u.bio %}
+        <p style="font-size: 15px; margin-bottom: 12px; line-height: 1.5;">{{ u.bio }}</p>
+        {% endif %}
+        <div class="profile-stats">
+            <div class="stat">
+                <span class="stat-number">{{ posts|length }}</span>
+                <span class="stat-label">Posts</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number">{{ friend_count }}</span>
+                <span class="stat-label">Following</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number">{{ friend_count }}</span>
+                <span class="stat-label">Followers</span>
+            </div>
+        </div>
+    </div>
+    
+    <div style="border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); display: flex;">
+        <a href="#posts" style="flex: 1; text-align: center; padding: 16px; color: var(--text-main); text-decoration: none; font-weight: 600; border-bottom: 2px solid var(--primary);">
+            Posts
+        </a>
+        <a href="#replies" style="flex: 1; text-align: center; padding: 16px; color: var(--text-muted); text-decoration: none; font-weight: 600;">
+            Replies
+        </a>
+        <a href="#media" style="flex: 1; text-align: center; padding: 16px; color: var(--text-muted); text-decoration: none; font-weight: 600;">
+            Media
+        </a>
+    </div>
+    
+    {% for post in posts %}
+    <div class="post-card">
+        <div class="post-header">
+            <a href="/profile/{{ post.user_id }}" class="avatar" style="text-decoration: none;">
+                {{ post.username[0].upper() }}
+            </a>
+            <div class="post-info">
+                <a href="/profile/{{ post.user_id }}" class="post-author">
+                    {{ post.username }}
+                    <span class="post-handle">@{{ post.username.lower() }}</span>
+                </a>
+                <div class="post-time">{{ post.created_at }}</div>
+            </div>
+        </div>
+        <div class="post-content">
+            {{ post.content | safe }}
+        </div>
+        {% if post.image_url %}
+        <img src="/static/{{ post.image_url }}" class="post-image" alt="Post image">
+        {% endif %}
+        <div class="post-actions">
+            <button class="action-btn comment" onclick="window.location.href='/posts/{{ post.id }}'">
+                <span class="action-icon">💬</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">🔄</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">❤️</span>
+                <span>{{ post.likes }}</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">📤</span>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if not posts %}
+    <div style="padding: 60px 20px; text-align: center; color: var(--text-muted);">
+        <p style="font-size: 20px; margin-bottom: 8px;">No posts yet</p>
+        <p>When {{ u.username }} posts, you'll see it here.</p>
+    </div>
+    {% endif %}
     """
     
-    full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
-    return render_template_string(full_html, u=dict(user), posts=[dict(p) for p in user_posts], 
+    user_dict = dict(user)
+    full_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', user_dict['username']).replace('{% block content %}{% endblock %}', page_content)
+    return render_template_string(full_html, u=user_dict, posts=[dict(p) for p in user_posts], 
                                  friend_count=friend_count, is_own_profile=is_own_profile)
 
 # ============================================================================
@@ -587,56 +900,90 @@ def posts():
     conn = get_db()
     
     if request.method == 'GET':
-        posts = conn.execute('SELECT p.*, u.username, u.avatar FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC').fetchall()
+        posts = conn.execute('SELECT p.*, u.username, u.avatar, u.id as user_id FROM posts p JOIN users u ON p.user_id = u.id ORDER BY p.created_at DESC LIMIT 50').fetchall()
         conn.close()
         
         page_content = """
-        <div class="row">
-            <div class="col" style="max-width: 600px; margin: 0 auto;">
-                {% if session.user_id %}
-                <div class="card">
-                    <form action="/posts" method="POST">
-                        <textarea name="content" class="form-control" placeholder="What's on your mind?" rows="3"></textarea>
-                        <div style="text-align: right;">
-                            <button type="submit" class="btn" style="width: auto;">Post</button>
-                        </div>
-                    </form>
+        {% if session.user_id %}
+        <div class="post-composer">
+            <form action="/posts" method="POST" style="display: flex; flex-direction: column;">
+                <textarea name="content" class="composer-input" placeholder="What's happening?!" rows="3" required></textarea>
+                <div class="composer-actions">
+                    <div class="composer-icons">
+                        <button type="button" class="icon-btn" title="Media">📷</button>
+                        <button type="button" class="icon-btn" title="GIF">🎬</button>
+                        <button type="button" class="icon-btn" title="Poll">📊</button>
+                        <button type="button" class="icon-btn" title="Emoji">😊</button>
+                    </div>
+                    <button type="submit" class="btn btn-sm">Post</button>
                 </div>
-                {% endif %}
-                
-                {% for p in posts %}
-                <div class="card">
-                    <div class="post-header">
-                        <div class="avatar"></div> <!-- Placeholder for avatar img -->
-                        <div>
-                            <div style="font-weight: bold;">{{ p.username }}</div>
-                            <div style="font-size: 0.8rem; color: #B0B3B8;">{{ p.created_at }}</div>
-                        </div>
-                    </div>
-                    <div class="post-content">
-                        {{ p.content | safe }} <!-- VULN: XSS is rendered here -->
-                    </div>
-                    {% if p.image_url %}
-                    <img src="/static/{{ p.image_url }}" style="width: 100%; border-radius: 8px; margin-top: 10px;">
-                    {% endif %}
-                    <div class="post-actions">
-                        <button class="btn btn-outline" style="width: auto;" onclick="alert('Like feature not implemented')">Like ({{ p.likes }})</button>
-                        <a href="/posts/{{ p.id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">Comment</a>
-                        <a href="/profile/{{ p.user_id }}" class="btn btn-outline" style="width: auto; text-decoration: none;">View Profile</a>
-                    </div>
+            </form>
+        </div>
+        {% endif %}
+        
+        {% for p in posts %}
+        <div class="post-card">
+            <div class="post-header">
+                <a href="/profile/{{ p.user_id }}" class="avatar" style="text-decoration: none;">
+                    {{ p.username[0].upper() }}
+                </a>
+                <div class="post-info">
+                    <a href="/profile/{{ p.user_id }}" class="post-author">
+                        {{ p.username }}
+                        <span class="post-handle">@{{ p.username.lower() }}</span>
+                    </a>
+                    <div class="post-time">{{ p.created_at }}</div>
                 </div>
-                {% endfor %}
+            </div>
+            <div class="post-content">
+                {{ p.content | safe }}
+            </div>
+            {% if p.image_url %}
+            <img src="/static/{{ p.image_url }}" class="post-image" alt="Post image">
+            {% endif %}
+            <div class="post-actions">
+                <button class="action-btn comment" onclick="window.location.href='/posts/{{ p.id }}'">
+                    <span class="action-icon">💬</span>
+                    <span>Comment</span>
+                </button>
+                <button class="action-btn">
+                    <span class="action-icon">🔄</span>
+                    <span>Repost</span>
+                </button>
+                <button class="action-btn">
+                    <span class="action-icon">❤️</span>
+                    <span>{{ p.likes }}</span>
+                </button>
+                <button class="action-btn">
+                    <span class="action-icon">📤</span>
+                    <span>Share</span>
+                </button>
             </div>
         </div>
+        {% endfor %}
+        
+        {% if not posts %}
+        <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+            <p style="font-size: 20px; margin-bottom: 8px;">No posts yet</p>
+            <p>Be the first to post something!</p>
+        </div>
+        {% endif %}
         """
-        full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
-        return render_template_string(full_html, posts=posts)
+        full_html = HTML_TEMPLATE.replace('{% block content %}{% endblock %}', page_content)
+        return render_template_string(full_html, posts=[dict(p) for p in posts])
     
     elif request.method == 'POST':
+        if 'user_id' not in session:
+            return redirect('/login')
+            
         data = request.form if request.form else request.json
         user_id = session.get('user_id', 1)
         content = data.get('content', '')
         
+        if not content.strip():
+            return redirect('/posts')
+        
+        conn = get_db()
         # VULN: Stored XSS - no sanitization
         conn.execute('INSERT INTO posts (user_id, content) VALUES (?, ?)', (user_id, content))
         conn.commit()
@@ -649,7 +996,7 @@ def post_detail(post_id):
     """Post detail page with comments - VULN: IDOR"""
     conn = get_db()
     
-    post = conn.execute('''SELECT p.*, u.username, u.avatar 
+    post = conn.execute('''SELECT p.*, u.username, u.avatar, u.id as user_id 
                           FROM posts p JOIN users u ON p.user_id = u.id 
                           WHERE p.id = ?''', (post_id,)).fetchone()
     
@@ -657,76 +1004,115 @@ def post_detail(post_id):
         conn.close()
         return "Post not found", 404
     
-    comments_list = conn.execute('''SELECT c.*, u.username, u.avatar 
+    comments_list = conn.execute('''SELECT c.*, u.username, u.avatar, u.id as user_id 
                                    FROM comments c JOIN users u ON c.user_id = u.id 
                                    WHERE c.post_id = ? ORDER BY c.created_at DESC''', (post_id,)).fetchall()
     
     conn.close()
     
     page_content = """
-    <div style="max-width: 700px; margin: 0 auto;">
-        <a href="/posts" style="color: var(--primary); text-decoration: none; margin-bottom: 1rem; display: inline-block;">
-            ← Back to Feed
+    <div style="border-bottom: 1px solid var(--border); padding: 16px 20px;">
+        <a href="/posts" style="color: var(--primary); text-decoration: none; display: inline-flex; align-items: center; gap: 8px;">
+            ← Back
         </a>
-        
-        <div class="card" style="margin-top: 1rem;">
-            <div class="post-header">
-                <div class="avatar"></div>
-                <div>
-                    <div style="font-weight: bold;">
-                        <a href="/profile/{{ p.user_id }}" style="color: white; text-decoration: none;">{{ p.username }}</a>
-                    </div>
-                    <div style="font-size: 0.8rem; color: #B0B3B8;">{{ p.created_at }}</div>
-                </div>
-            </div>
-            <div class="post-content">
-                {{ p.content | safe }}
-            </div>
-            {% if p.image_url %}
-            <img src="/static/{{ p.image_url }}" style="width: 100%; border-radius: 8px; margin-top: 10px;">
-            {% endif %}
-            <div class="post-actions">
-                <button class="btn btn-outline" style="width: auto;">Like ({{ p.likes }})</button>
+    </div>
+    
+    <div class="post-card">
+        <div class="post-header">
+            <a href="/profile/{{ p.user_id }}" class="avatar" style="text-decoration: none;">
+                {{ p.username[0].upper() }}
+            </a>
+            <div class="post-info">
+                <a href="/profile/{{ p.user_id }}" class="post-author">
+                    {{ p.username }}
+                    <span class="post-handle">@{{ p.username.lower() }}</span>
+                </a>
+                <div class="post-time">{{ p.created_at }}</div>
             </div>
         </div>
-        
-        <div class="card" style="margin-top: 1rem;">
-            <h3 style="margin-bottom: 1rem;">Comments ({{ comments|length }})</h3>
-            
-            {% if session.user_id %}
-            <form method="POST" action="/api/posts/{{ p.id }}/comments" style="margin-bottom: 2rem;">
-                <textarea name="content" class="form-control" placeholder="Write a comment..." rows="3" required></textarea>
-                <button type="submit" class="btn" style="width: auto; margin-top: 0.5rem;">Post Comment</button>
-            </form>
-            {% else %}
-            <p style="color: var(--text-muted); margin-bottom: 1rem;">
-                <a href="/login" style="color: var(--primary);">Login</a> to comment
-            </p>
-            {% endif %}
-            
-            {% for comment in comments %}
-            <div style="padding: 1rem 0; border-bottom: 1px solid var(--border);">
-                <div style="display: flex; gap: 10px;">
-                    <div class="avatar" style="width: 32px; height: 32px;"></div>
-                    <div style="flex: 1;">
-                        <div style="font-weight: bold; margin-bottom: 0.3rem;">
-                            <a href="/profile/{{ comment.user_id }}" style="color: white; text-decoration: none;">{{ comment.username }}</a>
-                        </div>
-                        <div style="color: var(--text-main); margin-bottom: 0.5rem;">{{ comment.content | safe }}</div>
-                        <div style="font-size: 0.8rem; color: #B0B3B8;">{{ comment.created_at }}</div>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-            
-            {% if not comments %}
-            <p style="text-align: center; color: var(--text-muted); padding: 2rem;">No comments yet. Be the first to comment!</p>
-            {% endif %}
+        <div class="post-content">
+            {{ p.content | safe }}
+        </div>
+        {% if p.image_url %}
+        <img src="/static/{{ p.image_url }}" class="post-image" alt="Post image">
+        {% endif %}
+        <div class="post-actions">
+            <button class="action-btn comment">
+                <span class="action-icon">💬</span>
+                <span>{{ comments|length }}</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">🔄</span>
+                <span>Repost</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">❤️</span>
+                <span>{{ p.likes }}</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">📤</span>
+                <span>Share</span>
+            </button>
         </div>
     </div>
+    
+    {% if session.user_id %}
+    <div class="post-composer">
+        <form method="POST" action="/api/posts/{{ p.id }}/comments" style="display: flex; flex-direction: column;">
+            <textarea name="content" class="composer-input" placeholder="Post your reply" rows="3" required></textarea>
+            <div class="composer-actions">
+                <div class="composer-icons"></div>
+                <button type="submit" class="btn btn-sm">Reply</button>
+            </div>
+        </form>
+    </div>
+    {% else %}
+    <div style="padding: 20px; text-align: center; border-bottom: 1px solid var(--border);">
+        <p style="color: var(--text-muted); margin-bottom: 12px;">Want to comment?</p>
+        <a href="/login" class="btn btn-sm" style="text-decoration: none; display: inline-block;">Login</a>
+    </div>
+    {% endif %}
+    
+    <div style="padding: 16px 20px; color: var(--text-muted); font-size: 15px; font-weight: 600; border-bottom: 1px solid var(--border);">
+        Replies ({{ comments|length }})
+    </div>
+    
+    {% for comment in comments %}
+    <div class="post-card" style="padding-left: 60px;">
+        <div class="post-header">
+            <a href="/profile/{{ comment.user_id }}" class="avatar" style="text-decoration: none; width: 40px; height: 40px;">
+                {{ comment.username[0].upper() }}
+            </a>
+            <div class="post-info">
+                <a href="/profile/{{ comment.user_id }}" class="post-author">
+                    {{ comment.username }}
+                    <span class="post-handle">@{{ comment.username.lower() }}</span>
+                </a>
+                <div class="post-time">{{ comment.created_at }}</div>
+            </div>
+        </div>
+        <div class="post-content">
+            {{ comment.content | safe }}
+        </div>
+        <div class="post-actions">
+            <button class="action-btn">
+                <span class="action-icon">❤️</span>
+            </button>
+            <button class="action-btn">
+                <span class="action-icon">💬</span>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if not comments %}
+    <div style="padding: 40px 20px; text-align: center; color: var(--text-muted);">
+        <p>No replies yet. Be the first to reply!</p>
+    </div>
+    {% endif %}
     """
     
-    full_html = HTML_TEMPLATE.replace('{{ content | safe }}', page_content)
+    full_html = HTML_TEMPLATE.replace('{% block header %}Home{% endblock %}', 'Post').replace('{% block content %}{% endblock %}', page_content)
     return render_template_string(full_html, p=dict(post), comments=[dict(c) for c in comments_list])
 
 @app.route('/api/posts/<post_id>', methods=['GET', 'DELETE'])
