@@ -2,7 +2,16 @@
 
 ## Overview
 
-This project implements a Deep Reinforcement Learning agent specifically refactored to verify vulenrabilities with high precision (**Agent 2.0**). It autonomously discovers web vulnerabilities using a **Kill Chain** approach and has been upgraded to support the **OWASP Top 10 2025** draft standards.
+A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulnerabilities using a **Kill Chain** approach. The agent learns optimal attack strategies through reinforcement learning and has been upgraded to support **OWASP Top 10 2025** standards.
+
+**Key Features:**
+- 🧠 Deep Q-Network (Double DQN) with experience replay
+- 🎯 100 real-world actions across 4 kill chain phases
+- 🎮 5 mock target applications for training
+- 🔍 Autonomous vulnerability scanning
+- 📊 Comprehensive reporting with CVSS scoring
+- ⚙️ Flexible configuration system
+- 📝 Clean, maintainable codebase with type hints
 
 ## 🚀 New in Agent 2.0 (2025 Edition)
 
@@ -90,14 +99,27 @@ python train_multi_target.py --episodes 1000 --resume <episode_number>
 
 ## Target Applications
 
-The agent trains against 6 vulnerable web applications:
+The agent trains against 5 mock vulnerable web applications:
 
-1. **target_app.py** - Core vulnerabilities (SQLi, XSS, IDOR)
-2. **target_app_ecommerce.py** - E-commerce logic flaws
-3. **target_app_social.py** - Social media vulnerabilities
-4. **target_app_lms.py** - Learning Management System
-5. **target_app_rsu.py** - University portal
-6. **target_app_dit_rsu.py** - Department portal
+1. **E-Commerce Platform** (`env/target_app_ecommerce.py`) - Port 5002
+   - SQL Injection, Mass Assignment, Price Manipulation, Race Conditions
+   
+2. **Social Media Platform** (`env/target_app_social.py`) - Port 5003
+   - XSS (Stored/Reflected), IDOR, File Upload, CSRF, SQL Injection
+   
+3. **Banking Application** (`env/target_app_banking.py`) - Port 5004
+   - CSRF, IDOR, Business Logic Flaws
+   
+4. **Blog Platform** (`env/target_app_blog.py`) - Port 5005
+   - Stored XSS (Posts/Comments), SSTI
+   
+5. **File Sharing Platform** (`env/target_app_fileshare.py`) - Port 5006
+   - Unrestricted File Upload, Path Traversal, IDOR
+
+**Start all targets:**
+```bash
+python start_services.py
+```
 
 ## Deployment
 
@@ -133,37 +155,76 @@ python scanner_gui.py
 ## Project Structure
 
 ```
-RL/
-├── agent/                  # DQN Agent implementation
-│   └── payload_manager.py  # 200+ attack payloads
-├── env/                    # Gym environment & target apps
-│   ├── web_sec_env.py     # Main environment (100 actions)
-│   └── target_app*.py     # Training targets (6 apps)
-├── utils/                  # Utilities
-│   ├── proxy_fetcher.py   # Auto-fetch proxies (6 sources)
-│   ├── vulnerability_database.py  # Vuln descriptions
-│   └── report_generator.py  # Report creation
-├── checkpoints/            # Saved models
-├── reports/                # Scan reports
-├── train_multi_target.py   # Training script
-├── autonomous_scan.py      # CLI scanner
-└── scanner_gui.py          # GUI application
+DQN web vul/
+├── agent/                           # DQN Agent implementation
+│   ├── dqn_agent.py                # Double DQN with experience replay
+│   └── payload_manager.py          # 200+ attack payloads
+│
+├── env/                             # Training environment & target apps
+│   ├── web_sec_env.py              # Gymnasium environment (100 actions)
+│   ├── target_app_ecommerce.py     # E-commerce (port 5002)
+│   ├── target_app_social.py        # Social media (port 5003)
+│   ├── target_app_banking.py       # Banking (port 5004)
+│   ├── target_app_blog.py          # Blog (port 5005)
+│   └── target_app_fileshare.py     # File share (port 5006)
+│
+├── utils/                           # Utility modules
+│   ├── proxy_fetcher.py            # Auto-fetch proxies (6 sources)
+│   ├── vulnerability_database.py   # Vulnerability descriptions
+│   ├── report_generator.py         # Report generation
+│   ├── target_hunter.py            # OSINT target discovery
+│   └── zero_day_hunter.py          # Fuzzing & CVE intelligence
+│
+├── docs/                            # Comprehensive documentation
+│   ├── CODE_STYLE.md               # Coding standards
+│   ├── PROJECT_OVERVIEW.md         # High-level overview
+│   ├── TECHNICAL_ARCHITECTURE.md   # Technical details
+│   └── [20+ more guides]
+│
+├── config.py                        # Centralized configuration
+├── start_services.py                # Start all target applications
+├── train_multi_target.py            # Multi-target training script
+├── autonomous_scan.py               # CLI vulnerability scanner
+└── scanner_gui.py                   # GUI application
+
+Data Directories:
+├── checkpoints/                     # Saved model checkpoints
+├── reports/                         # Generated scan reports
+├── logs/                            # Application logs
+└── uploads/                         # File upload storage
 ```
 
 ## Key Features
 
-✅ **100 Real-World Actions** (32 OSINT + 68 Attacks)  
-✅ **Phase-Based Learning** (Kill Chain progression)  
-✅ **MAX GPU Optimization** (8192 neurons, 4096 batch)  
-✅ **Multi-Target Training** (6 vulnerable apps)  
-✅ **Autonomous Deployment** (Scan any target)  
-✅ **200+ Attack Payloads** (SQL, XSS, SSRF, LFI, etc.)  
-✅ **Auto-Proxy Fetching** (6 sources, 200+ proxies)  
-✅ **Aggressive Scan Mode** (High-intensity scanning)  
-✅ **Full Exploit URLs** (Copy-paste ready)  
-✅ **Comprehensive Reports** (Impact, remediation, CVSS)  
-✅ **Stealth Options** (Proxy rotation, delays)  
-✅ **Auto-Resume Training** (`--latest` flag)
+### Agent Capabilities
+✅ **100 Real-World Actions** (4 kill chain phases)  
+✅ **Double DQN Architecture** with experience replay  
+✅ **Phase-Based Learning** (Progressive unlock system)  
+✅ **Flexible Configuration** (Centralized config system)  
+✅ **Type-Safe Code** (Type hints throughout)  
+✅ **Auto-Resume Training** (Checkpoint system)
+
+### Scanning Features
+✅ **Autonomous Vulnerability Discovery**  
+✅ **200+ Attack Payloads** (SQLi, XSS, SSRF, LFI, etc.)  
+✅ **Multi-Target Support** (5 mock applications)  
+✅ **OSINT Integration** (5 sources: Google, Shodan, etc.)  
+✅ **Proxy Support** (Auto-fetch from 6 sources)  
+✅ **Multiple Scan Modes** (Auto, Aggressive, OSINT, Specific)
+
+### Reporting & Output
+✅ **Comprehensive Reports** (HTML, Markdown, Text)  
+✅ **OWASP 2025 Mapping** (Latest vulnerability categories)  
+✅ **CVSS Scoring** (Risk assessment)  
+✅ **Exploitation Steps** (Step-by-step attack guides)  
+✅ **Real-World Impact** (Business consequences)
+
+### Code Quality
+✅ **Clean Architecture** (Modular, maintainable)  
+✅ **Type Hints** (Better IDE support, type safety)  
+✅ **Comprehensive Documentation** (25+ guides)  
+✅ **Configuration Management** (Centralized settings)  
+✅ **Error Handling** (Robust exception handling)
 
 ## Performance
 
