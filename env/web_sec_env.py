@@ -13,6 +13,7 @@ Concepts:
 - Reward: Points for doing good things (finding bugs) or bad things (crashing).
 """
 
+from flask import json
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np

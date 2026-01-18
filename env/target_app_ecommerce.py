@@ -602,7 +602,7 @@ def login():
             </div>
         </div>
         {{% endblock %}}
-        """.replace('{% extends "layout" %}', HTML_TEMPLATE, 1).replace('{{ msg }}', msg) # Simple replace for msg
+        """.replace('{{% extends "layout" %}}', HTML_TEMPLATE, 1).replace('{{{{ msg }}}}', msg) # Fix template replacement
         return render_template_string(form_html, msg=msg)
 
     # POST Logic with Enhanced Security
@@ -724,7 +724,7 @@ def get_products():
             </div>
             {% endfor %}
         </div>
-        {{% endblock %}}
+        {% endblock %}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE)
         
         return render_template_string(products_html, products=products)
