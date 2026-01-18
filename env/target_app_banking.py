@@ -8,14 +8,89 @@ Focus: CSRF, IDOR, Logic Flaws, XSS
  DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, session, redirect, url_for, render_template_string, make_response
+from flask import Flask, request, session, redirect, url_for, render_template_string, make_response, jsonify
 import sqlite3
 import hashlib
 import random
+import secrets
+import time
 
 app = Flask(__name__)
 app.secret_key = 'banking_secret_2025'
 DB_NAME = 'env/banking.db'
+
+# ============================================================================
+# MODERN SECURITY CONTROLS - For Advanced Agent Training
+# ============================================================================
+
+# Rate limiting (stricter for banking)
+request_counts = {}
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX = 20     # requests per window (stricter for banking)
+
+# CSRF protection
+csrf_tokens = {}
+
+# Security headers for financial applications
+SECURITY_HEADERS = {
+    'X-Frame-Options': 'DENY',  # Clickjacking protection
+    'X-Content-Type-Options': 'nosniff',  # MIME sniffing protection
+    'X-XSS-Protection': '1; mode=block',  # XSS protection
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',  # HSTS
+    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",  # CSP
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
+    'Cross-Origin-Embedder-Policy': 'require-corp',
+    'Cross-Origin-Opener-Policy': 'same-origin'
+}
+
+def generate_csrf_token():
+    """Generate CSRF token for forms."""
+    token = secrets.token_urlsafe(32)
+    session_id = session.get('session_id', 'anonymous')
+    csrf_tokens[session_id] = token
+    return token
+
+def validate_csrf_token(token):
+    """Validate CSRF token."""
+    session_id = session.get('session_id', 'anonymous')
+    stored_token = csrf_tokens.get(session_id)
+    return stored_token and stored_token == token
+
+def rate_limit_check():
+    """Stricter rate limiting for banking application."""
+    client_ip = request.remote_addr or '127.0.0.1'
+    current_time = time.time()
+
+    if client_ip not in request_counts:
+        request_counts[client_ip] = []
+
+    # Clean old requests
+    request_counts[client_ip] = [
+        req_time for req_time in request_counts[client_ip]
+        if current_time - req_time < RATE_LIMIT_WINDOW
+    ]
+
+    if len(request_counts[client_ip]) >= RATE_LIMIT_MAX:
+        return False  # Rate limited
+
+    request_counts[client_ip].append(current_time)
+    return True
+
+def add_security_headers(response):
+    """Add financial-grade security headers to response."""
+    for header, value in SECURITY_HEADERS.items():
+        response.headers[header] = value
+    return response
+
+def cors_preflight_response():
+    """Handle CORS preflight with strict banking policy."""
+    response = make_response()
+    # Banking apps typically don't allow CORS
+    response.headers['Access-Control-Allow-Origin'] = 'null'
+    response.headers['Access-Control-Allow-Methods'] = 'GET, POST'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response
 
 # ============================================================================
 # MODERN UI TEMPLATES
@@ -215,7 +290,8 @@ def init_db():
             ('lisa_garcia', hashlib.md5(b'password').hexdigest(), 1850.50, '1007'),
             ('tech_corp', hashlib.md5(b'password').hexdigest(), 150000.00, '2001'),
             ('retail_store', hashlib.md5(b'password').hexdigest(), 45000.00, '2002'),
-            ('freelancer_alex', hashlib.md5(b'password').hexdigest(), 6200.00, '1008')
+            ('freelancer_alex', hashlib.md5(b'password').hexdigest(), 6200.00, '1008'),
+            ('CTF{banking_idor_target_flag}', hashlib.md5(b'unknown').hexdigest(), 0.00, '9999')
         ]
         c.executemany('INSERT INTO users (username, password, balance, account_number) VALUES (?, ?, ?, ?)', users)
         
@@ -228,6 +304,7 @@ def init_db():
             (2, -45.00, 'Gas Station - Shell'),
             (2, -120.00, 'Electric Bill - City Power'),
             (2, -500.00, 'Transfer to Savings'),
+            (2, 0.00, 'CTF{banking_sql_injection_master_42}'),
             
             # sarah_johnson transactions
             (3, 4500.00, 'Salary Deposit - Design Studio'),
@@ -412,11 +489,35 @@ def dashboard():
     
     return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=user, transactions=transactions)
 
-@app.route('/transfer', methods=['POST'])
+@app.route('/transfer', methods=['POST', 'OPTIONS'])
 def transfer():
-    # VULN: CSRF (No token)
+    """Money transfer with modern security controls - VULN: CSRF bypass possible"""
+
+    # Handle CORS preflight (strict policy)
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
+    # Rate limiting (stricter for financial operations)
+    if not rate_limit_check():
+        response = make_response(render_template_string(
+            HTML_TEMPLATE.replace('{{ content | safe }}',
+            '<div class="alert alert-danger">Too many requests. Please try again later.</div>')
+        ), 429)
+        return add_security_headers(response)
+
+    # VULNERABILITY: CSRF protection with bypass opportunities
+    # The form includes CSRF tokens, but they can be bypassed
+    csrf_token = request.form.get('csrf_token')
+    if not csrf_token or not validate_csrf_token(csrf_token):
+        response = make_response(render_template_string(
+            HTML_TEMPLATE.replace('{{ content | safe }}',
+            '<div class="alert alert-danger">Missing or invalid security token.</div>')
+        ), 403)
+        return add_security_headers(response)
+
     if 'user_id' not in session:
-        return redirect('/')
+        response = make_response(redirect('/'))
+        return add_security_headers(response)
     
     to_account = request.form.get('to_account', '').strip()
     try:
@@ -475,11 +576,20 @@ def transfer():
     """
     return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
 
-@app.route('/transfer-form')
+@app.route('/transfer-form', methods=['GET', 'OPTIONS'])
 def transfer_form():
-    """Standalone transfer form"""
+    """Standalone transfer form with CSRF protection"""
+
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return cors_preflight_response()
+
     if 'user_id' not in session:
-        return redirect('/')
+        response = make_response(redirect('/'))
+        return add_security_headers(response)
+
+    # Generate CSRF token for the form
+    csrf_token = generate_csrf_token()
     
     conn = get_db()
     user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
@@ -495,6 +605,7 @@ def transfer_form():
             </div>
             
             <form method="POST" action="/transfer">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <div class="form-group">
                     <label>Recipient Account Number</label>
                     <input type="text" name="to_account" class="form-control" placeholder="e.g., 1002" required>
@@ -521,12 +632,22 @@ def transfer_form():
         </div>
     </div>
     """
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=dict(user))
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=dict(user), csrf_token=csrf_token)
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/')
+
+# ============================================================================
+# ENHANCED SECURITY HEADERS
+# ============================================================================
+
+# Add security headers to all responses
+@app.after_request
+def apply_security_headers(response):
+    """Apply financial-grade security headers to all responses."""
+    return add_security_headers(response)
 
 if __name__ == '__main__':
     print("=" * 70)

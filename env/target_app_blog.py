@@ -12,6 +12,7 @@ from flask import Flask, request, session, redirect, render_template_string
 import sqlite3
 import hashlib
 import os
+import jwt
 
 app = Flask(__name__)
 app.secret_key = 'blog_secret_2025'
@@ -203,6 +204,10 @@ LOGIN_PAGE = """
             <input type="text" name="username" placeholder="Username" required>
             <input type="password" name="password" placeholder="Password" required>
             <input type="submit" value="Sign In">
+            <div style="margin-top: 20px; text-align: center; border-top: 1px solid #ddd; padding-top: 15px;">
+                <span style="color: #666; font-size: 13px;">or</span>
+            </div>
+            <a href="/oidc/login" class="btn" style="display: block; width: 100%; text-align: center; margin-top: 10px; background: #666;">Connect with DevAuth (OIDC)</a>
         </form>
         <div class="links">
             <a href="/register">Create account</a> | <a href="/">Home</a>
@@ -477,6 +482,7 @@ def init_db():
         # Create diverse blog posts
         posts = [
             (1, 'Welcome to VulnBlog!', 'This is a deliberately vulnerable blog platform for security research. Feel free to explore and test!'),
+            (1, 'Secret Admin Note', 'CTF{blog_stored_xss_champion_99} - Keep this hidden!'),
             (2, 'Getting Started with Python in 2024', 'Python continues to dominate as one of the most popular programming languages. Here are the essential tools and frameworks you need to know...'),
             (2, '10 VS Code Extensions Every Developer Needs', 'Boost your productivity with these must-have extensions. From code formatting to Git integration, these tools will transform your workflow...'),
             (3, 'Hidden Gems of Southeast Asia', 'Beyond the tourist hotspots, Southeast Asia offers incredible hidden destinations. Let me share my favorites from 3 years of travel...'),
@@ -495,7 +501,8 @@ def init_db():
             (2, 'TypeScript vs JavaScript in 2024', 'The debate continues. Here\'s my take after using both in production for 5 years...'),
             (3, 'Backpacking Through Patagonia', 'The trek through Torres del Paine was the most challenging and rewarding experience of my life. Here\'s my complete guide...'),
             (4, 'Fermentation 101: Making Kimchi at Home', 'Fermented foods are having a moment, and for good reason. Let\'s start with homemade kimchi...'),
-            (5, 'Work-Life Balance in the Remote Era', 'Working from home blurred all the boundaries. Here\'s how I reclaimed my work-life balance...')
+            (5, 'Work-Life Balance in the Remote Era', 'Working from home blurred all the boundaries. Here\'s how I reclaimed my work-life balance...'),
+            (1, 'Database Configuration (Private)', 'CTF{blog_sqli_hidden_post_flag_55} - DO NOT PUBLISH')
         ]
         c.executemany('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)', posts)
     
@@ -579,6 +586,50 @@ def register():
             conn.close()
     
     return render_template_string(LOGIN_PAGE.replace('Login', 'Register'))
+
+# ============================================================================
+# JWT / OIDC VULNERABILITY IMPLEMENTATION
+# ============================================================================
+
+@app.route('/oidc/login')
+def oidc_login():
+    """Initiate OIDC flow"""
+    # Create an unsigned JWT for demonstration (in real flow this comes from provider)
+    # Payload: {"user": "demo", "role": "user"}
+    # Vulnerable because we accept "alg": "none" in callback
+    token = jwt.encode({"user": "demo", "role": "user"}, key=None, algorithm=None)
+    return redirect(url_for('oidc_callback', token=token))
+
+@app.route('/oidc/callback')
+def oidc_callback():
+    """Handle OIDC callback (VULNERABLE: 'alg': 'none' attack)"""
+    token = request.args.get('token')
+    
+    try:
+        # VULNERABILITY: Explicitly allowing 'none' algorithm
+        # In pyjwt < 2.0 this was default behavior if not properly handled.
+        # Here we simulate it by decoding without verification if header says none.
+        header = jwt.get_unverified_header(token)
+        
+        if header.get('alg') == 'none' or header.get('alg') == None:
+             payload = jwt.decode(token, options={"verify_signature": False})
+             
+             if payload.get('user') == 'admin':
+                 # Use HOME_PAGE as base but simpler content since HTML_TEMPLATE doesn't exist here
+                 flag_content = '<div class="post-card" style="margin-top: 50px;"><h3>🎉 Authentication Bypass Successful</h3><div style="background: #28a745; color: white; padding: 15px; border-radius: 5px; margin-top: 15px;">CTF{jwt_none_algorithm_bypass_99}</div></div>'
+                 full_html = HOME_PAGE.replace('<h2 style="margin-bottom: 30px; font-size: 32px;">Latest Stories</h2>', flag_content)
+                 # Remove the loop part which might cause render errors if posts not passed
+                 full_html = full_html.split('{% for post in posts %}')[0] + '</div></body></html>'
+                 return render_template_string(full_html, session=session, posts=[])
+                 
+             session['user_id'] = 999
+             session['username'] = payload.get('user', 'dev_user')
+             return redirect('/?msg=Logged in via DevAuth')
+             
+    except Exception as e:
+        return f"OIDC Error: {str(e)}", 400
+        
+    return "Invalid Token", 400
 
 @app.route('/new-post', methods=['GET', 'POST'])
 def new_post():

