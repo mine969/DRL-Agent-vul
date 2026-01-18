@@ -70,15 +70,13 @@ class MockTargetsTrainer:
             
             if latest_path:
                 print(f"✅ Resuming from checkpoint: {latest_path}")
-                self.agent.brain.load_state_dict(torch.load(latest_path, map_location=device))
-                self.agent.target_brain.load_state_dict(self.agent.brain.state_dict())
+                self.agent.load(latest_path)
                 self.start_episode = latest_ep + 1
             else:
                 # Fallback to base model
                 print(f"🆕 Starting fresh (or from base model)")
                 try:
-                    self.agent.brain.load_state_dict(torch.load(self.model_path, map_location=device))
-                    self.agent.target_brain.load_state_dict(self.agent.brain.state_dict())
+                    self.agent.load(self.model_path)
                     print(f"✅ Loaded base model: {self.model_path}")
                 except:
                     print("⚠️ No base model found, initializing random weights")
@@ -146,8 +144,8 @@ class MockTargetsTrainer:
     def _save_checkpoint(self, episode):
         os.makedirs("checkpoints", exist_ok=True)
         path = f"checkpoints/{self.checkpoint_prefix}_ep{episode}.pth"
-        torch.save(self.agent.brain.state_dict(), path)
-        print(f"💾 Saved checkpoint: {path}")
+        self.agent.save(path)
+        print(f"💾 Checkpoint saved: {path}")
 
 if __name__ == "__main__":
     import argparse
