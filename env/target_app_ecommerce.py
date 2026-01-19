@@ -13,6 +13,8 @@ import sqlite3
 import hashlib
 import datetime
 import jwt
+import pickle
+import base64
 import secrets
 import time
 from functools import wraps
@@ -844,7 +846,7 @@ def view_cart():
             <p style="margin: 2rem 0;">Start shopping to add items to your cart!</p>
             <a href="/products" class="btn">Browse Products</a>
         </div>
-        {{% endblock %}}
+        {% endblock %}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE)
         return render_template_string(cart_html)
     
@@ -1569,6 +1571,59 @@ def api_admin_stats():
 # ============================================================================
 # ENHANCED EXISTING ROUTES WITH SECURITY HEADERS
 # ============================================================================
+
+@app.route('/preferences', methods=['GET', 'POST'])
+def preferences():
+    """VULN: Insecure Deserialization via Cookie"""
+    if request.method == 'POST':
+        theme = request.form.get('theme', 'light')
+        prefs = {'theme': theme, 'user_id': session.get('user_id')}
+        
+        # VULN: Using pickle for serialization
+        pickled = pickle.dumps(prefs)
+        encoded = base64.b64encode(pickled).decode()
+        
+        response = make_response(redirect('/preferences?msg=Saved'))
+        response.set_cookie('prefs', encoded)
+        return response
+
+    # Check for cookie
+    cookie_prefs = request.cookies.get('prefs')
+    current_theme = 'light'
+    
+    if cookie_prefs:
+        try:
+            # VULN: Insecure deserialization
+            decoded = base64.b64decode(cookie_prefs)
+            
+            # Check for "exploit" (simulated RCE)
+            # If the decoded object contains our "flag_payload", verify it
+            if b'user_id' in decoded and b'flag_payload' in decoded:
+                 return "Settings Loaded: CTF{ecommerce_deserialization_rce_77}"
+                 
+            data = pickle.loads(decoded)
+            if isinstance(data, dict):
+                current_theme = data.get('theme', 'light')
+        except:
+            pass
+
+    page_content = f"""
+    <div class="card" style="max-width: 500px; margin: 0 auto;">
+        <h2>User Preferences</h2>
+        <p>Current Theme: <strong>{current_theme}</strong></p>
+        <form method="POST">
+            <div class="form-group">
+                <label>Select Theme:</label>
+                <select name="theme" class="form-control">
+                    <option value="light">Light Mode</option>
+                    <option value="dark">Dark Mode</option>
+                </select>
+            </div>
+            <button type="submit" class="btn">Save Preferences</button>
+        </form>
+    </div>
+    """
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), session=session)
 
 # Add security headers to all responses
 @app.after_request

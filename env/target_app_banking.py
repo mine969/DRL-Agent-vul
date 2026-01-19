@@ -489,6 +489,40 @@ def dashboard():
     
     return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=user, transactions=transactions)
 
+@app.route('/account/<int:user_id>')
+def account(user_id):
+    """View account details - VULN: IDOR (no authorization check)"""
+    # VULNERABILITY: No check if logged-in user owns this account
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+    
+    if not user:
+        conn.close()
+        return "Account not found", 404
+    
+    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 50', (user_id,)).fetchall()
+    conn.close()
+    
+    page_content = f"""
+    <div class="card">
+        <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Account Details</h2>
+        <div style="background: rgba(37, 99, 235, 0.05); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+            <p style="margin-bottom: 0.5rem;"><strong>Account Holder:</strong> {user['username']}</p>
+            <p style="margin-bottom: 0.5rem;"><strong>Account Number:</strong> <span style="font-family: monospace;">{user['account_number']}</span></p>
+            <p style="margin-bottom: 0;"><strong>Balance:</strong> <span style="color: var(--secondary); font-size: 1.5rem; font-weight: 700;">${user['balance']:.2f}</span></p>
+        </div>
+        
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Recent Transactions</h3>
+        {''.join([f'<div style="padding: 0.75rem; border-bottom: 1px solid var(--border);"><div style="font-weight: 500;">{t["description"]}</div><div style="color: {"var(--secondary)" if t["amount"] > 0 else "#EF4444"}; font-weight: 600;">${t["amount"]:.2f}</div></div>' for t in transactions]) if transactions else '<p style="color: var(--text-muted);">No transactions</p>'}
+        
+        <div style="margin-top: 2rem;">
+            <a href="/dashboard" class="btn">Back to Dashboard</a>
+        </div>
+    </div>
+    """
+    
+    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
+
 @app.route('/transfer', methods=['POST', 'OPTIONS'])
 def transfer():
     """Money transfer with modern security controls - VULN: CSRF bypass possible"""
@@ -506,14 +540,20 @@ def transfer():
         return add_security_headers(response)
 
     # VULNERABILITY: CSRF protection with bypass opportunities
-    # The form includes CSRF tokens, but they can be bypassed
+    # The form includes CSRF tokens, but we intentionally allow requests without them
     csrf_token = request.form.get('csrf_token')
+    # if not csrf_token or not validate_csrf_token(csrf_token):
+    #    response = make_response(render_template_string(
+    #        HTML_TEMPLATE.replace('{{ content | safe }}',
+    #        '<div class="alert alert-danger">Missing or invalid security token.</div>')
+    #    ), 403)
+    #    return add_security_headers(response)
+    
+    # CSRF Bypass Flag logic
+    csrf_flag = ""
     if not csrf_token or not validate_csrf_token(csrf_token):
-        response = make_response(render_template_string(
-            HTML_TEMPLATE.replace('{{ content | safe }}',
-            '<div class="alert alert-danger">Missing or invalid security token.</div>')
-        ), 403)
-        return add_security_headers(response)
+        # Request succeeded despite invalid token -> Vulnerablity Exploited
+        csrf_flag = " CTF{banking_csrf_protection_bypassed_22}"
 
     if 'user_id' not in session:
         response = make_response(redirect('/'))
@@ -554,7 +594,7 @@ def transfer():
         conn.execute('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', 
                     (recipient['id'], amount, f"Transfer from {sender['account_number']} - {sender['username']}"))
         conn.commit()
-        msg = f"Transfer successful! ${amount:.2f} sent to account {to_account}"
+        msg = f"Transfer successful! ${amount:.2f} sent to account {to_account}" + csrf_flag
         status = "success"
     
     conn.close()

@@ -1,4 +1,4 @@
-    def _register_missing_actions(self):
+def _register_missing_actions(self):
         """Registers valid placeholders for missing attack methods."""
         missing_methods = [
             'attack_account_lockout_bypass', 'attack_authorization_bypass', 'attack_bac_admin_settings',
@@ -38,7 +38,7 @@
                 setattr(self, method_name, 
                         lambda safe_name=method_name: self._generic_attack_placeholder(safe_name))
 
-    def _generic_attack_placeholder(self, name):
+def _generic_attack_placeholder(self, name):
         """Placeholder for advanced attacks not yet fully implemented."""
         # Simple logging or weak attempt
         # print(f"Executing placeholder for {name}")

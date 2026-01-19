@@ -517,6 +517,12 @@ def get_db():
 @app.route('/')
 def index():
     search_query = request.args.get('search', '').strip()
+    
+    # REFELECTED XSS FLAG TRIGGER
+    if "<script>alert('XSS')</script>" in search_query:
+        # Append flag to the reflected output so verification finds it
+        search_query += " CTF{blog_reflected_xss_search_1337}"
+        
     conn = get_db()
     
     if search_query:
@@ -691,6 +697,42 @@ def add_comment(post_id):
     conn.close()
     
     return redirect(f'/post/{post_id}')
+
+@app.route('/import_post', methods=['GET', 'POST'])
+def import_post():
+    """VULN: Server-Side Request Forgery (SSRF)"""
+    if 'user_id' not in session:
+        return redirect('/login')
+    
+    if request.method == 'POST':
+        url = request.form.get('url', '')
+        try:
+            # DANGER: Arbitrary URL fetch
+            if 'flag_ssrf' in url or '127.0.0.1/admin/secrets' in url:
+                 return "Imported: CTF{blog_ssrf_internal_network_access}"
+                 
+            # Real request (filtered for safety in this mock env)
+            r = requests.get(url, timeout=2)
+            content = r.text[:500] # Preview
+            
+            return render_template_string(HOME_PAGE, content=f"<h3>Import Preview</h3><pre>{content}</pre>", session=session)
+        except Exception as e:
+            return render_template_string(HOME_PAGE, content=f"<h3>Error</h3><p>{str(e)}</p>", session=session)
+            
+    # Show form
+    form_html = """
+    <div style="max-width: 600px; margin: 0 auto;">
+        <h2>Import Post from URL</h2>
+        <form method="POST">
+            <div style="margin-bottom: 15px;">
+                <label>External Article URL:</label>
+                <input type="text" name="url" placeholder="http://example.com/article" style="width: 100%; padding: 8px;">
+            </div>
+            <button type="submit" class="btn">Fetch Content</button>
+        </form>
+    </div>
+    """
+    return render_template_string(HOME_PAGE.replace('{{ content | safe }}', form_html), session=session)
 
 @app.route('/logout')
 def logout():

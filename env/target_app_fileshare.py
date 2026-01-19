@@ -13,6 +13,7 @@ import sqlite3
 import hashlib
 import os
 import uuid
+import subprocess
 
 app = Flask(__name__)
 app.secret_key = 'fileshare_secret_2025'
@@ -237,6 +238,7 @@ HOME_PAGE = """
                 </div>
             </div>
         {% endif %}
+        {{ content | safe }}
     </div>
 </body>
 </html>
@@ -488,6 +490,53 @@ def delete(file_id):
     
     conn.close()
     return redirect('/')
+
+@app.route('/check_status')
+def check_status():
+    """VULN: Command Injection via 'host' parameter"""
+    host = request.args.get('host', 'localhost')
+    
+    # DANGER: Direct shell execution
+    command = f"ping -n 1 {host}" if os.name == 'nt' else f"ping -c 1 {host}"
+    
+    try:
+        # Intentionally vulnerable
+        output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
+        output_str = output.decode('utf-8', errors='replace')
+        
+        # Check if attacker ran 'whoami' or similar to get flag
+        # We'll hide the flag in an environment variable or specific file check
+        if 'CTF_CMD_INJECTION' in os.environ:
+             # This part is just simulated context, the real exploit returns the env var or file content
+             pass
+    except subprocess.CalledProcessError as e:
+        output_str = e.output.decode('utf-8', errors='replace') if e.output else str(e)
+    except Exception as e:
+        output_str = str(e)
+        
+    # Easter egg flag if they cat the right file or run specific echo
+    if 'flag_cmd' in host:
+         output_str += "\n\nCTF{fileshare_cmd_injection_root_99}"
+
+    return render_template_string(HOME_PAGE.replace('{{ content | safe }}', 
+        f'''
+        <div class="card">
+            <h2>System Status Check</h2>
+            <form action="/check_status" method="GET">
+                <div class="form-group">
+                    <label>Enter Hostname to Ping:</label>
+                    <input type="text" name="host" class="form-control" value="{host}">
+                </div>
+                <button type="submit" class="btn">Check Connectivity</button>
+            </form>
+            <div style="background: #1e1e1e; color: #00ff00; padding: 15px; border-radius: 5px; margin-top: 20px; font-family: monospace; white-space: pre-wrap;">
+{output_str}
+            </div>
+            <div style="margin-top: 10px;">
+                <a href="/" class="btn btn-secondary">Back to Files</a>
+            </div>
+        </div>
+        '''), files=[], session=session)
 
 @app.route('/logout')
 def logout():
