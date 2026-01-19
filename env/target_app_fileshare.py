@@ -8,7 +8,7 @@ Focus: File Upload, Path Traversal, IDOR, XXE
  DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, session, redirect, render_template_string, send_file
+from flask import Flask, request, session, redirect, render_template_string, send_file, make_response, jsonify
 import sqlite3
 import hashlib
 import os
@@ -20,7 +20,54 @@ app.secret_key = 'fileshare_secret_2025'
 DB_NAME = 'env/fileshare.db'
 UPLOAD_FOLDER = 'uploads'
 
+# Fix: Ensure env directory exists before DB operations
+os.makedirs("env", exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# SECURITY CONFIG
+request_counts = {}
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_MAX = 3000
+
+SECURITY_HEADERS = {
+    'X-Frame-Options': 'SAMEORIGIN',
+    'X-Content-Type-Options': 'nosniff',
+    'X-XSS-Protection': '1; mode=block',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'Content-Security-Policy': "default-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;",
+}
+
+import time
+
+def rate_limit_check():
+    client_ip = request.remote_addr or '127.0.0.1'
+    current_time = time.time()
+    
+    if client_ip not in request_counts:
+        request_counts[client_ip] = []
+        
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < RATE_LIMIT_WINDOW]
+    
+    if len(request_counts[client_ip]) >= RATE_LIMIT_MAX:
+        return False
+        
+    request_counts[client_ip].append(current_time)
+    return True
+
+def add_security_headers(response):
+    for k, v in SECURITY_HEADERS.items():
+        if k not in response.headers:
+            response.headers[k] = v
+    return response
+
+@app.before_request
+def before_request():
+    if not rate_limit_check():
+        return "Rate limit exceeded", 429
+        
+@app.after_request
+def after_request(response):
+    return add_security_headers(response)
 
 # HTML TEMPLATES
 HOME_PAGE = """
@@ -456,10 +503,16 @@ def upload():
     alert_div = '<div class="alert alert-success">' + success_msg + '</div>'
     msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
         alert_div + '{% if session.get(\'username\') %}')
-    conn = get_db()
     files = conn.execute('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', (session['user_id'],)).fetchall()
     conn.close()
-    return render_template_string(msg_html, files=files, session=session)
+    
+    response = make_response(render_template_string(msg_html, files=files, session=session))
+    
+    # Check for vulnerability confirmation
+    if not file.filename.lower().endswith(('.txt', '.pdf', '.png', '.jpg', '.jpeg', '.gif')):
+         response.headers['X-Vuln-Confirmed'] = 'UNRESTRICTED_FILE_UPLOAD'
+         
+    return response
 
 @app.route('/download/<int:file_id>')
 def download(file_id):
@@ -517,14 +570,15 @@ def check_status():
     # Easter egg flag if they cat the right file or run specific echo
     if 'flag_cmd' in host:
          output_str += "\n\nCTF{fileshare_cmd_injection_root_99}"
-
-    return render_template_string(HOME_PAGE.replace('{{ content | safe }}', 
+         
+    page_content = HOME_PAGE.replace('{{ content | safe }}', 
         f'''
         <div class="card">
             <h2>System Status Check</h2>
             <form action="/check_status" method="GET">
                 <div class="form-group">
                     <label>Enter Hostname to Ping:</label>
+                    <input type="text" name="hostname" class="form-control" value="{host}"> <!-- Fix name to host? No, view uses host -->
                     <input type="text" name="host" class="form-control" value="{host}">
                 </div>
                 <button type="submit" class="btn">Check Connectivity</button>
@@ -536,7 +590,40 @@ def check_status():
                 <a href="/" class="btn btn-secondary">Back to Files</a>
             </div>
         </div>
-        '''), files=[], session=session)
+        ''')
+        
+    response = make_response(render_template_string(page_content, files=[], session=session))
+    if 'CTF{' in output_str:
+        response.headers['X-Vuln-Confirmed'] = 'CMD_INJECTION'
+    return response
+
+# ============================================================================
+# RESET ENDPOINT
+# ============================================================================
+
+@app.route('/api/reset', methods=['POST'])
+def reset_env():
+    """Reset environment state for training"""
+    try:
+        # Re-initialize DB
+        conn = sqlite3.connect(DB_NAME)
+        conn.close()
+        os.remove(DB_NAME)
+        
+        # Clean uploads (optional, but good for cleanup)
+        for f in os.listdir(UPLOAD_FOLDER):
+             if f != 'flag.txt': 
+                 try:
+                     os.remove(os.path.join(UPLOAD_FOLDER, f))
+                 except: pass
+    except:
+        pass
+    init_db()
+    
+    # Clear session
+    session.clear()
+    
+    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
 
 @app.route('/logout')
 def logout():

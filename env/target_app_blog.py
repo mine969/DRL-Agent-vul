@@ -8,15 +8,64 @@ Focus: XSS, SSTI, CSRF, File Inclusion
 ⚠️ DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, session, redirect, render_template_string
+from flask import Flask, request, session, redirect, render_template_string, url_for, make_response, jsonify
 import sqlite3
 import hashlib
 import os
 import jwt
+import requests  # Fix: Missing import for SSRF functionality
 
 app = Flask(__name__)
 app.secret_key = 'blog_secret_2025'
 DB_NAME = 'env/blog.db'
+
+# Fix: Ensure env directory exists before DB operations
+os.makedirs("env", exist_ok=True)
+
+# SECURITY CONFIG
+request_counts = {}
+RATE_LIMIT_WINDOW = 60
+RATE_LIMIT_MAX = 3000
+
+SECURITY_HEADERS = {
+    'X-Frame-Options': 'SAMEORIGIN',
+    'X-Content-Type-Options': 'nosniff',
+    'X-XSS-Protection': '1; mode=block',
+    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+    'Content-Security-Policy': "default-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;",
+}
+
+import time
+
+def rate_limit_check():
+    client_ip = request.remote_addr or '127.0.0.1'
+    current_time = time.time()
+    
+    if client_ip not in request_counts:
+        request_counts[client_ip] = []
+        
+    request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < RATE_LIMIT_WINDOW]
+    
+    if len(request_counts[client_ip]) >= RATE_LIMIT_MAX:
+        return False
+        
+    request_counts[client_ip].append(current_time)
+    return True
+
+def add_security_headers(response):
+    for k, v in SECURITY_HEADERS.items():
+        if k not in response.headers:
+            response.headers[k] = v
+    return response
+
+@app.before_request
+def before_request():
+    if not rate_limit_check():
+        return "Rate limit exceeded", 429
+        
+@app.after_request
+def after_request(response):
+    return add_security_headers(response)
 
 # HTML TEMPLATES
 HOME_PAGE = """
@@ -522,6 +571,10 @@ def index():
     if "<script>alert('XSS')</script>" in search_query:
         # Append flag to the reflected output so verification finds it
         search_query += " CTF{blog_reflected_xss_search_1337}"
+        # Set header for agent detection
+        if 'X-Vuln-Confirmed' not in request.headers:
+             # We can't set header on request, we set on response later
+             pass
         
     conn = get_db()
     
@@ -553,7 +606,10 @@ def index():
         </div>'''
     )
     
-    return render_template_string(home_with_search, posts=posts, session=session, search_query=search_query)
+    response = make_response(render_template_string(home_with_search, posts=posts, session=session, search_query=search_query))
+    if "CTF{blog_reflected_xss_search_1337}" in search_query:
+        response.headers['X-Vuln-Confirmed'] = 'REFLECTED_XSS'
+    return response
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -626,7 +682,11 @@ def oidc_callback():
                  full_html = HOME_PAGE.replace('<h2 style="margin-bottom: 30px; font-size: 32px;">Latest Stories</h2>', flag_content)
                  # Remove the loop part which might cause render errors if posts not passed
                  full_html = full_html.split('{% for post in posts %}')[0] + '</div></body></html>'
-                 return render_template_string(full_html, session=session, posts=[])
+                 full_html = full_html.split('{% for post in posts %}')[0] + '</div></body></html>'
+                 
+                 response = make_response(render_template_string(full_html, session=session, posts=[]))
+                 response.headers['X-Vuln-Confirmed'] = 'JWT_NONE_ALG'
+                 return response
                  
              session['user_id'] = 999
              session['username'] = payload.get('user', 'dev_user')
@@ -733,6 +793,27 @@ def import_post():
     </div>
     """
     return render_template_string(HOME_PAGE.replace('{{ content | safe }}', form_html), session=session)
+
+# ============================================================================
+# RESET ENDPOINT
+# ============================================================================
+
+@app.route('/api/reset', methods=['POST'])
+def reset_env():
+    """Reset environment state for training"""
+    try:
+        # Re-initialize DB
+        conn = sqlite3.connect(DB_NAME)
+        conn.close()
+        os.remove(DB_NAME)
+    except:
+        pass
+    init_db()
+    
+    # Clear session
+    session.clear()
+    
+    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
 
 @app.route('/logout')
 def logout():

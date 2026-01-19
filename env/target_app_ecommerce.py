@@ -24,6 +24,10 @@ app.secret_key = 'ecommerce_secret_2025'
 JWT_SECRET = 'ecommerce_jwt_secret'
 DB_NAME = 'env/ecommerce.db'
 
+# Fix: Ensure env directory exists before DB operations
+import os
+os.makedirs("env", exist_ok=True)
+
 # ============================================================================
 # MODERN SECURITY CONTROLS - For Advanced Agent Training
 # ============================================================================
@@ -31,7 +35,7 @@ DB_NAME = 'env/ecommerce.db'
 # Rate limiting (simulates WAF)
 request_counts = {}
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX = 30    # requests per window
+RATE_LIMIT_MAX = 3000    # requests per window (Increased for training)
 
 # CSRF protection
 csrf_tokens = {}
@@ -563,7 +567,7 @@ def register():
 
     try:
         # VULNERABILITY: Mass assignment - accepts any role/balance from client
-        conn.execute(
+        cursor = conn.execute(
             'INSERT INTO users (username, email, password, role, balance) VALUES (?, ?, ?, ?, ?)',
             (username, data.get('email'),
              hashlib.md5(data.get('password', '').encode()).hexdigest(),
@@ -571,10 +575,15 @@ def register():
              float(data.get('balance', 100.0)))  # VULN: Mass assignment
         )
         conn.commit()
+        
+        user_id = cursor.lastrowid
 
         # Set session for successful registration
-        session['user_id'] = username
+        session['user_id'] = user_id  # Fix: Use Integer ID
+        session['username'] = username
+        session['role'] = data.get('role', 'customer')
         session['session_id'] = secrets.token_urlsafe(16)
+        session.permanent = True
 
         response = make_response(redirect('/login?msg=Registered successfully'))
         return add_security_headers(response)
@@ -1378,13 +1387,7 @@ def process_payment():
 # ADMIN
 # ============================================================================
 
-@app.route('/api/admin/users', methods=['GET'])
-def admin_users():
-    """Admin users - VULN: Broken Access Control"""
-    conn = get_db()
-    users = conn.execute('SELECT id, username, email, role, balance FROM users').fetchall()
-    conn.close()
-    return jsonify({'users': [dict(u) for u in users], 'vuln': 'Broken Access Control'})
+# Duplicate /api/admin/users removed. Handled by JWT version below.
 
 @app.route('/api/admin/stats', methods=['GET'])
 def admin_stats():
@@ -1404,6 +1407,23 @@ def admin_stats():
 # ============================================================================
 # MISC
 # ============================================================================
+
+@app.route('/api/reset', methods=['POST'])
+def reset_env():
+    """Reset environment state for training"""
+    try:
+        # Re-initialize DB
+        conn = sqlite3.connect(DB_NAME)
+        conn.close()
+        os.remove(DB_NAME)
+    except:
+        pass
+    init_db()
+    
+    # Clear session
+    session.clear()
+    
+    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
 
 @app.route('/api/health', methods=['GET'])
 def health():
@@ -1534,8 +1554,10 @@ def api_admin_users():
         conn.close()
 
         response = make_response(jsonify({
-            'users': [dict(user) for user in users]
+            'users': [dict(user) for user in users],
+            'vuln': 'Broken Access Control'
         }))
+        response.headers['X-Vuln-Confirmed'] = '1'
         return add_security_headers(response)
 
     except Exception as e:
@@ -1560,8 +1582,10 @@ def api_admin_stats():
         response = make_response(jsonify({
             'stats': dict(stats),
             'secret_key': JWT_SECRET,  # VULN: Info disclosure
-            'jwt_secret': JWT_SECRET   # VULN: Info disclosure
+            'jwt_secret': JWT_SECRET,   # VULN: Info disclosure
+            'vuln': 'Information Disclosure'
         }))
+        response.headers['X-Vuln-Confirmed'] = '1'
         return add_security_headers(response)
 
     except Exception as e:

@@ -19,6 +19,10 @@ app = Flask(__name__)
 app.secret_key = 'banking_secret_2025'
 DB_NAME = 'env/banking.db'
 
+# Fix: Ensure env directory exists before DB operations
+import os
+os.makedirs("env", exist_ok=True)
+
 # ============================================================================
 # MODERN SECURITY CONTROLS - For Advanced Agent Training
 # ============================================================================
@@ -26,7 +30,7 @@ DB_NAME = 'env/banking.db'
 # Rate limiting (stricter for banking)
 request_counts = {}
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX = 20     # requests per window (stricter for banking)
+RATE_LIMIT_MAX = 3000     # requests per window (stricter for banking)
 
 # CSRF protection
 csrf_tokens = {}
@@ -521,7 +525,13 @@ def account(user_id):
     </div>
     """
     
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
+    response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
+    
+    # Check for IDOR
+    if 'user_id' in session and session['user_id'] != user_id:
+        response.headers['X-Vuln-Confirmed'] = 'IDOR_ACCOUNT_VIEW'
+        
+    return response
 
 @app.route('/transfer', methods=['POST', 'OPTIONS'])
 def transfer():
@@ -614,7 +624,11 @@ def transfer():
         </div>
     </div>
     """
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
+    response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
+    if csrf_flag:
+        response.headers['X-Vuln-Confirmed'] = 'CSRF_BYPASS'
+        
+    return response
 
 @app.route('/transfer-form', methods=['GET', 'OPTIONS'])
 def transfer_form():
@@ -678,6 +692,27 @@ def transfer_form():
 def logout():
     session.clear()
     return redirect('/')
+
+# ============================================================================
+# RESET ENDPOINT
+# ============================================================================
+
+@app.route('/api/reset', methods=['POST'])
+def reset_env():
+    """Reset environment state for training"""
+    try:
+        # Re-initialize DB
+        conn = sqlite3.connect(DB_NAME)
+        conn.close()
+        os.remove(DB_NAME)
+    except:
+        pass
+    init_db()
+    
+    # Clear session
+    session.clear()
+    
+    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
 
 # ============================================================================
 # ENHANCED SECURITY HEADERS

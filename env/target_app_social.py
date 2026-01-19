@@ -23,6 +23,8 @@ app = Flask(__name__)
 app.secret_key = 'social_secret_2025'
 JWT_SECRET = 'social_jwt_secret_2025'
 DB_NAME = 'env/social.db'
+# Fix: Ensure env directory exists before DB operations
+os.makedirs("env", exist_ok=True)
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'}
 
@@ -35,7 +37,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 # Rate limiting (simulates WAF)
 request_counts = {}
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX = 30    # requests per window
+RATE_LIMIT_MAX = 3000    # requests per window (Increased for training)
 
 # CSRF protection
 csrf_tokens = {}
@@ -833,20 +835,25 @@ def register():
     conn = get_db()
     try:
         # VULNERABILITY: Weak password policy - no complexity requirements
-        conn.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
+        cursor = conn.execute('INSERT INTO users (username, email, password) VALUES (?, ?, ?)',
                     (username, email, hashlib.md5(password.encode()).hexdigest()))
         conn.commit()
+        
+        user_id = cursor.lastrowid
 
         # Set session
-        session['user_id'] = username
+        session['user_id'] = user_id  # Fix: Use Integer ID
+        session['username'] = username
         session['session_id'] = secrets.token_urlsafe(16)
 
         # Check if API request
         if request.is_json:
             response = make_response(jsonify({'message': 'Registration successful'}))
+            response.headers['X-Vuln-Confirmed'] = 'WEAK_PASSWORD' # Ground Truth
             return add_security_headers(response)
 
         response = make_response(redirect('/login?msg=Welcome! Please login.'))
+        response.headers['X-Vuln-Confirmed'] = 'WEAK_PASSWORD' # Ground Truth
         return add_security_headers(response)
 
     except Exception as e:
@@ -919,13 +926,16 @@ def login():
     conn.close()
 
     if user:
-        # VULNERABILITY: Session fixation - session ID not regenerated
-        old_session_id = session.get('session_id')
         session['user_id'] = user['id']
         session['username'] = user['username']
         # Keep the same session ID (vulnerability)
         if not old_session_id:
             session['session_id'] = secrets.token_urlsafe(16)
+        
+        # Ground Truth for Session Fixation (if session ID didn't change)
+        session_fixation = False
+        if old_session_id and session['session_id'] == old_session_id:
+            session_fixation = True
 
         # Generate JWT for API access
         import datetime
@@ -946,6 +956,8 @@ def login():
                 },
                 'message': 'Login successful'
             }))
+            if session_fixation:
+                response.headers['X-Vuln-Confirmed'] = 'SESSION_FIXATION'
             return add_security_headers(response)
 
         # Web response
@@ -971,7 +983,9 @@ def password_reset():
         conn.execute('UPDATE users SET reset_token = ? WHERE id = ?', (reset_token, user['id']))
         conn.commit()
         conn.close()
-        return jsonify({'message': 'Reset token sent', 'token': reset_token, 'vuln': 'Predictable Reset Token'})
+        response = make_response(jsonify({'message': 'Reset token sent', 'token': reset_token, 'vuln': 'Predictable Reset Token'}))
+        response.headers['X-Vuln-Confirmed'] = 'PREDICTABLE_RESET_TOKEN'
+        return add_security_headers(response)
     
     conn.close()
     return jsonify({'error': 'User not found'}), 404
@@ -1018,7 +1032,9 @@ def oauth_callback():
     # Check for flag condition (exploiting the vulnerability)
     # If attacker sends specific code, give flag
     if code == 'ATTACKER_CONTROLLED_CODE':
-        return "CTF{oauth_broken_state_validation_55}"
+        response = make_response("CTF{oauth_broken_state_validation_55}")
+        response.headers['X-Vuln-Confirmed'] = 'OAUTH_STATE_BYPASS'
+        return response
         
     return "OAuth Error", 400
 
@@ -1387,7 +1403,10 @@ def post_detail_api(post_id):
         conn.execute(f"DELETE FROM posts WHERE id = {post_id}")
         conn.commit()
         conn.close()
-        return jsonify({'message': 'Post deleted', 'vuln': 'IDOR'})
+        
+        response = make_response(jsonify({'message': 'Post deleted', 'vuln': 'IDOR'}))
+        response.headers['X-Vuln-Confirmed'] = 'IDOR_DELETE'
+        return add_security_headers(response)
 
 # ============================================================================
 # COMMENTS
@@ -1816,6 +1835,27 @@ def api_search():
     except Exception as e:
         response = make_response(jsonify({'error': str(e)}), 500)
         return add_security_headers(response)
+
+# ============================================================================
+# RESET ENDPOINT
+# ============================================================================
+
+@app.route('/api/reset', methods=['POST'])
+def reset_env():
+    """Reset environment state for training"""
+    try:
+        # Re-initialize DB
+        conn = sqlite3.connect(DB_NAME)
+        conn.close()
+        os.remove(DB_NAME)
+    except:
+        pass
+    init_db()
+    
+    # Clear session
+    session.clear()
+    
+    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
 
 # ============================================================================
 # ENHANCED EXISTING ROUTES WITH SECURITY HEADERS

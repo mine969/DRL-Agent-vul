@@ -22,6 +22,7 @@ Date: 2025
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import random
@@ -39,7 +40,7 @@ except ImportError:
     
     @dataclass
     class AgentConfig:
-        state_dim: int = 11
+        state_dim: int = 15
         action_dim: int = 100
         learning_rate: float = 0.0001
         gamma: float = 0.99
@@ -47,7 +48,7 @@ except ImportError:
         epsilon_end: float = 0.01
         epsilon_decay: float = 0.995
         memory_size: int = 100000
-        batch_size: int = 4096
+        batch_size: int = 64
         device: str = "auto"
         hidden_sizes: List[int] = None
         
@@ -85,7 +86,8 @@ class PrioritizedReplayBuffer:
         capacity: int = 100000,
         alpha: float = 0.6,
         beta: float = 0.4,
-        beta_increment: float = 0.001
+        beta_increment: float = 0.001,
+        seed: int = None
     ):
         """
         Initialize prioritized replay buffer.
@@ -95,12 +97,16 @@ class PrioritizedReplayBuffer:
             alpha: Prioritization exponent (0=uniform, 1=full priority)
             beta: Importance sampling exponent (starts at beta, anneals to 1)
             beta_increment: Beta increment per sample
+            seed: Random seed for reproducibility
         """
         self.capacity = capacity
         self.alpha = alpha  # How much prioritization (0=uniform, 1=full)
         self.beta = beta  # Importance sampling correction (starts at beta)
         self.beta_increment = beta_increment
         self.beta_max = 1.0
+        
+        # Deterministic RNG
+        self.rng = np.random.default_rng(seed)
         
         # Experience storage
         self.buffer = []
@@ -151,10 +157,16 @@ class PrioritizedReplayBuffer:
         # Calculate sampling probabilities
         priorities = self.priorities[:self.size]
         probabilities = priorities ** self.alpha
-        probabilities /= probabilities.sum()
+        
+        # Fix: Safety check - if all priorities are 0, fallback to uniform sampling
+        prob_sum = probabilities.sum()
+        if prob_sum == 0 or np.isnan(prob_sum):
+            probabilities = np.ones(self.size) / self.size
+        else:
+            probabilities /= prob_sum
         
         # Sample indices based on probabilities
-        indices = np.random.choice(
+        indices = self.rng.choice(
             self.size,
             size=batch_size,
             replace=False,
@@ -204,7 +216,7 @@ class PrioritizedReplayBuffer:
             indices: Indices of experiences to update
             td_errors: TD errors for those experiences
         """
-        priorities = (np.abs(td_errors) + 1e-6) ** self.alpha
+        priorities = np.abs(td_errors) + 1e-6
         for idx, priority in zip(indices, priorities):
             self.priorities[idx] = priority
             self.max_priority = max(self.max_priority, priority)
@@ -424,7 +436,7 @@ class ImprovedDQNAgent:
         config: Optional[AgentConfig] = None,
         use_prioritized_replay: bool = True,
         use_noisy_networks: bool = True,
-        n_step: int = 3  # Multi-step learning
+        n_step: int = 1  # Multi-step learning (Disabled by default for stability)
     ):
         """
         Initialize improved DQN agent.
@@ -436,6 +448,7 @@ class ImprovedDQNAgent:
             use_prioritized_replay: Use prioritized experience replay
             use_noisy_networks: Use noisy networks (replaces epsilon-greedy)
             n_step: Number of steps for multi-step learning
+            seed: Random seed for reproducibility
         """
         # Load configuration
         if config is None and _CONFIG_AVAILABLE:
@@ -449,6 +462,14 @@ class ImprovedDQNAgent:
         self.use_prioritized_replay = use_prioritized_replay
         self.use_noisy_networks = use_noisy_networks
         self.n_step = n_step
+        
+        # Seed everything
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
+        if seed is not None:
+             torch.manual_seed(seed)
+             if torch.cuda.is_available():
+                 torch.cuda.manual_seed(seed)
         
         # Learning hyperparameters
         self.gamma = config.gamma
@@ -472,7 +493,8 @@ class ImprovedDQNAgent:
                 capacity=config.memory_size,
                 alpha=0.6,  # Prioritization exponent
                 beta=0.4,   # Importance sampling (anneals to 1)
-                beta_increment=0.001
+                beta_increment=0.001,
+                seed=seed   # Pass seed to buffer
             )
         else:
             # Fallback to regular replay buffer from dqn_agent
@@ -565,8 +587,41 @@ class ImprovedDQNAgent:
         next_state: np.ndarray,
         done: bool
     ) -> None:
-        """Store experience in replay buffer."""
-        self.memory.add(state, action, reward, next_state, done)
+        """Store experience in replay buffer with N-step return calculation."""
+        # 1. Add to N-step buffer
+        self.n_step_buffer.append((state, action, reward, next_state, done))
+        
+        # 2. Check if we have enough steps 
+        if len(self.n_step_buffer) < self.n_step:
+            return
+            
+        # 3. Compute N-step return for the oldest experience
+        R = 0
+        for idx, (_, _, r, _, _) in enumerate(self.n_step_buffer):
+            R += (self.gamma ** idx) * r
+            
+        # 4. Get state/action from oldest, next_state/done from newest
+        s_0, a_0, _, _, _ = self.n_step_buffer[0]
+        _, _, _, s_n, done_n = self.n_step_buffer[-1]
+        
+        # 5. Store in Replay Memory
+        self.memory.add(s_0, a_0, R, s_n, done_n)
+        
+        # 6. Shift buffer
+        self.n_step_buffer.pop(0)
+        
+        # 7. If done, flush remaining buffer using partial returns
+        if done:
+            while len(self.n_step_buffer) > 0:
+                R = 0
+                for idx, (_, _, r, _, _) in enumerate(self.n_step_buffer):
+                    R += (self.gamma ** idx) * r
+                    
+                s_0, a_0, _, _, _ = self.n_step_buffer[0]
+                _, _, _, s_n, done_n = self.n_step_buffer[-1] # s_n is terminal
+                
+                self.memory.add(s_0, a_0, R, s_n, done_n)
+                self.n_step_buffer.pop(0)
     
     def replay(self) -> Optional[float]:
         """

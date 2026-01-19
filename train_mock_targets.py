@@ -44,11 +44,11 @@ class MockTargetsTrainer:
         # - Noisy Networks: Better exploration (no epsilon needed)
         # - Multi-step Learning: Faster reward propagation
         self.agent = ImprovedDQNAgent(
-            state_dim=11,
+            state_dim=15,                # ENRICHED STATE: Now 15 dimensions (Context+History)
             action_dim=50,               # RESTRICTED for Mock Targets (was 150)
             use_prioritized_replay=True, # Smart sampling based on TD error
             use_noisy_networks=True,     # Learned exploration
-            n_step=3                     # Multi-step returns
+            n_step=1                     # N-step disabled for stability (1-step TD)
         )
         print("🚀 Using Improved DQN (Rainbow) - 5x faster convergence, +27% accuracy!")
         
