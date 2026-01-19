@@ -45,7 +45,7 @@ class MockTargetsTrainer:
         # - Multi-step Learning: Faster reward propagation
         self.agent = ImprovedDQNAgent(
             state_dim=11,
-            action_dim=150,              # Enhanced action space with WAF bypass & advanced auth
+            action_dim=50,               # RESTRICTED for Mock Targets (was 150)
             use_prioritized_replay=True, # Smart sampling based on TD error
             use_noisy_networks=True,     # Learned exploration
             n_step=3                     # Multi-step returns
@@ -104,8 +104,8 @@ class MockTargetsTrainer:
                 if episode % 10 == 0:
                     print(f"Episode {episode}: Target={target['name']} | Reward={reward:.1f} | Vulns={vulns}")
                 
-                # Save checkpoint
-                if episode % 100 == 0:
+                # Save checkpoint more frequently (every 50 episodes)
+                if episode % 50 == 0:
                     self._save_checkpoint(episode)
                     
         except KeyboardInterrupt:
@@ -115,7 +115,8 @@ class MockTargetsTrainer:
             print(f"✅ Checkpoint saved: checkpoints/{self.checkpoint_prefix}_ep{current_episode}.pth")
 
     def _train_episode(self, target_url, episode):
-        env = WebSecurityGym(target_url=target_url)
+        # Initialize env with RESTRICTED action space mode
+        env = WebSecurityGym(target_url=target_url, mode="mock_targets")
         state, _ = env.reset()
         total_reward = 0
         vulns = 0

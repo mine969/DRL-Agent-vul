@@ -31,33 +31,27 @@ class WebSecurityGym(gym.Env):
     Think of this as the game engine.
     """
     
-    def __init__(self, target_url: str = "http://localhost:5001", discovered_endpoints: list = None, session=None):
+    def __init__(self, target_url: str = "http://localhost:5001", discovered_endpoints: list = None, session=None, mode="standard"):
         super(WebSecurityGym, self).__init__()
         self.target_url = target_url
         self.discovered_endpoints = discovered_endpoints or []
+        self.mode = mode # 'standard' (150 actions) or 'mock_targets' (Restricted set)
         
         # The Arsenal: Tools the agent can use
         self.payload_manager = PayloadManager()
         
-        # ADVANCED TUNED ACTION SPACE FOR REAL-WORLD HACKING (150 actions)
-        # Enhanced for WAF Bypass, Advanced Authentication, and Modern Security Controls
-        #
-        # Based on Ground Truth Analysis: 33 vulnerabilities across 5 applications
-        # Enhanced for Real-World Challenges: WAFs, Advanced Auth, CSRF Protection
-        #
-        # Phase 1: Reconnaissance (0-39) - 40 actions (Security detection + WAF fingerprinting)
-        # Phase 2: Discovery & Probing (40-79) - 40 actions (IDOR + Advanced Auth Bypass)
-        # Phase 3: Exploitation (80-119) - 40 actions (XSS, SQLi, File + WAF Evasion)
-        # Phase 4: Post-Exploitation (120-149) - 30 actions (Logic flaws + Advanced techniques)
-        #
-        # Real-World Enhancements:
-        # - Advanced Authentication: JWT, OAuth, MFA bypass (10 actions)
-        # - WAF Bypass: Encoding, Obfuscation, Timing attacks (15 actions)
-        # - CSRF Protection: Token extraction, Header manipulation (8 actions)
-        # - Modern Security: CORS, CSP, Rate limiting bypass (12 actions)
-        #
-        # Original Mockup Optimizations:
-        # - IDOR: 9 instances (needs multiple test vectors)
+        # Define Action Space
+        if self.mode == "mock_targets":
+            # RESTRICTED ACTION SPACE FOR FASTER LEARNING ON MOCK APPS
+            # Only includes actions relevant to: SQLi, XSS, SSRF, IDOR, Auth Bypass, Deserialization, Command Inj
+            self.action_space = spaces.Discrete(50) 
+            print(f"✅ Configured Env for MOCK TARGETS (50 Actions)")
+        else:
+            # FULL ACTION SPACE
+            self.action_space = spaces.Discrete(150)
+            
+        # Observation Space (11 metrics)
+        self.observation_space = spaces.Box(low=0, high=5, shape=(11,), dtype=np.float32)
         # - XSS: 6 instances (stored/reflected variations)
         # - SQL Injection: 3 instances (login/search patterns)
         # - File Upload/Traverse: 4 instances (upload + path traversal)
@@ -327,22 +321,43 @@ class WebSecurityGym(gym.Env):
         
         # ADVANCED ATTACK EXTENSION: Load additional attack methods
         # These attacks work on many real-world web applications, not just Juice Shop
-        try:
-            from env.juice_shop_extension import JuiceShopExtension, JUICE_SHOP_ACTIONS
-            self.advanced_ext = JuiceShopExtension(self.session, target_url)
+        # ADVANCED ATTACK EXTENSION: DISABLED FOR MOCK TARGETS
+        # (Juice Shop extension was interfering with pure mock environment training)
+        pass
             
-            # Add advanced actions to action book (IDs 60-74)
-            for action_id, method_name in JUICE_SHOP_ACTIONS.items():
-                self.action_book[action_id] = getattr(self.advanced_ext, method_name)
-            
-            # Update action_space to include new actions
-            # self.action_space = spaces.Discrete(79)  # DISABLED: Using 150 actions now!
-            
-            # Only print if verbose or targeting Juice Shop
-            if 'localhost:3000' in target_url or 'juice' in target_url.lower():
-                print(f"✅ Loaded Advanced Attack Extension: {len(JUICE_SHOP_ACTIONS)} attacks (OAuth/SSO included)")
-        except ImportError:
-            pass  # Extension not available, continue with base actions
+        # ACTION SPACE MAPPING FOR MOCK TARGETS
+        if self.mode == "mock_targets":
+            self.mock_action_map = {
+                # CORE (0-9)
+                0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 8: 8,
+                # RECON (10-19)
+                10: 10, 13: 13, 14: 14, 15: 15, 19: 19,
+                # AUTH (20-29)
+                20: 20, 23: 23, 24: 24,
+                # IDOR (30-49) - HEAVILY EMPHASIZED
+                25: 30, 26: 35, 27: 36, 28: 40, 29: 45, 
+                # SQLi (60-65)
+                30: 60, 31: 61, 32: 63,
+                # XSS (66-75)
+                33: 66, 34: 67, 35: 70, 36: 72,
+                # COMMAND / SSRF / FILE (76-89)
+                37: 87, # Command Inj
+                38: 148, # SSRF
+                39: 79, # Path Traversal
+                40: 149, # Insecure Deserialization
+                41: 86, # SSTI
+                42: 83, # CSRF
+                # LOGIC
+                43: 91, # Negative Qty
+                # ADVANCED AUTH
+                44: 100, # JWT None
+                45: 102, # OAuth State
+                46: 120, # Header Manip (Generic)
+                47: 125, # CSRF Token Ex
+                48: 121, # Broken Obj Level Auth (Generic)
+                49: 14,  # Probe again
+            }
+
     
     def _setup_browser_session(self, session=None) -> None:
         """Configures the HTTP client to be fast and reliable, or uses an existing session."""
@@ -466,7 +481,14 @@ class WebSecurityGym(gym.Env):
                 action_name = action_function.__name__
                 
                 # EFFICIENT ALGORITHM: Phase-Based Reward Shaping
-                is_valid, phase_bonus = self._validate_phase_action(action_id)
+                # Modify action_id for restricted space
+                real_action_id = action_id
+                if self.mode == "mock_targets":
+                    real_action_id = self.mock_action_map.get(action_id, 0)
+                    action_function = self.action_book.get(real_action_id)
+                    action_name = action_function.__name__ if action_function else "Unknown"
+                
+                is_valid, phase_bonus = self._validate_phase_action(real_action_id)
                 reward += phase_bonus
                 
                 # Execute action

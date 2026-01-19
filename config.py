@@ -16,7 +16,8 @@ from pathlib import Path
 class AgentConfig:
     """DQN Agent configuration parameters."""
     state_dim: int = 11
-    action_dim: int = 100
+    action_dim: int = 50  # UPDATED: Mock targets restricted space (was 100/150)
+    action_dim_full: int = 150  # Full action space for general targets
     learning_rate: float = 0.0001
     gamma: float = 0.99
     epsilon_start: float = 1.0
@@ -39,8 +40,8 @@ class AgentConfig:
 class TrainingConfig:
     """Training configuration parameters."""
     max_episodes: int = 10000
-    max_steps_per_episode: int = 100
-    checkpoint_frequency: int = 10
+    max_steps_per_episode: int = 50  # UPDATED: Reduced from 100 for faster episodes
+    checkpoint_frequency: int = 50  # UPDATED: Save every 50 episodes (was 10/100)
     checkpoint_dir: str = "checkpoints"
     log_frequency: int = 10
     save_best_model: bool = True
@@ -49,9 +50,11 @@ class TrainingConfig:
     enable_phase_progression: bool = True
     actions_per_phase_unlock: int = 5
     
-    # Reward shaping
+    # Reward shaping (UPDATED to match web_sec_env.py)
     base_reward: float = -1.0
-    vulnerability_reward: float = 100.0
+    vulnerability_reward: float = 150.0  # UPDATED: Increased from 100 (matches CTF flag rewards)
+    api_discovery_reward: float = 30.0  # NEW: API endpoint discovery
+    auth_bypass_reward: float = 50.0  # NEW: OAuth/JWT exploits
     phase_bonus: float = 10.0
     phase_completion_bonus: float = 20.0
     phase_skip_penalty: float = -5.0
