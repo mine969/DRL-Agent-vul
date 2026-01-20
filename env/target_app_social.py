@@ -629,8 +629,10 @@ def init_db():
             ('fashion_style', 'fashion@email.com', hashlib.md5(b'password').hexdigest(), 'Fashion Designer | Style Influencer | Runway Model', 'fashion.jpg', 0),
             ('science_nerd', 'science@email.com', hashlib.md5(b'password').hexdigest(), 'Physicist | Science Communicator | Space Geek 🔬', 'science.jpg', 0),
             ('pet_lover', 'pets@email.com', hashlib.md5(b'password').hexdigest(), 'Animal Rescuer | Dog Mom | Cat Dad 🐾', 'pets.jpg', 0),
-            ('comedy_king', 'comedy@email.com', hashlib.md5(b'password').hexdigest(), 'Stand-up Comedian | Meme Lord | Laughter Therapist 😂', 'comedy.jpg', 0),
-            ('eco_warrior', 'eco@email.com', hashlib.md5(b'password').hexdigest(), 'Environmental Activist | Sustainability Advocate | Zero Waste', 'eco.jpg', 1),
+            ('comedy_king', 'comedy@email.com', hashlib.md5(b'comedy').hexdigest(), 'Stand-up Comedian | Meme Lord | Laughter Therapist 😂', 'comedy.jpg', 0),
+            ('eco_warrior', 'eco@email.com', hashlib.md5(b'eco').hexdigest(), 'Environmental Activist | Sustainability Advocate | Zero Waste', 'eco.jpg', 1),
+            ('user1', 'user1@social.com', hashlib.md5(b'password123').hexdigest(), 'Default User 1 for Testing', 'default.jpg', 0),
+            ('user2', 'user2@social.com', hashlib.md5(b'password123').hexdigest(), 'Default User 2 for Testing', 'default.jpg', 0),
             ('weak_user', 'weak@email.com', hashlib.md5(b'password').hexdigest(), 'Bio: CTF{social_weak_auth_flag_007}', 'default.jpg', 0)
         ]
         c.executemany('INSERT INTO users (username, email, password, bio, avatar, is_private) VALUES (?, ?, ?, ?, ?, ?)', users)
