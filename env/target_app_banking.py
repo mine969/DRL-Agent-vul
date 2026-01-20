@@ -408,6 +408,7 @@ def index():
     return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
 
 @app.route('/login', methods=['POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     username = request.form.get('username')
     password = request.form.get('password')
@@ -494,6 +495,7 @@ def dashboard():
     return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=user, transactions=transactions)
 
 @app.route('/account/<int:user_id>')
+@app.route('/api/account/<int:user_id>', methods=['GET'])
 def account(user_id):
     """View account details - VULN: IDOR (no authorization check)"""
     # VULNERABILITY: No check if logged-in user owns this account

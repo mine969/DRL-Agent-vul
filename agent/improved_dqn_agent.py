@@ -436,7 +436,8 @@ class ImprovedDQNAgent:
         config: Optional[AgentConfig] = None,
         use_prioritized_replay: bool = True,
         use_noisy_networks: bool = True,
-        n_step: int = 1  # Multi-step learning (Disabled by default for stability)
+        n_step: int = 1,  # Multi-step learning (Disabled by default for stability)
+        seed: Optional[int] = None
     ):
         """
         Initialize improved DQN agent.

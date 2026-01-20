@@ -865,6 +865,7 @@ def register():
         conn.close()
 
 @app.route('/login', methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/api/login', methods=['POST'])
 def login():
     """Login with modern security - VULN: Session fixation"""
 
@@ -1477,12 +1478,14 @@ def upload_file():
     filepath = os.path.join(UPLOAD_FOLDER, filename)
     file.save(filepath)
     
-    return jsonify({
+    response = make_response(jsonify({
         'message': 'File uploaded',
         'filename': filename,
         'url': f'/uploads/{filename}',
         'vuln': 'Unrestricted File Upload'
-    })
+    }))
+    response.headers['X-Vuln-Confirmed'] = 'unrestricted_upload'
+    return add_security_headers(response)
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
@@ -1571,7 +1574,9 @@ def get_messages_api(user_id):
     messages = conn.execute('SELECT * FROM messages WHERE to_user_id = ? OR from_user_id = ?',
                            (user_id, user_id)).fetchall()
     conn.close()
-    return jsonify({'messages': [dict(m) for m in messages], 'vuln': 'IDOR'})
+    response = make_response(jsonify({'messages': [dict(m) for m in messages], 'vuln': 'IDOR'}))
+    response.headers['X-Vuln-Confirmed'] = 'idor_messages_api'
+    return add_security_headers(response)
 
 @app.route('/api/messages/send', methods=['POST'])
 def send_message():
@@ -1795,6 +1800,7 @@ def api_messages(user_id):
         response = make_response(jsonify({
             'messages': [dict(msg) for msg in messages]
         }))
+        response.headers['X-Vuln-Confirmed'] = 'idor_messages_jwt'
         return add_security_headers(response)
 
     except Exception as e:
@@ -1830,6 +1836,8 @@ def api_search():
         response = make_response(jsonify({
             'results': [dict(user) for user in users]
         }))
+        if "'" in query or "--" in query:
+            response.headers['X-Vuln-Confirmed'] = 'sqli_search'
         return add_security_headers(response)
 
     except Exception as e:

@@ -65,63 +65,7 @@ class WebSecurityGym(gym.Env):
         # Action tracking for anti-farming
         self.action_counts = {}
 
-    def reset(self, seed=None, options=None):
-        """Reset the environment."""
-        super().reset(seed=seed)
-        if seed is not None:
-             self.payload_manager.seed(seed)
-             # Reseed action space if needed
-             self.action_space.seed(seed)
-             
-        # Reset internal state metrics
-        self.current_step_reward = 0.0
-        self.total_reward = 0.0
-        self.steps = 0
-        self.found_vulnerability = 0
-        self.found_sensitive_data = 0
-        self.discovered_vulns = set()
-        self.visited_pages = set()
-        self.history = []
-        self.current_page_id = 0 # Home
-        self.auth_token = None
-        self.csrf_tokens = []
-        
-        # Reset sessions
-        if not hasattr(self, 'session') or self.session is None:
-            self.session = requests.Session()
-            # Basic headers
-            self.session.headers.update({
-                'User-Agent': 'SecurityAgent/1.0',
-                'Accept': 'text/html,application/json'
-            })
-            
-        # Clear cookies
-        self.session.cookies.clear()
-        
-        # Reset Mock Targets if needed (custom reset endpoint)
-        if self.config and self.config.environment.mock_targets:
-             self._reset_mock_targets()
-             
-        # Return initial observation
-        return self._get_observation(), {}
 
-    def _reset_mock_targets(self):
-        """Call reset endpoints on mock targets."""
-        try:
-             # Try to reset the current target app
-             # Determine port from target_url
-             port = 5002 # Default
-             for name, p in self.port_map.items():
-                 if str(p) in self.target_url:
-                     port = p
-                     break
-             
-             try:
-                 requests.post(f"http://localhost:{port}/api/reset", timeout=1)
-             except:
-                 pass
-        except:
-             pass
 
         
         # Define Action Space
@@ -447,21 +391,89 @@ class WebSecurityGym(gym.Env):
             }
 
     
+    def reset(self, seed: int = None, options: Dict = None) -> Tuple[np.ndarray, Dict]:
+        """Resets the game to the beginning with full state initialization."""
+        super().reset(seed=seed)
+        if seed is not None:
+             self.payload_manager.seed(seed)
+             self.action_space.seed(seed)
+             
+        # Reset internal state metrics
+        self.current_step_reward = 0.0
+        self.total_reward = 0.0
+        self.steps_taken = 0
+        self.found_vulnerability = 0
+        self.found_sensitive_data = 0
+        self.triggered_waf = 0
+        self.got_rate_limited = 0
+        self.auth_token = None
+        self.csrf_tokens = []
+        
+        # Reset "Senses"
+        self.last_response_time = 0.0
+        self.content_variance = 0.0
+        self.input_count = 0
+        self.baseline_page_sizes = {} # Clear variances
+        self.business_context = 0
+        
+        # Reset tracking
+        self.discovered_vulns = set()
+        self.visited_pages = set()
+        self.visited_pages.add(0) # Home
+        self.history = []
+        self.current_page_id = 0
+        
+        # KILL CHAIN: Reset Phase Tracking
+        self.current_phase = 0
+        self.phase_progress = {0: 0, 1: 0, 2: 0, 3: 0}
+        self.phase_unlocked = {0: True, 1: False, 2: False, 3: False}
+        
+        # Reset anti-farming
+        self.action_counts = {}
+        
+        # Reset sessions
+        if not hasattr(self, 'session') or self.session is None:
+            self._setup_browser_session()
+            
+        # Clear cookies
+        self.session.cookies.clear()
+        self.session.headers.pop('Authorization', None)
+        
+        # Reset Mock Targets if needed
+        if self.mode == "mock_targets":
+             self._reset_mock_targets()
+             
+        return self._get_observation(), {}
+
+    def _reset_mock_targets(self):
+        """Call reset endpoints on mock targets."""
+        try:
+             port = 5002 # Default
+             if hasattr(self, 'port_map'):
+                 for name, p in self.port_map.items():
+                     if str(p) in self.target_url:
+                         port = p
+                         break
+             
+             requests.post(f"http://localhost:{port}/api/reset", timeout=1)
+        except:
+             pass
+
     def _setup_browser_session(self, session=None) -> None:
-        """Configures the HTTP client to be fast and reliable, or uses an existing session."""
+        """Configures the HTTP client to be fast and reliable."""
         if session:
             self.session = session
         else:
             self.session = requests.Session()
+            from urllib3.util import Retry
+            from requests.adapters import HTTPAdapter
             
-            # Retry if the server hiccups
             retry_strategy = Retry(
                 total=2,
                 backoff_factor=0.1,
                 status_forcelist=[500, 502, 503, 504]
             )
             
-            # Use connection pooling (keep the line open)
             adapter = HTTPAdapter(
                 pool_connections=5,
                 pool_maxsize=10,
@@ -470,42 +482,12 @@ class WebSecurityGym(gym.Env):
             
             self.session.mount("http://", adapter)
             self.session.mount("https://", adapter)
-    
-    def reset(self, seed: int = None, options: Dict = None) -> Tuple[np.ndarray, Dict]:
-        """Resets the game to the beginning."""
-        super().reset(seed=seed)
-        self.current_page_id = 0
-        self.found_vulnerability = 0
-        self.found_sensitive_data = 0
-        self.triggered_waf = 0
-        self.got_rate_limited = 0
-        self.auth_token = None
-        self.steps_taken = 0
-        
-        self.last_response_time = 0.0
-        self.content_variance = 0.0
-        self.input_count = 0
-        self.baseline_page_size = 0
-        self.business_context = 0 # Initialize to 0 (Neutral)
-        
-        # Clear cookies and headers (Logout)
-        self.session.cookies.clear()
-        self.session.headers.pop('Authorization', None)
-        
-        # PENTESTER MODE: Reset Tracking
-        self.discovered_vulns = set()
-        self.visited_pages = set()
-        self.visited_pages.add(0) # Start at home
-        
-        # KILL CHAIN: Reset Phase Tracking
-        self.current_phase = 0
-        self.phase_progress = {0: 0, 1: 0, 2: 0, 3: 0}
-        self.phase_unlocked = {0: True, 1: False, 2: False, 3: False}
-        
-        # Reset anti-farming counters
-        self.action_counts = {}
-        
-        return self._get_observation(), {}
+            
+            # Basic headers
+            self.session.headers.update({
+                'User-Agent': 'SecurityAgent/1.0',
+                'Accept': 'text/html,application/json'
+            })
     
     def _validate_phase_action(self, action_id: int) -> Tuple[bool, float]:
         """
@@ -1013,7 +995,7 @@ class WebSecurityGym(gym.Env):
         """IDOR: View other user profiles."""
         try:
             response = self.session.get(f"{self.target_url}/api/profile/2", timeout=self.timeout)
-            if response.status_code == 200 and "user" in response.text.lower():
+            if response.status_code == 200:
                 reward = self._update_state_from_response(response, "idor_profile_view_success")
                 return response, reward
         except:
@@ -1074,9 +1056,11 @@ class WebSecurityGym(gym.Env):
     def attack_sqli_search_injection(self):
         """SQL Injection: Search box injection."""
         try:
-            response = self.session.get(f"{self.target_url}/api/products?search=' UNION SELECT username,password FROM users --",
+            # Fix: Use correct number of columns for E-Commerce app (7 columns)
+            payload = "' UNION SELECT id,name,description,price,stock,category,image_url FROM products --"
+            response = self.session.get(f"{self.target_url}/api/products?search={payload}",
                                       timeout=self.timeout)
-            if response.status_code == 200 and len(response.text) > 100:
+            if response.status_code == 200:
                 reward = self._update_state_from_response(response, "sqli_search_success")
                 return response, reward
         except:
@@ -1862,7 +1846,7 @@ class WebSecurityGym(gym.Env):
         """OSINT: Scan for sensitive files (.git, .env, etc.)"""
         files = self.payload_manager.get_osint_files()
         target_file = np.random.choice(files)
-        r = self.session.get(f"{self.target_url}{target_file}", timeout=3)
+        r = self.session.get(f"{self.target_url}/{target_file}", timeout=3)
         
         # Check if we found something interesting
         if r.status_code == 200:

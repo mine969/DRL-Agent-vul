@@ -426,6 +426,7 @@ def index():
     return render_template_string(HOME_PAGE, files=[], session=session)
 
 @app.route('/login', methods=['GET', 'POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -464,6 +465,7 @@ def register():
     return render_template_string(LOGIN_PAGE.replace('Login', 'Register'))
 
 @app.route('/upload', methods=['POST'])
+@app.route('/api/upload', methods=['POST'])
 def upload():
     if 'user_id' not in session:
         return redirect('/login')
@@ -515,6 +517,7 @@ def upload():
     return response
 
 @app.route('/download/<int:file_id>')
+@app.route('/api/download/<int:file_id>', methods=['GET'])
 def download(file_id):
     # VULN: IDOR - no authorization check
     conn = get_db()
@@ -525,7 +528,10 @@ def download(file_id):
         return "File not found", 404
     
     # VULN: Path traversal possible
-    return send_file(file_record['filepath'], as_attachment=True, download_name=file_record['filename'])
+    response = make_response(send_file(file_record['filepath'], as_attachment=True, download_name=file_record['filename']))
+    if 'user_id' in session and session['user_id'] != file_record['user_id']:
+        response.headers['X-Vuln-Confirmed'] = 'IDOR_DOWNLOAD'
+    return response
 
 @app.route('/delete/<int:file_id>')
 def delete(file_id):

@@ -564,6 +564,7 @@ def get_db():
     return conn
 
 @app.route('/')
+@app.route('/api/posts', methods=['GET'])
 def index():
     search_query = request.args.get('search', '').strip()
     
@@ -612,6 +613,7 @@ def index():
     return response
 
 @app.route('/login', methods=['GET', 'POST'])
+@app.route('/api/login', methods=['POST'])
 def login():
     if request.method == 'POST':
         username = request.form.get('username')
@@ -739,8 +741,16 @@ def view_post(post_id):
     
     conn.close()
     
-    return render_template_string(POST_PAGE, post=post, comments=comments, 
-                                 related_posts=related_posts, session=session)
+    response = make_response(render_template_string(POST_PAGE, post=post, comments=comments, 
+                                 related_posts=related_posts, session=session))
+    
+    # XSS detection in comments
+    for comment in comments:
+        if '<script>' in comment['content'] or 'onerror=' in comment['content']:
+            response.headers['X-Vuln-Confirmed'] = 'stored_xss_viewed'
+            break
+            
+    return response
 
 @app.route('/post/<int:post_id>/comment', methods=['POST'])
 def add_comment(post_id):
@@ -769,7 +779,9 @@ def import_post():
         try:
             # DANGER: Arbitrary URL fetch
             if 'flag_ssrf' in url or '127.0.0.1/admin/secrets' in url:
-                 return "Imported: CTF{blog_ssrf_internal_network_access}"
+                 response = make_response("Imported: CTF{blog_ssrf_internal_network_access}")
+                 response.headers['X-Vuln-Confirmed'] = 'ssrf_success'
+                 return response
                  
             # Real request (filtered for safety in this mock env)
             r = requests.get(url, timeout=2)

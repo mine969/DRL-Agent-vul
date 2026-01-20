@@ -598,6 +598,7 @@ def register():
         conn.close()
 
 @app.route('/login', methods=['GET', 'POST', 'OPTIONS'])
+@app.route('/api/login', methods=['POST'])
 def login():
     """Login with JWT and session management - VULN: SQL Injection"""
 
@@ -698,6 +699,11 @@ def login():
                     },
                     'message': 'Login successful'
                 }))
+                
+                # TRAINING SIGNAL: Add X-Vuln-Confirmed header if SQL injection detected
+                if "'" in username or "--" in username or "/*" in username:
+                    response.headers['X-Vuln-Confirmed'] = 'sqli_login_bypass'
+                
                 return add_security_headers(response)
 
             # Web form login
@@ -716,6 +722,7 @@ def login():
 # ============================================================================
 
 @app.route('/products', methods=['GET'])
+@app.route('/api/products', methods=['GET'])
 def get_products():
     """Get products - VULN: SQL Injection in search"""
     search = request.args.get('search', '')
@@ -765,7 +772,10 @@ def get_products():
         </div>
         """
         
-        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), products=products)
+        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), products=products))
+        if "'" in search or "--" in search:
+            response.headers['X-Vuln-Confirmed'] = 'sqli_search'
+        return response
     except Exception as e:
         return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', f'<div class="alert">Database Error: {str(e)}</div>'))
     finally:
@@ -1229,7 +1239,9 @@ def view_order(order_id):
     </div>
     {% endblock %}
     """.replace('{% extends "layout" %}', HTML_TEMPLATE)
-    return render_template_string(order_html, order=dict(order), items=[dict(i) for i in items])
+    response = make_response(render_template_string(order_html, order=dict(order), items=[dict(i) for i in items]))
+    response.headers['X-Vuln-Confirmed'] = 'idor_order_view'
+    return add_security_headers(response)
 
 @app.route('/dashboard')
 def dashboard():
@@ -1354,7 +1366,9 @@ def get_order(order_id):
     if order:
         items = conn.execute('SELECT * FROM order_items WHERE order_id = ?', (order_id,)).fetchall()
         conn.close()
-        return jsonify({'order': dict(order), 'items': [dict(i) for i in items], 'vuln': 'IDOR'})
+        response = make_response(jsonify({'order': dict(order), 'items': [dict(i) for i in items], 'vuln': 'IDOR'}))
+        response.headers['X-Vuln-Confirmed'] = 'idor_order_api'
+        return add_security_headers(response)
     
     conn.close()
     return jsonify({'error': 'Order not found'}), 404
@@ -1365,7 +1379,9 @@ def get_user_orders(user_id):
     conn = get_db()
     orders = conn.execute(f"SELECT * FROM orders WHERE user_id = {user_id}").fetchall()
     conn.close()
-    return jsonify({'orders': [dict(o) for o in orders], 'vuln': 'IDOR'})
+    response = make_response(jsonify({'orders': [dict(o) for o in orders], 'vuln': 'IDOR'}))
+    response.headers['X-Vuln-Confirmed'] = 'idor_user_orders'
+    return add_security_headers(response)
 
 # ============================================================================
 # PAYMENT
