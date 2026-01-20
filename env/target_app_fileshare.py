@@ -499,8 +499,6 @@ def upload():
     conn.execute('INSERT INTO files (user_id, filename, filepath, description) VALUES (?, ?, ?, ?)',
                 (session['user_id'], filename, filepath, description))
     conn.commit()
-    conn.close()
-    
     success_msg = f'File "{filename}" uploaded successfully!'
     alert_div = '<div class="alert alert-success">' + success_msg + '</div>'
     msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 

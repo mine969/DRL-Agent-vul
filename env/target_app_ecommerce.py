@@ -1357,7 +1357,7 @@ def checkout():
 # ORDERS
 # ============================================================================
 
-@app.route('/api/orders/<order_id>', methods=['GET'])
+@app.route('/api/order/<order_id>', methods=['GET'])
 def get_order(order_id):
     """Get order - VULN: IDOR"""
     conn = get_db()
@@ -1373,7 +1373,7 @@ def get_order(order_id):
     conn.close()
     return jsonify({'error': 'Order not found'}), 404
 
-@app.route('/api/orders/user/<user_id>', methods=['GET'])
+@app.route('/api/user/orders/<user_id>', methods=['GET'])
 def get_user_orders(user_id):
     """Get user orders - VULN: IDOR"""
     conn = get_db()
@@ -1405,20 +1405,8 @@ def process_payment():
 
 # Duplicate /api/admin/users removed. Handled by JWT version below.
 
-@app.route('/api/admin/stats', methods=['GET'])
-def admin_stats():
-    """Admin stats - VULN: Information disclosure"""
-    conn = get_db()
-    stats = {
-        'total_users': conn.execute('SELECT COUNT(*) FROM users').fetchone()[0],
-        'total_orders': conn.execute('SELECT COUNT(*) FROM orders').fetchone()[0],
-        'total_revenue': conn.execute('SELECT SUM(total) FROM orders').fetchone()[0] or 0,
-        'secret_key': app.secret_key,
-        'jwt_secret': JWT_SECRET,
-        'vuln': 'Information Disclosure'
-    }
-    conn.close()
-    return jsonify(stats)
+# Duplicate /api/admin/stats removed. Handled by route at line 1583.
+
 
 # ============================================================================
 # MISC
@@ -1573,7 +1561,7 @@ def api_admin_users():
             'users': [dict(user) for user in users],
             'vuln': 'Broken Access Control'
         }))
-        response.headers['X-Vuln-Confirmed'] = '1'
+        response.headers['X-Vuln-Confirmed'] = 'BAC_ADMIN_USERS'
         return add_security_headers(response)
 
     except Exception as e:
@@ -1597,12 +1585,14 @@ def api_admin_stats():
 
         response = make_response(jsonify({
             'stats': dict(stats),
-            'secret_key': JWT_SECRET,  # VULN: Info disclosure
-            'jwt_secret': JWT_SECRET,   # VULN: Info disclosure
-            'vuln': 'Information Disclosure'
+            'secret_key': JWT_SECRET,
+            'jwt_secret': JWT_SECRET,
+            'vuln': 'Information Disclosure',
+            'flag': 'CTF{ecommerce_info_disclosure_secret_leak}'
         }))
-        response.headers['X-Vuln-Confirmed'] = '1'
-        return add_security_headers(response)
+        response = add_security_headers(response)
+        response.headers['X-Vuln-Confirmed'] = 'INFO_DISCLOSURE'
+        return response
 
     except Exception as e:
         response = make_response(jsonify({'error': str(e)}), 500)
