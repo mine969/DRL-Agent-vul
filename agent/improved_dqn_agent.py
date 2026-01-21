@@ -184,22 +184,22 @@ class PrioritizedReplayBuffer:
         self.beta = min(self.beta + self.beta_increment, self.beta_max)
         
         # Convert to tensors
-        states = torch.FloatTensor(
-            [e.state for e in experiences]
+        states = torch.tensor(
+            np.array([e.state for e in experiences]), dtype=torch.float32
         ).to(self.device)
-        actions = torch.LongTensor(
-            [e.action for e in experiences]
+        actions = torch.tensor(
+            [e.action for e in experiences], dtype=torch.long
         ).to(self.device)
-        rewards = torch.FloatTensor(
-            [e.reward for e in experiences]
+        rewards = torch.tensor(
+            [e.reward for e in experiences], dtype=torch.float32
         ).to(self.device)
-        next_states = torch.FloatTensor(
-            [e.next_state for e in experiences]
+        next_states = torch.tensor(
+            np.array([e.next_state for e in experiences]), dtype=torch.float32
         ).to(self.device)
-        dones = torch.FloatTensor(
-            [e.done for e in experiences]
+        dones = torch.tensor(
+            [e.done for e in experiences], dtype=torch.float32
         ).to(self.device)
-        importance_weights = torch.FloatTensor(weights).to(self.device)
+        importance_weights = torch.tensor(weights, dtype=torch.float32).to(self.device)
         
         return states, actions, rewards, next_states, dones, \
                importance_weights, indices
@@ -574,7 +574,7 @@ class ImprovedDQNAgent:
             self.q_network.reset_noise()
         
         # Always use network (noisy networks handle exploration)
-        state_tensor = torch.FloatTensor(state).unsqueeze(0).to(self.device)
+        state_tensor = torch.tensor(state, dtype=torch.float32).unsqueeze(0).to(self.device)
         with torch.no_grad():
             q_values = self.q_network(state_tensor)
         

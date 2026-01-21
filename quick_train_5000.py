@@ -113,6 +113,10 @@ try:
                 
                 agent.remember(state, action, reward, next_state, done)
                 
+                # Log if vulnerability found
+                if reward >= 1.0:
+                    print(f"  ✨ VULN FOUND! ep={episode}, step={steps}, reward={reward:.1f}", flush=True)
+                
                 # Train every 4 steps
                 if steps % 4 == 0:
                     agent.replay()
@@ -121,6 +125,8 @@ try:
                 state = next_state
                 steps += 1
             
+            print(f"  ✅ Ep {episode:4d} Complete | Reward: {total_reward:6.1f} | Steps: {steps:2d}", flush=True)
+            
             # Progress reporting
             if episode % 10 == 0:
                 elapsed = time.time() - start_time
@@ -128,11 +134,10 @@ try:
                 eta_seconds = (5000 - episode) / eps_per_sec if eps_per_sec > 0 else 0
                 eta_minutes = int(eta_seconds / 60)
                 
-                print(f"Ep {episode:4d} | Reward: {total_reward:6.1f} | Steps: {steps:2d} | "
-                      f"Speed: {eps_per_sec:.1f} ep/s | ETA: {eta_minutes}m", flush=True)
+                print(f"\n📊 PROGRESS: Ep {episode:4d} | Avg Speed: {eps_per_sec:.2f} ep/s | ETA: {eta_minutes}m", flush=True)
             
-            # Save checkpoint (use old naming for compatibility)
-            if episode % 500 == 0:
+            # Save checkpoint (More frequent for visibility)
+            if episode % 100 == 0:
                 os.makedirs("checkpoints", exist_ok=True)
                 checkpoint_path = f"checkpoints/improved_mock_ep{episode}.pth"
                 agent.save(checkpoint_path)

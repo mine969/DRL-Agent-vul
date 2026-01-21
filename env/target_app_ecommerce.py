@@ -503,14 +503,14 @@ def register():
 
     if request.method == 'GET':
         csrf_token = generate_csrf_token()
-        page_content = f"""
+        page_content = """
         <div class="row" style="margin-top: 50px;">
             <div class="col-md-6 offset-md-3">
                 <div class="card">
                     <div class="card-body">
                         <h2 class="text-center" style="color: var(--primary);">Join the Network</h2>
                         <form method="POST" action="/register">
-                            <input type="hidden" name="csrf_token" value="{csrf_token}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             <div class="form-group">
                                 <label>Username</label>
                                 <input type="text" name="username" class="form-control" required>
@@ -536,7 +536,7 @@ def register():
             </div>
         </div>
         """
-        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
+        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), csrf_token=csrf_token))
         return add_security_headers(response)
 
     # POST Logic with Modern Security Controls
@@ -591,7 +591,7 @@ def register():
     except Exception as e:
         error_msg = f'<div class="alert alert-danger">Error: {str(e)}</div>'
         response = make_response(render_template_string(
-            HTML_TEMPLATE.replace('{% block content %}{% endblock %}', error_msg)
+            HTML_TEMPLATE.replace('{{ content | safe }}', error_msg)
         ))
         return add_security_headers(response)
     finally:
@@ -614,15 +614,15 @@ def login():
     if request.method == 'GET':
         msg = request.args.get('msg', '')
         csrf_token = generate_csrf_token()
-        page_content = f"""
+        page_content = """
         <div class="row" style="margin-top: 50px;">
             <div class="col-md-6 offset-md-3">
                 <div class="card">
                     <div class="card-body">
                         <h2 class="text-center" style="color: var(--primary);">System Access</h2>
-                        {{% if msg %}}<div class="alert alert-success">{{{{ msg }}}}</div>{{% endif %}}
+                        {% if msg %}<div class="alert alert-success">{{ msg }}</div>{% endif %}
                         <form method="POST" action="/login">
-                            <input type="hidden" name="csrf_token" value="{csrf_token}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                             <div class="form-group">
                                 <label>Username</label>
                                 <input type="text" name="username" class="form-control" required>
@@ -644,7 +644,7 @@ def login():
             </div>
         </div>
         """
-        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), msg=msg))
+        response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), msg=msg, csrf_token=csrf_token))
         return add_security_headers(response)
 
     # POST Logic with Enhanced Security
@@ -710,10 +710,10 @@ def login():
             response = make_response(redirect('/products'))
             return add_security_headers(response)
         
-        return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', '<div class="alert">Invalid Credentials</div>'))
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', '<div class="alert">Invalid Credentials</div>'))
     except Exception as e:
         # SQL Error
-        return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', f'<div class="alert">Database Error: {str(e)}</div>'))
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', f'<div class="alert">Database Error: {str(e)}</div>'))
     finally:
         conn.close()
 
@@ -777,7 +777,7 @@ def get_products():
             response.headers['X-Vuln-Confirmed'] = 'sqli_search'
         return response
     except Exception as e:
-        return render_template_string(HTML_TEMPLATE.replace('{% block content %}{% endblock %}', f'<div class="alert">Database Error: {str(e)}</div>'))
+        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', f'<div class="alert">Database Error: {str(e)}</div>'))
     finally:
         conn.close()
 
@@ -1100,8 +1100,7 @@ def checkout_page():
                     </p>
                 </div>
             </div>
-        </div>
-        {{% endblock %}}
+        {% endblock %}
         """.replace('{% extends "layout" %}', HTML_TEMPLATE)
         return render_template_string(checkout_html, cart_items=cart_items, subtotal=subtotal, user=dict(user))
     

