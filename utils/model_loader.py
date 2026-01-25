@@ -8,7 +8,7 @@ import re
 import os
 
 
-def find_latest_checkpoint(checkpoint_dir="checkpoints", pattern="multi_target_*_ep*.pth"):
+def find_latest_checkpoint(checkpoint_dir="checkpoints", pattern="improved_mock_*.pth"):
     """
     Find the checkpoint with the highest episode number.
     
@@ -30,7 +30,8 @@ def find_latest_checkpoint(checkpoint_dir="checkpoints", pattern="multi_target_*
     
     for cp in checkpoints:
         try:
-            match = re.search(r'ep(\d+)\.pth', cp)
+            # Match ep{number} in the filename
+            match = re.search(r'ep(\d+)', cp)
             if match:
                 ep = int(match.group(1))
                 if ep > latest_ep:
@@ -63,9 +64,30 @@ def load_model_smart(agent, model_path="dqn_web_sec_model.pth", auto_checkpoint=
         latest_ep, checkpoint_path = find_latest_checkpoint()
         if latest_ep > 0 and checkpoint_path:
             try:
-                agent.brain.load_state_dict(torch.load(checkpoint_path, map_location=device))
-                if hasattr(agent, 'target_brain'):
-                    agent.target_brain.load_state_dict(agent.brain.state_dict())
+                # Support both brain (DQNAgent) and q_network (ImprovedDQNAgent)
+                network = getattr(agent, 'brain', None) or getattr(agent, 'q_network', None)
+                if network is None:
+                    raise AttributeError("Agent has no recognizable brain or q_network attribute")
+                
+                checkpoint = torch.load(checkpoint_path, map_location=device)
+                
+                # Unwrap checkpoint if necessary
+                state_dict = checkpoint
+                if isinstance(checkpoint, dict):
+                    if 'q_network_state_dict' in checkpoint:
+                        state_dict = checkpoint['q_network_state_dict']
+                    elif 'model_state_dict' in checkpoint:
+                        state_dict = checkpoint['model_state_dict']
+                    elif 'brain_state_dict' in checkpoint:
+                        state_dict = checkpoint['brain_state_dict']
+                
+                network.load_state_dict(state_dict)
+                
+                # Support target_brain (DQNAgent) and target_network (ImprovedDQNAgent)
+                target_network = getattr(agent, 'target_brain', None) or getattr(agent, 'target_network', None)
+                if target_network:
+                    target_network.load_state_dict(network.state_dict())
+                
                 if verbose:
                     print(f"Loaded latest checkpoint: Episode {latest_ep}")
                     print(f"File: {checkpoint_path}")
@@ -77,14 +99,22 @@ def load_model_smart(agent, model_path="dqn_web_sec_model.pth", auto_checkpoint=
     
     # Fallback to base model
     try:
-        agent.brain.load_state_dict(torch.load(model_path, map_location=device))
-        if hasattr(agent, 'target_brain'):
-            agent.target_brain.load_state_dict(agent.brain.state_dict())
+        network = getattr(agent, 'brain', None) or getattr(agent, 'q_network', None)
+        if network is None:
+            raise AttributeError("Agent has no recognizable brain or q_network attribute")
+            
+        network.load_state_dict(torch.load(model_path, map_location=device))
+        
+        target_network = getattr(agent, 'target_brain', None) or getattr(agent, 'target_network', None)
+        if target_network:
+            target_network.load_state_dict(network.state_dict())
+            
         if verbose:
             print(f"Loaded base model: {model_path}")
         return 0
     except Exception as e:
         if verbose:
+            print(f"❌ Failed to load model {model_path}: {e}")
             print(f"No model found. Starting fresh.")
         return 0
 

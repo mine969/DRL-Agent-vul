@@ -172,7 +172,7 @@ for episode in range(100):
     done = False
 
     while not done:
-        action = agent.select_action(state, epsilon=0.0)  # Greedy
+        action = agent.act(state, training=False)  # Greedy
         state, reward, done, truncated, _ = env.step(action)
         total_reward += reward
         done = done or truncated
@@ -192,7 +192,7 @@ for ep in range(episodes):
     done = False
 
     while not done:
-        action = agent.select_action(state, epsilon=0.0)
+        action = agent.act(state, training=False)
         state, reward, done, truncated, info = env.step(action)
 
         if reward > 50:  # Vulnerability found

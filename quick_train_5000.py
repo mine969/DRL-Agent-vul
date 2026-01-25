@@ -10,6 +10,7 @@ from env.web_sec_env import WebSecurityGym
 import time
 import os
 import glob
+import argparse
 
 # Unbuffered output
 sys.stdout.reconfigure(line_buffering=True)
@@ -28,8 +29,8 @@ TARGETS = [
 ]
 
 # Find latest checkpoint (compatible with old naming)
-def find_latest_checkpoint():
-    """Find the latest checkpoint to resume from."""
+def find_available_checkpoints():
+    """Find all checkpoints and return them sorted by episode (descending)."""
     patterns = [
         "checkpoints/improved_mock_ep*.pth",  # Old format
         "checkpoints/quick_train_ep*.pth"     # New format
@@ -40,24 +41,32 @@ def find_latest_checkpoint():
         all_checkpoints.extend(glob.glob(pattern))
     
     if not all_checkpoints:
-        return None, 0
+        return []
     
     # Extract episode numbers
     checkpoint_episodes = []
     for path in all_checkpoints:
         try:
+            # Normalize path for multi-platform support
+            path = path.replace('\\', '/')
             # Extract number from filename
-            ep_num = int(path.split('ep')[-1].replace('.pth', ''))
-            checkpoint_episodes.append((ep_num, path))
+            filename = os.path.basename(path)
+            import re
+            match = re.search(r'ep(\d+)', filename)
+            if match:
+                ep_num = int(match.group(1))
+                checkpoint_episodes.append((ep_num, path))
         except:
             continue
     
-    if not checkpoint_episodes:
-        return None, 0
-    
-    # Return the latest
-    checkpoint_episodes.sort(reverse=True)
-    return checkpoint_episodes[0][1], checkpoint_episodes[0][0]
+    # Return sorted by episode descending
+    checkpoint_episodes.sort(key=lambda x: x[0], reverse=True)
+    return checkpoint_episodes
+
+# Parse arguments
+parser = argparse.ArgumentParser(description="Quick Training Script for DRL Agent")
+parser.add_argument("--fresh", action="store_true", help="Start fresh training without resuming from checkpoint")
+args = parser.parse_args()
 
 print("\n📊 Initializing Agent...", flush=True)
 agent = ImprovedDQNAgent(
@@ -68,20 +77,32 @@ agent = ImprovedDQNAgent(
     seed=42
 )
 
-# Try to resume from checkpoint
-checkpoint_path, start_episode = find_latest_checkpoint()
-if checkpoint_path:
-    print(f"✅ Resuming from: {checkpoint_path} (Episode {start_episode})", flush=True)
-    try:
-        agent.load(checkpoint_path)
-        start_episode += 1  # Start from next episode
-    except Exception as e:
-        print(f"⚠️  Failed to load checkpoint: {e}", flush=True)
-        print("   Starting fresh...", flush=True)
-        start_episode = 1
+# Try to resume from checkpoint with smart fallback
+start_episode = 1
+if not args.fresh:
+    available_checkpoints = find_available_checkpoints()
+    if available_checkpoints:
+        print(f"🔍 Found {len(available_checkpoints)} existing checkpoints.", flush=True)
+        success = False
+        for latest_ep, checkpoint_path in available_checkpoints:
+            print(f"⚙️  Attempting to load: {checkpoint_path} (Episode {latest_ep})...", flush=True)
+            try:
+                agent.load(checkpoint_path)
+                start_episode = latest_ep + 1
+                print(f"✅ Successfully resumed from Episode {latest_ep}!", flush=True)
+                success = True
+                break
+            except Exception as e:
+                print(f"⚠️  LOAD FAILED for {checkpoint_path}: {e}", flush=True)
+                print(f"   Searching for next best checkpoint...", flush=True)
+        
+        if not success:
+            print("❌ ALL checkpoints failed to load. Starting fresh.", flush=True)
+            start_episode = 1
+    else:
+        print("🆕 No existing checkpoints found. Starting fresh training.", flush=True)
 else:
-    print("🆕 No checkpoint found, starting fresh", flush=True)
-    start_episode = 1
+    print("🚀 FRESH START requested. Ignoring existing checkpoints.", flush=True)
 
 print("✅ Agent initialized!", flush=True)
 

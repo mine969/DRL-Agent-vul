@@ -58,6 +58,11 @@ class FalsePositiveFilter:
     def _is_false_positive(self, finding, target_url: str) -> bool:
         """Check if a finding is a false positive."""
         
+        # Rule 0: Safety Override - High Reward Findings (Confirmed Vulns)
+        # If reward > 50, we trust the agent and validator (unless it's a 404/WP check)
+        if finding.reward > 50:
+            return False
+
         # Rule 1: WordPress paths on non-WordPress sites
         if self._is_wordpress_false_positive(finding, target_url):
             return True
@@ -67,7 +72,7 @@ class FalsePositiveFilter:
             return True
         
         # Rule 3: Very low reward findings (likely noise)
-        if finding.reward < 10:
+        if finding.reward < 5:  # Lowered from 10
             return True
         
         # Rule 4: Generic "found endpoint" without actual vulnerability

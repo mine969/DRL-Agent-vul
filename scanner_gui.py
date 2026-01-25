@@ -28,6 +28,7 @@ from autonomous_scan import SecurityAuditor, Finding
 from utils.proxy_fetcher import ProxyFetcher
 from utils.target_hunter import TargetHunter
 from utils.vulnerability_database import VULNERABILITY_DATABASE
+from utils.model_loader import find_latest_checkpoint
 
 class ToolTip(object):
     """
@@ -391,30 +392,36 @@ class SecurityScannerGUI:
         self.root.geometry("1920x1080")  # Increased default size
         self.root.minsize(1280, 720)    # Increased minimum size to prevent content cutoff
         
-        # Cyberpunk / Red Team Theme
+        # Modern Security Suite Theme
         self.colors = {
-            "bg_dark": "#0a0a0a",      # Pitch Black
-            "bg_panel": "#111111",     # Very Dark Grey
-            "accent": "#00ff00",       # Hacker Green
-            "accent_dim": "#008f00",   # Dim Green
-            "text": "#00ff00",         # Green Text
-            "text_dim": "#aaaaaa",     # Grey Text
-            "danger": "#ff0000",       # Red
-            "warning": "#ffaa00",      # Orange
-            "highlight": "#222222"     # Highlight
+            "bg_dark": "#08080C",      # Midnight Dark
+            "bg_panel": "#12121A",     # Deep Cobalt Dark
+            "accent": "#00E5FF",       # Electric Cyan
+            "accent_dim": "#00B8D4",   # Dim Cyan
+            "text": "#E0E0E0",         # Off-White Text
+            "text_dim": "#90A4AE",     # Blue-Grey Text
+            "danger": "#FF1744",       # Modern Red
+            "warning": "#FFC400",      # Amber
+            "success": "#00C853",      # Emerald Green
+            "highlight": "#1C1C26"     # Subtle Highlight
         }
         
         self.root.configure(bg=self.colors["bg_dark"])
         
         # Variables
-        self.target_url = tk.StringVar()
+        self.target_url = tk.StringVar(value="http://localhost:5002")
         self.crawl_depth = tk.IntVar(value=30)
         self.test_episodes = tk.IntVar(value=3)
-        self.model_path = tk.StringVar(value="dqn_web_sec_model.pth")
+        # Find latest model automatically
+        latest_ep, latest_model_path = find_latest_checkpoint()
+        default_model = latest_model_path if latest_model_path else "checkpoints/improved_mock_ep500.pth"
+        
+        self.model_path = tk.StringVar(value=default_model)
         self.scan_mode = tk.StringVar(value="auto")
         self.specific_attack_type = tk.StringVar()
-        self.stealth_level = tk.StringVar(value="medium")
+        self.stealth_level = tk.StringVar(value="low")
         self.proxy_file = tk.StringVar()
+        self.persist_mode = tk.BooleanVar(value=True) # Default to Persistence Mode
         
         self.setup_ui()
         self.load_available_models()
@@ -436,17 +443,17 @@ class SecurityScannerGUI:
         
         title_label = tk.Label(
             header_frame,
-            text="💀 DRL AI RED TEAM",
-            font=("Courier New", 20, "bold"),
+            text="DRL AI RED TEAM",
+            font=("Segoe UI", 24, "bold"),
             bg=self.colors["bg_dark"],
-            fg=self.colors["danger"]
+            fg=self.colors["accent"]
         )
         title_label.pack(side=tk.LEFT, padx=20, pady=10)
         
         subtitle_label = tk.Label(
             header_frame,
-            text="AUTONOMOUS VULNERABILITY SCANNER & EXPLOITER",
-            font=("Courier New", 10, "bold"),
+            text="AUTONOMOUS EXPLOITATION FRAMEWORK",
+            font=("Segoe UI", 10, "bold"),
             bg=self.colors["bg_dark"],
             fg=self.colors["text_dim"]
         )
@@ -496,25 +503,32 @@ class SecurityScannerGUI:
         self.scrollbar.pack(side="right", fill="y")
         
         # --- Control Widgets in Scrollable Frame ---
-        self.add_section_header(self.scrollable_frame, "🎯 MISSION PARAMETERS")
-        self.create_input_field(self.scrollable_frame, "TARGET URL:", self.target_url, "localhost:5001")
+        self.add_section_header(self.scrollable_frame, "MISSION PARAMETERS")
+        self.create_input_field(self.scrollable_frame, "TARGET URL:", self.target_url, "http://localhost:5002")
         self.create_slider_field(self.scrollable_frame, "CRAWL DEPTH:", self.crawl_depth, 0, 100, 30, "0 = Only target URL (no crawl), 30 for new sites, 100+ for deep scan")
-        self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 50, 3, "Rec: 2 for new sites, 3 standard, 5 aggressive, 20+ for deep skill check")
+        self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 50, 10, "Rec: 2 for new sites, 3 standard, 5 aggressive, 20+ for deep skill check")
         self.create_model_selector(self.scrollable_frame)
         
+        # Persistence Checkbox
+        persist_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
+        persist_frame.pack(pady=5, padx=15, fill=tk.X)
+        tk.Checkbutton(persist_frame, text="ENABLE PERSISTENCE MODE (Retry until found)", variable=self.persist_mode, 
+                      bg=self.colors["bg_panel"], fg=self.colors["accent"], selectcolor=self.colors["bg_dark"], 
+                      activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+        
         # SCAN MODES
-        self.add_section_header(self.scrollable_frame, "⚙️ SCAN MODE")
+        self.add_section_header(self.scrollable_frame, "SCAN MODIFICATIONS")
         
         modes_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
         modes_frame.pack(fill=tk.X, padx=15, pady=5)
         
-        tk.Radiobutton(modes_frame, text="🤖 FULL AUTO (AI AGENT)", variable=self.scan_mode, value="auto", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="🧠 DEEP SKILL CHECK", variable=self.scan_mode, value="deep_skill", bg=self.colors["bg_panel"], fg="#d400ff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#d400ff", font=("Consolas", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="🔥 AGGRESSIVE MODE", variable=self.scan_mode, value="aggressive", bg=self.colors["bg_panel"], fg=self.colors["danger"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["danger"], font=("Consolas", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="🕵️ SUPER OSINT MODE", variable=self.scan_mode, value="osint", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="🎯 SPECIFIC ATTACK", variable=self.scan_mode, value="specific", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Consolas", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="💀 ZERO-DAY HUNTER", variable=self.scan_mode, value="zeroday", bg=self.colors["bg_panel"], fg=self.colors["warning"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["warning"], font=("Consolas", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="🌍 TARGETLESS HUNTER", variable=self.scan_mode, value="targetless", bg=self.colors["bg_panel"], fg="#00ffff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#00ffff", font=("Consolas", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="FULL AUTO (AI AGENT)", variable=self.scan_mode, value="auto", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="DEEP SKILL CHECK", variable=self.scan_mode, value="deep_skill", bg=self.colors["bg_panel"], fg="#d400ff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#d400ff", font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="AGGRESSIVE MODE", variable=self.scan_mode, value="aggressive", bg=self.colors["bg_panel"], fg=self.colors["danger"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["danger"], font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="SUPER OSINT MODE", variable=self.scan_mode, value="osint", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="SPECIFIC ATTACK", variable=self.scan_mode, value="specific", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="ZERO-DAY HUNTER", variable=self.scan_mode, value="zeroday", bg=self.colors["bg_panel"], fg=self.colors["warning"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["warning"], font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="TARGETLESS HUNTER", variable=self.scan_mode, value="targetless", bg=self.colors["bg_panel"], fg="#00ffff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#00ffff", font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
         
         # Attack Selector (Hidden by default)
         self.attack_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
@@ -614,7 +628,7 @@ class SecurityScannerGUI:
         # Don't pack yet - will be shown when targetless mode is selected
 
         # STEALTH CONFIGURATION
-        self.add_section_header(self.scrollable_frame, "🥷 STEALTH CONFIGURATION")
+        self.add_section_header(self.scrollable_frame, "STEALTH CONTROL")
         
         stealth_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
         stealth_frame.pack(fill=tk.X, padx=15, pady=5)
@@ -642,13 +656,13 @@ class SecurityScannerGUI:
         tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"], height=20).pack() # Spacer
         
         # ONE CLICK BUTTONS
-        self.flash_btn = tk.Button(self.scrollable_frame, text="⚡ FLASH ATTACK (ONE-CLICK)", font=("Courier New", 12, "bold"), bg=self.colors["accent"], fg="black", activebackground="white", activeforeground="black", relief=tk.FLAT, cursor="hand2", command=self.flash_attack, height=2)
+        self.flash_btn = tk.Button(self.scrollable_frame, text="⚡ FLASH ATTACK (ONE-CLICK)", font=("Segoe UI", 12, "bold"), bg=self.colors["accent"], fg="#000000", activebackground="#FFFFFF", activeforeground="#000000", relief=tk.FLAT, cursor="hand2", command=self.flash_attack, height=2)
         self.flash_btn.pack(pady=5, padx=15, fill=tk.X)
         
-        self.scan_button = tk.Button(self.scrollable_frame, text="🚀 LAUNCH SCAN", font=("Courier New", 11, "bold"), bg=self.colors["highlight"], fg=self.colors["accent"], relief=tk.FLAT, cursor="hand2", command=self.start_scan, height=2)
+        self.scan_button = tk.Button(self.scrollable_frame, text="🚀 LAUNCH SCAN", font=("Segoe UI", 11, "bold"), bg=self.colors["highlight"], fg=self.colors["accent"], relief=tk.FLAT, cursor="hand2", command=self.start_scan, height=2)
         self.scan_button.pack(pady=5, padx=15, fill=tk.X)
         
-        self.stop_button = tk.Button(self.scrollable_frame, text="⏹️ ABORT MISSION", font=("Courier New", 11, "bold"), bg=self.colors["danger"], fg="white", relief=tk.FLAT, cursor="hand2", command=self.stop_scan, height=2, state=tk.DISABLED)
+        self.stop_button = tk.Button(self.scrollable_frame, text="⏹️ ABORT MISSION", font=("Segoe UI", 11, "bold"), bg=self.colors["danger"], fg="white", relief=tk.FLAT, cursor="hand2", command=self.stop_scan, height=2, state=tk.DISABLED)
         self.stop_button.pack(pady=(5, 15), padx=15, fill=tk.X)
         
         # === MIDDLE: TERMINAL & INTEL ===
@@ -663,7 +677,7 @@ class SecurityScannerGUI:
         terminal_frame = tk.Frame(middle_pane_vertical, bg=self.colors["bg_panel"])
         middle_pane_vertical.add(terminal_frame, minsize=200, height=300)
         
-        self.add_section_header(terminal_frame, "📟 LIVE TERMINAL LOGS")
+        self.add_section_header(terminal_frame, "LIVE ACTION TERMINAL")
         self.progress = ttk.Progressbar(terminal_frame, mode='indeterminate', style="Horizontal.TProgressbar")
         self.progress.pack(pady=5, padx=15, fill=tk.X)
         
@@ -674,7 +688,7 @@ class SecurityScannerGUI:
         findings_frame_container = tk.Frame(middle_pane_vertical, bg=self.colors["bg_panel"])
         middle_pane_vertical.add(findings_frame_container, minsize=200)
         
-        self.add_section_header(findings_frame_container, "🚨 DETECTED VULNERABILITIES")
+        self.add_section_header(findings_frame_container, "THREAT DETECTION ENGINE")
         
         findings_list_frame = tk.Frame(findings_frame_container, bg="black")
         findings_list_frame.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
@@ -692,7 +706,7 @@ class SecurityScannerGUI:
         right_panel = tk.Frame(main_pane, bg=self.colors["bg_panel"])
         main_pane.add(right_panel, minsize=350, width=400)
         
-        self.add_section_header(right_panel, "💣 EXPLOIT FACTORY")
+        self.add_section_header(right_panel, "WEAPONIZATION MODULE")
         
         self.exploit_text = scrolledtext.ScrolledText(right_panel, wrap=tk.WORD, font=("Consolas", 10), bg="black", fg=self.colors["danger"], relief=tk.FLAT, insertbackground="white")
         self.exploit_text.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
@@ -728,22 +742,22 @@ class SecurityScannerGUI:
             self.discovery_frame.pack_forget()
 
     def add_section_header(self, parent, text):
-        tk.Label(parent, text=text, font=("Courier New", 12, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text_dim"]).pack(pady=(15, 5), padx=15, anchor=tk.W)
+        tk.Label(parent, text=text, font=("Segoe UI", 11, "bold"), bg=self.colors["bg_panel"], fg=self.colors["accent"]).pack(pady=(20, 10), padx=15, anchor=tk.W)
 
     def create_input_field(self, parent, label_text, variable, placeholder):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
-        frame.pack(pady=5, padx=15, fill=tk.X)
-        tk.Label(frame, text=label_text, font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
-        entry = tk.Entry(frame, textvariable=variable, font=("Consolas", 10), bg="black", fg="white", relief=tk.FLAT, insertbackground="white")
-        entry.pack(fill=tk.X, ipady=5)
+        frame.pack(pady=8, padx=15, fill=tk.X)
+        tk.Label(frame, text=label_text, font=("Segoe UI", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text_dim"]).pack(anchor=tk.W)
+        entry = tk.Entry(frame, textvariable=variable, font=("Segoe UI", 10), bg="#000000", fg="white", relief=tk.FLAT, insertbackground="white", borderwidth=1)
+        entry.pack(fill=tk.X, ipady=8, pady=(5, 0))
         entry.insert(0, placeholder)
         ToolTip(entry, f"Enter the {label_text.lower().replace(':', '')} here")
 
     def create_slider_field(self, parent, label_text, variable, from_, to, default, tooltip_text=None):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
-        frame.pack(pady=5, padx=15, fill=tk.X)
-        tk.Label(frame, text=label_text, font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
-        tk.Scale(frame, from_=from_, to=to, orient=tk.HORIZONTAL, variable=variable, bg=self.colors["bg_panel"], fg=self.colors["accent"], troughcolor="black", showvalue=True, highlightthickness=0).pack(fill=tk.X)
+        frame.pack(pady=8, padx=15, fill=tk.X)
+        tk.Label(frame, text=label_text, font=("Segoe UI", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text_dim"]).pack(anchor=tk.W)
+        tk.Scale(frame, from_=from_, to=to, orient=tk.HORIZONTAL, variable=variable, bg=self.colors["bg_panel"], fg=self.colors["accent"], troughcolor="#000000", showvalue=True, highlightthickness=0, font=("Segoe UI", 8)).pack(fill=tk.X)
         variable.set(default)
         if tooltip_text:
             ToolTip(frame, tooltip_text)
@@ -799,14 +813,34 @@ class SecurityScannerGUI:
 
     def load_available_models(self):
         models = []
-        if os.path.exists("dqn_web_sec_model.pth"):
-            models.append("dqn_web_sec_model.pth (Final)")
-        checkpoints = glob.glob("checkpoints/dqn_checkpoint_ep*.pth") + glob.glob("checkpoints/multi_target_*.pth")
+        # Main models
+        main_models = ["dqn_web_sec_model.pth", "dqn_juiceshop_model.pth"]
+        for m in main_models:
+            if os.path.exists(m):
+                models.append(m)
+        
+        # Checkpoints
+        checkpoints = (
+            glob.glob("checkpoints/improved_mock_ep*.pth") + 
+            glob.glob("checkpoints/dqn_checkpoint_ep*.pth") + 
+            glob.glob("checkpoints/multi_target_*.pth")
+        )
+        
+        # Add discovered checkpoints
         for cp in sorted(checkpoints, reverse=True):
-            models.append(cp)
+            normalized_path = cp.replace("\\", "/")
+            if normalized_path not in models:
+                models.append(normalized_path)
+        
         if models:
             self.model_combo['values'] = models
-            self.model_combo.current(0)
+            # Set to the current selected model if valid
+            current = self.model_path.get().replace("\\", "/")
+            if current in models:
+                self.model_combo.set(current)
+            else:
+                self.model_combo.current(0)
+                self.model_path.set(models[0])
         else:
             self.model_combo['values'] = ["No models found"]
             self.model_combo.current(0)
@@ -1268,7 +1302,8 @@ Payload: {finding.get('payload')}
                     crawl_depth=self.crawl_depth.get(), 
                     test_intensity=self.test_episodes.get(),
                     scan_mode=actual_mode,
-                    specific_attack=specific_attack
+                    specific_attack=specific_attack,
+                    persist=self.persist_mode.get()
                 )
                 total_findings += len(findings)
                 

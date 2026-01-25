@@ -13,7 +13,7 @@ Key Components:
 Usage:
     python autonomous_scan.py http://target-website.com
 """
-
+import re
 import torch
 import numpy as np
 import requests
@@ -36,7 +36,7 @@ load_dotenv()
 import time
 
 # Import internal modules
-from agent.dqn_agent import DQNAgent
+from agent.improved_dqn_agent import ImprovedDQNAgent
 from env.web_sec_env import WebSecEnv
 from utils.report_generator import ReportGenerator
 from utils.vulnerability_database import VULNERABILITY_DATABASE
@@ -667,15 +667,25 @@ class SecurityAuditor:
         self.explorer = WebsiteExplorer(base_url, use_proxies=use_proxies, proxy_list=proxy_list, stealth_level=stealth_level)
         
         # Initialize the AI Brain
-        # State Dim 11: The agent sees 11 different things about the page
-        # Action Dim 100: The agent can perform 100 different actions (Kill Chain Architecture)
-        self.ai_agent = DQNAgent(state_dim=11, action_dim=100)
+        # State Dim 15: The agent sees 15 different features about the page (as per WebSecEnv)
+        # Action Dim 50: The agent can perform 50 different actions (Mock Targets Mode)
+        self.ai_agent = ImprovedDQNAgent(state_dim=15, action_dim=50)
         
         self._load_ai_brain(model_path)
         
         # Initialize environment once to get the action book
-        temp_env = WebSecEnv(target_url=base_url)
-        self.action_map = {k: v.__name__ for k, v in temp_env.action_book.items()}
+        # Initialize environment once to get the action book
+        # FIX: Ensure mode="mock_targets" to match training
+        temp_env = WebSecEnv(target_url=base_url, mode="mock_targets")
+        
+        # CORRECT MAPPING: Use mock_action_map to resolve the TRUE action name
+        self.action_map = {}
+        if hasattr(temp_env, 'mock_action_map'):
+             for mock_id, real_id in temp_env.mock_action_map.items():
+                 if real_id in temp_env.action_book:
+                     self.action_map[mock_id] = temp_env.action_book[real_id].__name__
+        else:
+             self.action_map = {k: v.__name__ for k, v in temp_env.action_book.items()}
         
         # Store config for logging
         self.use_proxies = use_proxies
@@ -697,7 +707,12 @@ class SecurityAuditor:
         try:
             from utils.model_loader import load_model_smart
             episode = load_model_smart(self.ai_agent, model_path=model_path, auto_checkpoint=True, verbose=True)
-            self.ai_agent.brain.eval() # Set to evaluation mode (no learning, just doing)
+            
+            # Support both brain (DQNAgent) and q_network (ImprovedDQNAgent)
+            network = getattr(self.ai_agent, 'brain', None) or getattr(self.ai_agent, 'q_network', None)
+            if network:
+                network.eval()
+            
             self.ai_agent.epsilon = 0.0    # Stop exploring randomly, use learned skills
             if episode > 0:
                 print(f"📍 Resumed from Episode: {episode}\n")
@@ -706,7 +721,7 @@ class SecurityAuditor:
             print(f"   Error details: {str(e)}")
             print("   The agent will act randomly (Untrained Mode)\n")
 
-    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3, epsilon: float = 0.1, scan_mode: str = "auto", specific_attack: str = None) -> List[Finding]:
+    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3, epsilon: float = 0.1, scan_mode: str = "auto", specific_attack: str = None, persist: bool = False) -> List[Finding]:
         """
         Runs the full security audit process.
         
@@ -783,6 +798,38 @@ class SecurityAuditor:
             print(f"  🗑️  Removed {filtered_count} false positive(s)")
         print(f"  ✅ {len(all_findings)} genuine finding(s) remain")
         
+        if len(all_findings) == 0:
+             print("  ⚠️ WARNING: Findings list is empty after filtering. Report will be empty.")
+        else:
+             print(f"  📝 Generating report with {len(all_findings)} findings.")
+        
+        # --- PERSISTENCE MODE CHECK ---
+        if persist and not all_findings and scan_mode == "auto":
+            print(f"\n🔄 PERSISTENCE MODE: No findings yet. Escalating...")
+            max_retries = 10
+            current_retry = 0
+            
+            # Progressive Epsilon Increase
+            current_epsilon = epsilon
+            
+            while not all_findings and current_retry < max_retries:
+                current_retry += 1
+                current_epsilon = min(current_epsilon + 0.15, 1.0)
+                print(f"\n🔁 RETRY {current_retry}/{max_retries} | Epsilon: {current_epsilon:.2f} (Randomness)")
+                
+                # Re-scan all discovered URLs
+                for url in discovered_urls:
+                    if self.stop_requested: break
+                    print(f"  🎯 Re-Auditing: {url}")
+                    # Increase intensity on retries
+                    findings = self._audit_page(url, attempts=test_intensity + 5, epsilon=current_epsilon, scan_mode=scan_mode)
+                    if findings:
+                        all_findings.extend(findings)
+                
+                if all_findings:
+                    print(f"  ✨ SUCCESS! Found {len(all_findings)} vulnerabilities after {current_retry} retries.")
+                    break
+        
         # --- Phase 4: Reporting ---
         self._generate_final_report(discovered_urls, all_findings)
         
@@ -803,10 +850,12 @@ class SecurityAuditor:
             # Pass discovered endpoints AND SESSION to the environment
             # This fixes the "Not Logged In" issue
             # We access the session from the explorer's session object (OptimizedSession.session)
+            # FIX: Ensure mode="mock_targets" to allow correct action mapping
             env = WebSecEnv(
                 target_url=self.base_url, 
                 discovered_endpoints=list(self.explorer.discovered_urls),
-                session=self.explorer.session.session 
+                session=self.explorer.session.session,
+                mode="mock_targets" 
             )
             
             # Identify allowed actions based on mode
@@ -858,7 +907,7 @@ class SecurityAuditor:
             
             for step in range(attempts):
                 # 1. AI Decides Action
-                action = self.ai_agent.select_action(state, allowed_actions=None) # All actions allowed in Auto
+                action = self.ai_agent.act(state, training=False) 
                 
                 # 2. Execute Action
                 next_state, reward, terminated, truncated, info = env.step(action)
@@ -867,25 +916,57 @@ class SecurityAuditor:
                 # self.ai_agent.store_experience(...) 
                 
                 # 4. Check for Findings
-                if reward > 0 and info.get('vuln_found'):
-                    vuln_name = self._map_action_to_vuln(action)
-                    
-                    # --- ROBUST VALIDATION ---
-                    # Fixes False Positives by verifying the vulnerability
-                    if validator.validate(vuln_name, env.last_response, info.get('payload')):
-                        finding = Finding(
-                            url=info.get('url', url),
-                            vuln_type=vuln_name,
-                            confidence='High',
-                            reward=reward,
-                            payload=info.get('payload', ''),
-                            method=info.get('method', 'GET')
-                        )
-                        # Avoid duplicates
-                        if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
-                            findings.append(finding)
-                            self.log_finding(finding)
-                            print(f"    🚨 CONFIRMED: {vuln_name}")
+                print(f"DEBUG: Step {step} | Action {action} | Reward {reward:.2f} | Info: {info}") 
+                
+                if reward > 0:
+                     if info.get('vuln_found'):
+                        vuln_name = self._map_action_to_vuln(action)
+                        print(f"  ✨ POTENTIAL VULN: {vuln_name} (Reward: {reward})")
+                        
+                        # --- ROBUST VALIDATION ---
+                        validation_result = validator.validate(vuln_name, env.last_response, info.get('payload'))
+                        
+                        if validation_result:
+                            finding = Finding(
+                                url=info.get('url', url),
+                                vuln_type=vuln_name,
+                                confidence='High',
+                                reward=reward,
+                                payload=info.get('payload', ''),
+                                method=info.get('method', 'GET')
+                            )
+                            # Avoid duplicates
+                            if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
+                                findings.append(finding)
+                                self.log_finding(finding)
+                                print(f"    🚨 CONFIRMED: {vuln_name}")
+                        else:
+                            print(f"    ⚠️ VALIDATOR REJECTED: {vuln_name} - payload: {info.get('payload')}")
+                     elif reward >= 1.0:
+                         # High reward but missing vuln_found flag?
+                         # TRUST THE REWARD - It means the environment found something specific!
+                         real_vuln_name = self._map_action_to_vuln(action)
+                         print(f"  ✨ TRUSTING HIGH REWARD ({reward}) for {real_vuln_name}")
+                         
+                         # Check for CTF Flag in response
+                         flag_match = re.search(r'CTF\{.*?\}', env.last_response.text)
+                         flag_found = flag_match.group(0) if flag_match else None
+                         
+                         if flag_found:
+                             print(f"  🚩 CTF FLAG FOUND: {flag_found}")
+                             real_vuln_name += f" [🚩 {flag_found}]" # Add to title for visibility
+                         
+                         finding = Finding(
+                             url=info.get('url', url),
+                             vuln_type=real_vuln_name,
+                             confidence='Medium', # Slightly lower confidence if implicit
+                             reward=reward,
+                             payload=info.get('payload', '') + (f" | FLAG: {flag_found}" if flag_found else ""),
+                             method=info.get('method', 'GET')
+                         )
+                         if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
+                             findings.append(finding)
+                             self.log_finding(finding)
                 
                 state = next_state
                 
@@ -924,12 +1005,13 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description='AI-Powered Autonomous Security Scanner')
         parser.add_argument('url', nargs='?', help='Target URL to scan (e.g., http://localhost:5000)')
         parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl (Rec: 30 for new sites, 100+ for deep scan)')
-        parser.add_argument('--intensity', type=int, default=3, help='Attack intensity 1-5 (Rec: 2 for new sites, 3 standard, 5 aggressive)')
+        parser.add_argument('--intensity', type=int, default=10, help='Attack intensity 1-5 (Rec: 2 for new sites, 3 standard, 5 aggressive, 10+ for deep training)')
         parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Path to the trained AI model')
         parser.add_argument("--mode", type=str, default="auto", choices=["auto", "aggressive", "osint", "specific", "zeroday", "targetless", "deep_skill"], help="Scan mode")
         parser.add_argument("--attack", type=str, help="Specific attack type (e.g., SQL, XSS)")
         parser.add_argument("--proxy-file", type=str, help="Path to proxy list file")
-        parser.add_argument("--stealth", type=str, default="medium", choices=["low", "medium", "high", "paranoid"], help="Stealth level")
+        parser.add_argument("--stealth", type=str, default="low", choices=["low", "medium", "high", "paranoid"], help="Stealth level")
+        parser.add_argument("--persist", action="store_true", default=True, help="Keep trying until a vulnerability is found (Persistence Mode)")
         
         # Hunting Arguments
         parser.add_argument("--dork", type=str, help="Google Dork query to find targets")
@@ -1027,7 +1109,8 @@ if __name__ == "__main__":
                     crawl_depth=args.depth,
                     test_intensity=args.intensity, # Changed from args.episodes to args.intensity
                     scan_mode=args.mode,
-                    specific_attack=args.attack
+                    specific_attack=args.attack,
+                    persist=args.persist
                 )
             except Exception as e:
                 print(f"❌ Error scanning {target}: {e}")

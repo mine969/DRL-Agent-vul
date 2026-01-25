@@ -361,16 +361,16 @@ class WebSecurityGym(gym.Env):
         if self.mode == "mock_targets":
             self.mock_action_map = {
                 # CORE (0-9)
-                0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 8: 8,
+                0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9,
                 # RECON (10-19)
-                10: 10, 13: 13, 14: 14, 15: 15, 19: 19,
+                10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, 16: 16, 17: 17, 18: 18, 19: 19,
                 # AUTH (20-29)
-                20: 20, 23: 23, 24: 24,
-                # IDOR (30-49) - HEAVILY EMPHASIZED
+                20: 20, 21: 21, 22: 22, 23: 23, 24: 24,
+                # IDOR (30-49) - Re-mapped to relevant full IDs
                 25: 30, 26: 35, 27: 36, 28: 40, 29: 45, 
-                # SQLi (60-65)
+                # SQLi (60-65) - Mapped to 30-32 range inputs from agent
                 30: 60, 31: 61, 32: 63,
-                # XSS (66-75)
+                # XSS (66-75) - Mapped to 33-36 range inputs
                 33: 66, 34: 67, 35: 70, 36: 72,
                 # COMMAND / SSRF / FILE (76-89)
                 37: 87, # Command Inj
@@ -380,9 +380,9 @@ class WebSecurityGym(gym.Env):
                 41: 86, # SSTI
                 42: 83, # CSRF
                 # LOGIC
-                43: 91, # Negative Qty
+                43: 90, # Mass Assignment (Changed from Negative Qty for E-Commerce)
                 # ADVANCED AUTH
-                44: 100, # JWT None
+                44: 40, # IDOR Orders (Changed from JWT None)
                 45: 102, # OAuth State
                 46: 120, # Header Manip (Generic)
                 47: 125, # CSRF Token Ex
