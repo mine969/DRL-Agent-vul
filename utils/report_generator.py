@@ -75,8 +75,10 @@ class ReportGenerator:
         stats = self._calculate_stats(findings, vuln_db)
         
         # Separate findings into Confirmed (Red) and Suspicious (Yellow)
-        confirmed_findings = [f for f in findings if f.reward > 50]
-        suspicious_findings = [f for f in findings if f.reward <= 50]
+        # Separate findings into Confirmed (Red) and Suspicious (Yellow)
+        # Fix: Findings with reward > 1.0 or High/Medium confidence are confirmed
+        confirmed_findings = [f for f in findings if f.reward >= 1.0 or f.confidence in ['High', 'Medium']]
+        suspicious_findings = [f for f in findings if f not in confirmed_findings]
         
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(f"# 🛡️ Security Vulnerability Report\n\n")
