@@ -586,6 +586,8 @@ class WebSecurityGym(gym.Env):
                             response, action_reward = None, 0.0
                     else:
                         response, action_reward = res
+                        self.last_response = response  # Store specifically for validator
+
                         
                     # ANTI-FARMING: Diminishing returns for repeated actions
                     # Exception: If we found a NEW vulnerability (reward >= 1.0), don't diminish
