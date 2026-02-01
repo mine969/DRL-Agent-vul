@@ -38,25 +38,11 @@ import time
 # Import internal modules
 from agent.improved_dqn_agent import ImprovedDQNAgent
 from env.web_sec_env import WebSecEnv
-from utils.report_generator import ReportGenerator
+from utils.report_generator import ReportGenerator, Finding
 from utils.vulnerability_database import VULNERABILITY_DATABASE
 from utils.zero_day_hunter import ZeroDayHunter
 from utils.target_hunter import TargetHunter
 
-@dataclass
-class Finding:
-    """Represents a single security vulnerability found during the scan."""
-    url: str
-    vuln_type: str
-    confidence: str
-    reward: float
-    payload: str = ""
-    method: str = "GET"
-    
-    def get(self, key, default=None):
-        """Allow dictionary-like access for GUI compatibility."""
-        if key == 'type': return self.vuln_type
-        return getattr(self, key, default)
 
 
 class ProxyRotator:
@@ -717,7 +703,9 @@ class SecurityAuditor:
             if episode > 0:
                 print(f"📍 Resumed from Episode: {episode}\n")
         except Exception as e:
-            print(f"⚠️  Could not load model")
+            print(f"⚠️  Could not load model: {e}")
+            import traceback
+            traceback.print_exc()
             print(f"   Error details: {str(e)}")
             print("   The agent will act randomly (Untrained Mode)\n")
 
@@ -919,18 +907,23 @@ class SecurityAuditor:
                 print(f"DEBUG: Step {step} | Action {action} | Reward {reward:.2f} | Info: {info}") 
                 
                 if reward > 0:
-                     if info.get('vuln_found'):
-                        vuln_name = self._map_action_to_vuln(action)
+                    vuln_name = self._map_action_to_vuln(action)
+                    
+                    # PRIORITY 1: Explicit flag from Environment
+                    env_confirmed = info.get('vuln_found', False)
+                    
+                    if env_confirmed or reward >= 1.0:
                         print(f"  ✨ POTENTIAL VULN: {vuln_name} (Reward: {reward})")
                         
                         # --- ROBUST VALIDATION ---
                         validation_result = validator.validate(vuln_name, env.last_response, info.get('payload'))
                         
                         if validation_result:
+                            confidence = 'High' if env_confirmed else 'Medium'
                             finding = Finding(
                                 url=info.get('url', url),
                                 vuln_type=vuln_name,
-                                confidence='High',
+                                confidence=confidence,
                                 reward=reward,
                                 payload=info.get('payload', ''),
                                 method=info.get('method', 'GET')
@@ -941,32 +934,24 @@ class SecurityAuditor:
                                 self.log_finding(finding)
                                 print(f"    🚨 CONFIRMED: {vuln_name}")
                         else:
-                            print(f"    ⚠️ VALIDATOR REJECTED: {vuln_name} - payload: {info.get('payload')}")
-                     elif reward >= 1.0:
-                         # High reward but missing vuln_found flag?
-                         # TRUST THE REWARD - It means the environment found something specific!
-                         real_vuln_name = self._map_action_to_vuln(action)
-                         print(f"  ✨ TRUSTING HIGH REWARD ({reward}) for {real_vuln_name}")
-                         
-                         # Check for CTF Flag in response
-                         flag_match = re.search(r'CTF\{.*?\}', env.last_response.text)
-                         flag_found = flag_match.group(0) if flag_match else None
-                         
-                         if flag_found:
-                             print(f"  🚩 CTF FLAG FOUND: {flag_found}")
-                             real_vuln_name += f" [🚩 {flag_found}]" # Add to title for visibility
-                         
-                         finding = Finding(
-                             url=info.get('url', url),
-                             vuln_type=real_vuln_name,
-                             confidence='Medium', # Slightly lower confidence if implicit
-                             reward=reward,
-                             payload=info.get('payload', '') + (f" | FLAG: {flag_found}" if flag_found else ""),
-                             method=info.get('method', 'GET')
-                         )
-                         if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
-                             findings.append(finding)
-                             self.log_finding(finding)
+                            # If env confirmed but validator rejected, it's a conflict - log it!
+                            if env_confirmed:
+                                print(f"    ⚠️ VALIDATOR REJECTED (Env Confirmed!): {vuln_name}")
+                                # In audit mode, we might want to keep it if env confirmed it
+                                finding = Finding(
+                                    url=info.get('url', url),
+                                    vuln_type=vuln_name,
+                                    confidence='Medium', 
+                                    reward=reward,
+                                    payload=info.get('payload', ''),
+                                    method=info.get('method', 'GET')
+                                )
+                                if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
+                                    findings.append(finding)
+                                    self.log_finding(finding)
+                                    print(f"    🚨 KEPT (Fallback): {vuln_name}")
+                            else:
+                                print(f"    ⚠️ VALIDATOR REJECTED: {vuln_name}")
                 
                 state = next_state
                 

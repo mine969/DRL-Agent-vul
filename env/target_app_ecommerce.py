@@ -1408,6 +1408,78 @@ def process_payment():
 
 
 # ============================================================================
+# SOCIAL / COMMUNITY (XSS TARGETS)
+# ============================================================================
+
+@app.route('/api/posts', methods=['GET', 'POST'])
+def api_posts():
+    """Social posts endpoint - VULN: Stored XSS"""
+    conn = get_db()
+    
+    if request.method == 'POST':
+        data = request.json if request.json else request.form
+        content = data.get('content', '')
+        title = data.get('title', 'Untitled')
+        
+        # VULNERABILITY: Stored XSS
+        # The content is stored without sanitization
+        # We also check for the payload immediately to give feedback/reward
+        
+        c = conn.cursor()
+        # Create table if not exists (lazy init for this simplified app)
+        c.execute('''CREATE TABLE IF NOT EXISTS posts 
+                     (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT, content TEXT)''')
+        
+        c.execute('INSERT INTO posts (title, content) VALUES (?, ?)', (title, content))
+        conn.commit()
+        post_id = c.lastrowid
+        
+        response = make_response(jsonify({
+            'message': 'Post created successfully',
+            'id': post_id,
+            'content': content
+        }))
+        
+        # TRAINING SIGNAL: Check for XSS payload
+        if any(p in content.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
+            response.headers['X-Vuln-Confirmed'] = 'xss_stored_posts_success'
+            
+        conn.close()
+        return add_security_headers(response)
+
+    # GET - List posts (Reflected XSS via stored content)
+    try:
+        posts = conn.execute('SELECT * FROM posts ORDER BY id DESC LIMIT 10').fetchall()
+    except:
+        posts = []
+    
+    conn.close()
+    
+    return jsonify({
+        'posts': [dict(p) for p in posts]
+    })
+
+@app.route('/api/posts/<int:post_id>/comments', methods=['POST'])
+def api_post_comments(post_id):
+    """Post comments endpoint - VULN: Stored XSS"""
+    data = request.json if request.json else request.form
+    content = data.get('content', '')
+    
+    # VULNERABILITY: Stored XSS in comments
+    response = make_response(jsonify({
+        'message': 'Comment added',
+        'post_id': post_id,
+        'content': content
+    }))
+    
+    # TRAINING SIGNAL: Check for XSS payload
+    if any(p in content.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
+        response.headers['X-Vuln-Confirmed'] = 'xss_stored_comments_success'
+        
+    return add_security_headers(response)
+
+
+# ============================================================================
 # MISC
 # ============================================================================
 

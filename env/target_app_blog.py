@@ -568,14 +568,12 @@ def get_db():
 def index():
     search_query = request.args.get('search', '').strip()
     
-    # REFELECTED XSS FLAG TRIGGER
-    if "<script>alert('XSS')</script>" in search_query:
-        # Append flag to the reflected output so verification finds it
-        search_query += " CTF{blog_reflected_xss_search_1337}"
-        # Set header for agent detection
-        if 'X-Vuln-Confirmed' not in request.headers:
-             # We can't set header on request, we set on response later
-             pass
+    # REFLECTED XSS FLAG TRIGGER
+    # Expanded detection for training
+    if any(p in search_query.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
+        # Append flag to the reflected output so verification finds it if checking content
+        if "CTF" not in search_query:
+             search_query += " CTF{blog_reflected_xss_search_1337}"
         
     conn = get_db()
     
@@ -608,7 +606,8 @@ def index():
     )
     
     response = make_response(render_template_string(home_with_search, posts=posts, session=session, search_query=search_query))
-    if "CTF{blog_reflected_xss_search_1337}" in search_query:
+    response = make_response(render_template_string(home_with_search, posts=posts, session=session, search_query=search_query))
+    if any(p in search_query.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
         response.headers['X-Vuln-Confirmed'] = 'REFLECTED_XSS'
     return response
 
@@ -746,7 +745,7 @@ def view_post(post_id):
     
     # XSS detection in comments
     for comment in comments:
-        if '<script>' in comment['content'] or 'onerror=' in comment['content']:
+        if any(p in comment['content'].lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
             response.headers['X-Vuln-Confirmed'] = 'stored_xss_viewed'
             break
             

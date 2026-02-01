@@ -1288,7 +1288,11 @@ def posts():
         conn.commit()
         conn.close()
         
-        return redirect('/posts')
+        response = make_response(redirect('/posts'))
+        # Expanded detection for training
+        if any(p in content.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
+             response.headers['X-Vuln-Confirmed'] = 'xss_stored_post_success'
+        return response
 
 @app.route('/posts/<post_id>', methods=['GET'])
 def post_detail(post_id):
@@ -1474,9 +1478,14 @@ def comments(post_id):
         conn.close()
         
         if request.is_json:
-            return jsonify({'message': 'Comment added', 'vuln': 'Stored XSS'}), 201
+            response = make_response(jsonify({'message': 'Comment added', 'vuln': 'Stored XSS'}), 201)
         else:
-            return redirect(f'/posts/{post_id}')
+            response = make_response(redirect(f'/posts/{post_id}'))
+            
+        if any(p in content.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
+            response.headers['X-Vuln-Confirmed'] = 'xss_stored_comment_success'
+            
+        return response
 
 # ============================================================================
 # FILE UPLOADS

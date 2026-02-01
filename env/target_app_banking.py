@@ -605,6 +605,13 @@ def transfer():
                     (sender['id'], -amount, f"Transfer to {to_account} - {recipient['username']}"))
         conn.execute('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', 
                     (recipient['id'], amount, f"Transfer from {sender['account_number']} - {sender['username']}"))
+        
+        # XSS Detection in description
+        description = request.form.get('description', '')
+        xss_patterns = ['<script', 'javascript:', 'onerror=', 'onload=', '<svg', '<img', 'alert(', 'confirm(']
+        if any(pattern in description.lower() for pattern in xss_patterns):
+            csrf_flag += " [XSS Detected]" # Local for msg
+            
         conn.commit()
         msg = f"Transfer successful! ${amount:.2f} sent to account {to_account}" + csrf_flag
         status = "success"
@@ -627,8 +634,14 @@ def transfer():
     </div>
     """
     response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
-    if csrf_flag:
+    
+    # Set headers for vulnerabilities
+    if csrf_flag and "CSRF" in csrf_flag:
         response.headers['X-Vuln-Confirmed'] = 'CSRF_BYPASS'
+    
+    description = request.form.get('description', '')
+    if any(pattern in description.lower() for pattern in xss_patterns):
+        response.headers['X-Vuln-Confirmed'] = 'STORED_XSS_TRANSFER'
         
     return response
 

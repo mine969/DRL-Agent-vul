@@ -57,9 +57,22 @@ def main():
             log_name = target['name'].replace(' ', '_').lower()
             log_file = open(f"logs/{log_name}.log", "w")
 
+            # Determine correct Python executable
+            # If running in venv, use venv python; otherwise use sys.executable
+            if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+                # Running in venv
+                python_exe = sys.executable
+            else:
+                # Not in venv, try to find venv python
+                venv_python = os.path.join(os.getcwd(), '.venv', 'Scripts', 'python.exe')
+                if os.path.exists(venv_python):
+                    python_exe = venv_python
+                else:
+                    python_exe = sys.executable
+            
             # Start the Flask app
             process = subprocess.Popen(
-                [sys.executable, script_path],
+                [python_exe, script_path],
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
                 cwd=os.getcwd()

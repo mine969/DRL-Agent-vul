@@ -657,6 +657,11 @@ class WebSecurityGym(gym.Env):
             truncated = True
         
         status_code = response.status_code if response else 500
+        
+        # Signal success to Auditor
+        info['vuln_found'] = self.found_vulnerability
+        info['waf_triggered'] = self.triggered_waf
+        
         return self._get_observation(status_code), reward, game_over, truncated, info
     
 
@@ -1620,28 +1625,38 @@ class WebSecurityGym(gym.Env):
         r = self.session.get(f"{self.target_url}/search?q={payload}", timeout=3)
         return r, self._calculate_reward(r, "XSS_REFLECTED")
     
-    def attack_xss_stored(self) -> Tuple[requests.Response, float]:
-        """Stored XSS via comment."""
+    def attack_xss_stored_posts(self) -> Tuple[requests.Response, float]:
+        """Stored XSS in Posts (Action 66)."""
         if not self.auth_token:
             return None, -5.0
+            
         payload = self.payload_manager.get_xss("simple")
         
-        # Try generic API
-        r = self.session.post(f"{self.target_url}/api/v1/interact/comment_x",
-                             json={"payload": payload, "target_id": 1},
-                             headers={"Authorization": f"Bearer {self.auth_token}"}, timeout=3)
-                             
-        # Try Blog App /post/1/comment
-        if r.status_code == 404:
-            r = self.session.post(f"{self.target_url}/post/1/comment",
-                                data={"content": payload}, timeout=3)
-                                
-        # Try Social Media /api/posts
-        if r.status_code == 404:
-            r = self.session.post(f"{self.target_url}/api/posts",
-                                json={"content": payload}, timeout=3)
-                                
+        # Target: Social Media Post
+        r = self.session.post(f"{self.target_url}/api/posts",
+                            json={"title": "Hacked", "content": payload}, 
+                            headers={"Authorization": f"Bearer {self.auth_token}"}, timeout=3)
+                            
         return r, self._calculate_reward(r, "XSS_STORED")
+
+    def attack_xss_stored_comments(self) -> Tuple[requests.Response, float]:
+        """Stored XSS in Comments (Action 67)."""
+        if not self.auth_token:
+            return None, -5.0
+            
+        payload = self.payload_manager.get_xss("simple")
+        
+        # Target: Social Media Comment
+        # Try to comment on post 1
+        r = self.session.post(f"{self.target_url}/api/posts/1/comments",
+                            json={"content": payload},
+                            headers={"Authorization": f"Bearer {self.auth_token}"}, timeout=3)
+                            
+        return r, self._calculate_reward(r, "XSS_STORED")
+        
+    def attack_xss_stored(self) -> Tuple[requests.Response, float]:
+        """Legacy helper / Fallback."""
+        return self.attack_xss_stored_posts()
     
     def attack_xss_dom(self) -> Tuple[requests.Response, float]:
         """DOM-based XSS."""
@@ -1992,7 +2007,7 @@ class WebSecurityGym(gym.Env):
         # 3. Success: Found a Vulnerability!
         # We look for specific "Flags" or indicators in the response
         success_indicators = {
-            "SQL_API": ["auth_token_v2", "JWT_MASTER_KEY_FOUND", "syntax error", "SQL", "database", "Warning"],
+            "SQL_API": ["auth_token_v2", "JWT_MASTER_KEY_FOUND", "syntax error", "SQL", "database", "Warning", "Login successful"],
             "XSS_API": ["payload_accepted", "check_the_logs", "<script>", "alert("],
             "XSS_REFLECTED": ["<script>alert(1)</script>", "onerror=alert(1)", "alert(1)"],
             "BAC_API": ["DB_LEAK_SUCCESS", "admin", "password", "users", "role", "balance"],

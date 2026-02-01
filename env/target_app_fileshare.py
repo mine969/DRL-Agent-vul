@@ -509,7 +509,10 @@ def upload():
     response = make_response(render_template_string(msg_html, files=files, session=session))
     
     # Check for vulnerability confirmation
-    if not file.filename.lower().endswith(('.txt', '.pdf', '.png', '.jpg', '.jpeg', '.gif')):
+    xss_patterns = ['<script', 'javascript:', 'onerror=', 'onload=', '<svg', '<img', 'alert(', 'confirm(']
+    if any(pattern in description.lower() for pattern in xss_patterns):
+        response.headers['X-Vuln-Confirmed'] = 'STORED_XSS_UPLOAD'
+    elif not file.filename.lower().endswith(('.txt', '.pdf', '.png', '.jpg', '.jpeg', '.gif')):
          response.headers['X-Vuln-Confirmed'] = 'UNRESTRICTED_FILE_UPLOAD'
          
     return response

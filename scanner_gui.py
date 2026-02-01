@@ -522,137 +522,13 @@ class SecurityScannerGUI:
         modes_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
         modes_frame.pack(fill=tk.X, padx=15, pady=5)
         
-        tk.Radiobutton(modes_frame, text="FULL AUTO (AI AGENT)", variable=self.scan_mode, value="auto", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="DEEP SKILL CHECK", variable=self.scan_mode, value="deep_skill", bg=self.colors["bg_panel"], fg="#d400ff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#d400ff", font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="AGGRESSIVE MODE", variable=self.scan_mode, value="aggressive", bg=self.colors["bg_panel"], fg=self.colors["danger"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["danger"], font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="SUPER OSINT MODE", variable=self.scan_mode, value="osint", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="SPECIFIC ATTACK", variable=self.scan_mode, value="specific", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="ZERO-DAY HUNTER", variable=self.scan_mode, value="zeroday", bg=self.colors["bg_panel"], fg=self.colors["warning"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["warning"], font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="TARGETLESS HUNTER", variable=self.scan_mode, value="targetless", bg=self.colors["bg_panel"], fg="#00ffff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#00ffff", font=("Segoe UI", 9, "bold"), command=self.toggle_attack_selector).pack(anchor=tk.W)
-        
-        # Attack Selector (Hidden by default)
-        self.attack_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
-        self.attack_frame.pack(fill=tk.X, padx=15, pady=5)
-        tk.Label(self.attack_frame, text="ATTACK TYPE:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
-        self.attack_combo = ttk.Combobox(self.attack_frame, textvariable=self.specific_attack_type, state="readonly")
-        self.attack_combo['values'] = [
-            "SQL Injection", "XSS", "SSRF", "Command Injection", "LFI", "RFI", "Broken Access Control", "XXE",
-            "Dependency Check (A03:2025)", "CI/CD Exposure (A03:2025)", "Error Fuzzing (A10:2025)", "Auth Fail Open (A10:2025)"
-        ]
-        self.attack_combo.current(0)
-        self.attack_combo.pack(fill=tk.X)
-        self.attack_combo.config(state=tk.DISABLED)
+        tk.Radiobutton(modes_frame, text="FULL AUTO (AI AGENT)", variable=self.scan_mode, value="auto", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9)).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="DEEP SKILL CHECK", variable=self.scan_mode, value="deep_skill", bg=self.colors["bg_panel"], fg="#d400ff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#d400ff", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
+        tk.Radiobutton(modes_frame, text="AGGRESSIVE MODE", variable=self.scan_mode, value="aggressive", bg=self.colors["bg_panel"], fg=self.colors["danger"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["danger"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
 
-        # Target Discovery (Hidden by default)
-        self.discovery_section_header = tk.Label(
-            self.scrollable_frame, 
-            text="🎯 TARGET DISCOVERY", 
-            font=("Courier New", 12, "bold"), 
-            bg=self.colors["bg_panel"], 
-            fg=self.colors["text_dim"]
-        )
-        
-        self.discovery_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
-        
-        # Load environment variables
-        from dotenv import load_dotenv
-        load_dotenv()
-        
-        self.dork_query = tk.StringVar()
-        self.shodan_query = tk.StringVar()
-        self.shodan_key = tk.StringVar(value=os.getenv("SHODAN_API_KEY", ""))
-        self.crtsh_domain = tk.StringVar()
-        self.duckduckgo_query = tk.StringVar()
-        self.censys_query = tk.StringVar()
-        self.censys_query = tk.StringVar()
-        self.censys_api_key = tk.StringVar(value=os.getenv("CENSYS_API_KEY", ""))
-        
-        # Grid layout for discovery frame with random buttons
-        # Google Dork
-        tk.Label(self.discovery_frame, text="GOOGLE DORK:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=0, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.dork_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=0, column=1, sticky="ew", padx=5, pady=2)
-        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("dork")).grid(row=0, column=2, padx=(0, 5), pady=2)
-        
-        # Shodan Query
-        tk.Label(self.discovery_frame, text="SHODAN QUERY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=1, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.shodan_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=1, column=1, sticky="ew", padx=5, pady=2)
-        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("shodan")).grid(row=1, column=2, padx=(0, 5), pady=2)
-        
-        # Shodan Key (no random button)
-        tk.Label(self.discovery_frame, text="SHODAN KEY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=2, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.shodan_key, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white", show="*").grid(row=2, column=1, columnspan=2, sticky="ew", padx=5, pady=2)
-        
-        # CRT.sh Domain
-        tk.Label(self.discovery_frame, text="CRT.SH DOMAIN:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=3, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.crtsh_domain, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=3, column=1, sticky="ew", padx=5, pady=2)
-        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("crtsh")).grid(row=3, column=2, padx=(0, 5), pady=2)
-        
-        # DuckDuckGo
-        tk.Label(self.discovery_frame, text="DUCKDUCKGO:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=4, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.duckduckgo_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=4, column=1, sticky="ew", padx=5, pady=2)
-        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("duckduckgo")).grid(row=4, column=2, padx=(0, 5), pady=2)
-        
-        # Censys Query
-        tk.Label(self.discovery_frame, text="CENSYS QUERY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=5, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.censys_query, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white").grid(row=5, column=1, sticky="ew", padx=5, pady=2)
-        tk.Button(self.discovery_frame, text="🎲", font=("Consolas", 10), bg=self.colors["accent"], fg="black", relief=tk.FLAT, cursor="hand2", width=3, command=lambda: self.random_query("censys")).grid(row=5, column=2, padx=(0, 5), pady=2)
-        
-        # Censys API Key (PAT)
-        tk.Label(self.discovery_frame, text="CENSYS API KEY:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).grid(row=6, column=0, sticky="w", padx=5, pady=2)
-        tk.Entry(self.discovery_frame, textvariable=self.censys_api_key, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white", show="*").grid(row=6, column=1, columnspan=2, sticky="ew", padx=5, pady=2)
-        
-        # Add auto-generate hint
-        auto_hint = tk.Label(
-            self.discovery_frame, 
-            text="💡 Tip: Leave fields empty to use AUTO-GENERATE mode (100+ queries)", 
-            font=("Consolas", 8, "italic"), 
-            bg=self.colors["bg_panel"], 
-            fg=self.colors["accent_dim"]
-        )
-        auto_hint.grid(row=7, column=0, columnspan=2, sticky="w", padx=5, pady=(10, 2))
-        
-        # Add Preview Queries button
-        preview_btn = tk.Button(
-            self.discovery_frame,
-            text="🔍 PREVIEW AUTO-GENERATED QUERIES",
-            font=("Courier New", 9, "bold"),
-            bg=self.colors["accent_dim"],
-            fg="black",
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.preview_queries
-        )
-        preview_btn.grid(row=9, column=0, columnspan=2, sticky="ew", padx=5, pady=(5, 10))
-        
-        self.discovery_frame.columnconfigure(1, weight=1)
-        # Don't pack yet - will be shown when targetless mode is selected
+        # Target Discovery removed - model doesn't support targetless scanning
 
-        # STEALTH CONFIGURATION
-        self.add_section_header(self.scrollable_frame, "STEALTH CONTROL")
-        
-        stealth_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
-        stealth_frame.pack(fill=tk.X, padx=15, pady=5)
-        
-        tk.Label(stealth_frame, text="STEALTH LEVEL:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
-        stealth_combo = ttk.Combobox(stealth_frame, textvariable=self.stealth_level, state="readonly", width=15)
-        stealth_combo['values'] = ["low", "medium", "high", "paranoid"]
-        stealth_combo.current(1)  # Default to medium
-        stealth_combo.pack(fill=tk.X)
-        
-        tk.Label(stealth_frame, text="PROXY FILE (Optional):", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W, pady=(10, 0))
-        proxy_frame = tk.Frame(stealth_frame, bg=self.colors["bg_panel"])
-        proxy_frame.pack(fill=tk.X)
-        proxy_entry = tk.Entry(proxy_frame, textvariable=self.proxy_file, font=("Consolas", 9), bg="black", fg="white", relief=tk.FLAT, insertbackground="white")
-        proxy_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, ipady=3)
-        
-        proxy_fetch_btn = tk.Button(proxy_frame, text="🔄", font=("Consolas", 8), command=self.fetch_proxies, bg=self.colors["accent"], fg="black", relief=tk.FLAT, width=3)
-        proxy_fetch_btn.pack(side=tk.RIGHT, padx=(5, 0))
-        ToolTip(proxy_fetch_btn, "Auto-fetch free proxies")
-        
-        proxy_browse_btn = tk.Button(proxy_frame, text="📂", font=("Consolas", 8), command=self.browse_proxy_file, bg=self.colors["highlight"], fg="white", relief=tk.FLAT, width=3)
-        proxy_browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
-        ToolTip(proxy_browse_btn, "Browse for proxy file")
-        
+        # Stealth/Proxy controls removed - not used in mock target training
         tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"], height=20).pack() # Spacer
         
         # ONE CLICK BUTTONS
@@ -721,25 +597,7 @@ class SecurityScannerGUI:
         self.view_report_btn = tk.Button(btn_frame, text="📄 OPEN REPORT", bg=self.colors["highlight"], fg="white", relief=tk.FLAT, command=self.view_report, state=tk.DISABLED)
         self.view_report_btn.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(5, 0))
 
-    def toggle_attack_selector(self):
-        mode = self.scan_mode.get()
-        
-        # Handle Attack Selector
-        if mode == "specific":
-            self.attack_combo.config(state="readonly")
-        else:
-            self.attack_combo.config(state=tk.DISABLED)
-            
-        # Handle Discovery Frame
-        if mode == "targetless":
-            # Show header first
-            self.discovery_section_header.pack(pady=(15, 5), padx=15, anchor=tk.W)
-            # Then show frame
-            self.discovery_frame.pack(fill=tk.X, padx=15, pady=5)
-        else:
-            # Hide both header and frame
-            self.discovery_section_header.pack_forget()
-            self.discovery_frame.pack_forget()
+    # toggle_attack_selector removed - no longer needed
 
     def add_section_header(self, parent, text):
         tk.Label(parent, text=text, font=("Segoe UI", 11, "bold"), bg=self.colors["bg_panel"], fg=self.colors["accent"]).pack(pady=(20, 10), padx=15, anchor=tk.W)
@@ -1108,44 +966,25 @@ Payload: {finding.get('payload')}
         target = self.target_url.get().strip()
         
         # Validation
-        if mode != "targetless":
-            if not target:
-                messagebox.showerror("Error", "Please enter a target URL.")
-                return
-            # Only add http:// if user didn't specify any protocol
-            if not target.startswith(('http://', 'https://')):
-                target = 'http://' + target
-                self.log(f"No protocol specified, defaulting to HTTP: {target}", "INFO")
+        if not target:
+            messagebox.showerror("Error", "Please enter a target URL.")
+            return
+        # Only add http:// if user didn't specify any protocol
+        if not target.startswith(('http://', 'https://')):
+            target = 'http://' + target
+            self.log(f"No protocol specified, defaulting to HTTP: {target}", "INFO")
+        else:
+            # User specified protocol - respect their choice
+            if target.startswith('https://'):
+                self.log(f"Using HTTPS as specified: {target}", "INFO")
             else:
-                # User specified protocol - respect their choice
-                if target.startswith('https://'):
-                    self.log(f"Using HTTPS as specified: {target}", "INFO")
-                else:
-                    self.log(f"Using HTTP as specified: {target}", "INFO")
+                self.log(f"Using HTTP as specified: {target}", "INFO")
         
         model_selection = self.model_path.get()
         if " (Final)" in model_selection:
             model = model_selection.replace(" (Final)", "")
         else:
             model = model_selection
-            
-        specific_attack = self.specific_attack_type.get() if mode == "specific" else None
-        
-        # Targetless Config
-        dork = self.dork_query.get().strip()
-        shodan_q = self.shodan_query.get().strip()
-        shodan_k = self.shodan_key.get().strip()
-        crtsh_d = self.crtsh_domain.get().strip()
-        ddg_q = self.duckduckgo_query.get().strip()
-        censys_q = self.censys_query.get().strip()
-        censys_k = self.censys_api_key.get().strip()
-        
-        # Check if we should use Auto-Generate
-        auto_generate = False
-        if mode == "targetless" and not (dork or shodan_q or crtsh_d or ddg_q or censys_q):
-             # All fields empty -> Auto-Generate Mode
-             auto_generate = True
-             self.log("🤖 AUTO-GENERATE MODE ACTIVATED: Generating random queries...", "INFO")
         
         self.scan_button.config(state=tk.DISABLED)
         self.flash_btn.config(state=tk.DISABLED)
@@ -1158,9 +997,9 @@ Payload: {finding.get('payload')}
         self.exploit_text.delete(1.0, tk.END)
         self.exploit_text.insert(tk.END, "// Scanning target... Awaiting findings...")
         
-        threading.Thread(target=self.run_scan, args=(target, model, mode, specific_attack, dork, shodan_q, shodan_k, crtsh_d, ddg_q, censys_q, censys_k, auto_generate), daemon=True).start()
+        threading.Thread(target=self.run_scan, args=(target, model, mode), daemon=True).start()
 
-    def run_scan(self, target, model, mode, specific_attack, dork, shodan_q, shodan_k, crtsh_d, ddg_q, censys_q, censys_k, auto_generate):
+    def run_scan(self, target, model, mode):
         # Redirect stdout to GUI
         class StdoutRedirector:
             def __init__(self, text_widget):
@@ -1175,95 +1014,13 @@ Payload: {finding.get('payload')}
         sys.stdout = StdoutRedirector(self.output_text)
         
         try:
-            targets = []
-            if mode == "targetless":
-                self.log(f"🌍 INITIATING TARGET HUNTING...", "INFO")
-                hunter = TargetHunter(shodan_api_key=shodan_k)
-                
-                # Auto-Generate Logic
-                if auto_generate:
-                    import random
-                    if not dork: 
-                        dork = random.choice(hunter.get_common_dorks())
-                        self.log(f"🎲 Auto-Generated Dork: {dork}", "INFO")
-                    
-                    if not shodan_q and shodan_k:
-                        shodan_q = random.choice(hunter.get_shodan_queries())
-                        self.log(f"🎲 Auto-Generated Shodan Query: {shodan_q}", "INFO")
-                        
-                    if not crtsh_d:
-                        crtsh_d = random.choice(hunter.get_target_domains())
-                        self.log(f"🎲 Auto-Generated CRT.sh Domain: {crtsh_d}", "INFO")
-                        
-                    if not ddg_q:
-                        ddg_q = random.choice(hunter.get_duckduckgo_queries())
-                        self.log(f"🎲 Auto-Generated DuckDuckGo Query: {ddg_q}", "INFO")
-                        
-                    if not censys_q and censys_k:
-                        censys_q = random.choice(hunter.get_censys_queries())
-                        self.log(f"🎲 Auto-Generated Censys Query: {censys_q}", "INFO")
+            targets = [target]  # Model only scans single specified target
 
-                if dork:
-                    found = hunter.dork_google(dork, num_results=5)
-                    self.log(f"🔍 Google Dork found {len(found)} targets", "SUCCESS")
-                    targets.extend(found)
-                    
-                if shodan_q:
-                    if shodan_k:
-                        found = hunter.search_shodan(shodan_q, limit=5)
-                        self.log(f"🌐 Shodan found {len(found)} targets", "SUCCESS")
-                        targets.extend(found)
-                    else:
-                        self.log("⚠️ Shodan Key missing - skipping Shodan", "WARNING")
-                
-                if crtsh_d:
-                    found = hunter.search_crtsh(crtsh_d)
-                    self.log(f"📜 CRT.sh found {len(found)} subdomains", "SUCCESS")
-                    targets.extend(found)
-                    
-                if ddg_q:
-                    found = hunter.search_duckduckgo(ddg_q, num_results=5)
-                    self.log(f"🦆 DuckDuckGo found {len(found)} targets", "SUCCESS")
-                    targets.extend(found)
-                    
-                if censys_q:
-                    if censys_k:
-                        found = hunter.search_censys(censys_q, censys_k, limit=5)
-                        self.log(f"👁️ Censys found {len(found)} targets", "SUCCESS")
-                        targets.extend(found)
-                    else:
-                        self.log("⚠️ Censys Key missing - skipping Censys", "WARNING")
-                    
-                targets = list(set(targets))
-                self.log(f"✅ Total unique targets found: {len(targets)}", "SUCCESS")
-                
-                if not targets:
-                    self.log("❌ No targets found. Aborting.", "ERROR")
-                    return
-            else:
-                targets = [target]
-
-            self.log(f"INITIATING ATTACK SEQUENCE ON {len(targets)} TARGETS", "INFO")
+            self.log(f"INITIATING ATTACK SEQUENCE ON {len(targets)} TARGET(S)", "INFO")
             self.log(f"MODE: {mode.upper()} | MODEL: {os.path.basename(model)}", "INFO")
             
-            # Load proxies if provided
-            proxy_list = None
-            proxy_file = self.proxy_file.get().strip()
-            if proxy_file and os.path.exists(proxy_file):
-                try:
-                    with open(proxy_file, 'r') as f:
-                        proxy_list = [line.strip() for line in f if line.strip()]
-                    self.log(f"✅ LOADED {len(proxy_list)} PROXIES", "SUCCESS")
-                except Exception as e:
-                    self.log(f"❌ PROXY LOAD ERROR: {e}", "ERROR")
-                    self.log("⚠️ Continuing without proxies...", "WARNING")
-            else:
-                if proxy_file:
-                    self.log(f"⚠️ Proxy file not found: {proxy_file}", "WARNING")
-                self.log("ℹ️ No proxy configured - using direct connection", "INFO")
-            
-            stealth = self.stealth_level.get()
-            self.log(f"STEALTH LEVEL: {stealth.upper()}", "INFO")
+            # Proxy/Stealth removed - not used in mock target training
+            self.log("ℹ️ Scanning local mock targets (no proxy needed)", "INFO")
             
             total_findings = 0
             
@@ -1274,10 +1031,7 @@ Payload: {finding.get('payload')}
                 
                 self.auditor = SecurityAuditor(
                     current_target, 
-                    model,
-                    use_proxies=bool(proxy_list),
-                    proxy_list=proxy_list,
-                    stealth_level=stealth
+                    model
                 )
                 
                 # Hook the log_finding callback
@@ -1302,7 +1056,7 @@ Payload: {finding.get('payload')}
                     crawl_depth=self.crawl_depth.get(), 
                     test_intensity=self.test_episodes.get(),
                     scan_mode=actual_mode,
-                    specific_attack=specific_attack,
+                    specific_attack=None,
                     persist=self.persist_mode.get()
                 )
                 total_findings += len(findings)
@@ -1317,6 +1071,9 @@ Payload: {finding.get('payload')}
                 self.root.after(0, lambda: self.scan_complete(total_findings))
             
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"❌ CRITICAL UI SCAN ERROR: {e}\n{error_trace}")
             self.root.after(0, lambda: self.log(f"SYSTEM ERROR: {str(e)}", "ERROR"))
             self.root.after(0, lambda: self.stop_scan())
         finally:
