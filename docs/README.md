@@ -137,7 +137,7 @@ Welcome to the DRL Web Security Agent documentation! This index will help you fi
 - ✅ Auto-proxy fetching (6 sources)
 - ✅ Aggressive scan mode
 - ✅ Full exploit URLs
-- ✅ Comprehensive reports
+- ✅ Comprehensive reports with captured flags
 
 ### Recently Updated Docs
 

@@ -171,6 +171,8 @@ python scan.py
 
 ## 📊 Understanding the Reports
 
+All report formats include captured flags (CTF{...}) and evidence fields when present.
+
 ### HTML Report (Best for Presentations)
 
 ```bash
@@ -187,6 +189,7 @@ start vulnerability_report_20251123_060000.html
   - How to exploit
   - Potential damage
   - How to fix
+  - Captured flags and evidence snippets when present
 
 ### TXT Report (Best for Quick Review)
 

@@ -585,6 +585,68 @@ class SecurityAuditor:
         """Callback for logging findings (can be overridden by GUI)"""
         pass
 
+    def _extract_flags(
+        self,
+        response: Optional[requests.Response],
+        info_flags: Optional[List[str]] = None,
+    ) -> List[str]:
+        flags = set()
+        if info_flags:
+            for item in info_flags:
+                if item:
+                    flags.add(item)
+
+        if not response:
+            return sorted(flags)
+
+        header_flag = response.headers.get("X-CTF-Flag", "")
+        if header_flag:
+            for item in header_flag.split(","):
+                item = item.strip()
+                if item:
+                    flags.add(item)
+
+        for header_value in response.headers.values():
+            if "CTF{" in header_value:
+                for match in re.findall(r"CTF\{[^}]+\}", header_value):
+                    flags.add(match)
+
+        sources = [response.text or "", response.url or ""]
+        for source in sources:
+            for match in re.findall(r"CTF\{[^}]+\}", source):
+                flags.add(match)
+
+        return sorted(flags)
+
+    def _summarize_response(
+        self, response: Optional[requests.Response], max_len: int = 240
+    ) -> str:
+        if not response or not response.text:
+            return ""
+        text = re.sub(r"\s+", " ", response.text).strip()
+        text = text.replace("`", "'")
+        if len(text) > max_len:
+            return text[:max_len].rstrip() + "..."
+        return text
+
+    def _build_evidence(
+        self,
+        env_confirmed: bool,
+        validation_result: bool,
+        flags: List[str],
+        response: Optional[requests.Response],
+    ) -> str:
+        evidence_bits = []
+        if flags:
+            evidence_bits.append("ctf_flag")
+        if env_confirmed:
+            evidence_bits.append("env_confirmed")
+        if validation_result:
+            evidence_bits.append("validator_confirmed")
+        if response and "X-Vuln-Confirmed" in response.headers:
+            evidence_bits.append("x-vuln-confirmed")
+        return ", ".join(evidence_bits)
+
     def _load_ai_brain(self, model_path):
         """Attempts to load the trained neural network (auto-loads latest checkpoint)."""
         try:
@@ -940,11 +1002,21 @@ class SecurityAuditor:
 
                 # 4. Check for Findings
 
-                if reward > 0:
+                response = env.last_response if hasattr(env, "last_response") else None
+                info_flags = info.get("flags") if isinstance(info.get("flags"), list) else None
+                flags = self._extract_flags(response, info_flags)
+                flag_found = bool(flags)
+                status_code = response.status_code if response else None
+                response_snippet = self._summarize_response(response)
+
+                if reward > 0 or flag_found:
                     vuln_name = self._map_action_to_vuln(action)
 
                     # PRIORITY 1: Explicit flag from Environment
-                    env_confirmed = info.get("vuln_found", False)
+                    env_confirmed = info.get("vuln_found", False) or flag_found
+
+                    if flag_found and reward < 1.0:
+                        reward = 1.0
 
                     if env_confirmed or reward >= 0.1:
                         # FILTERING LOGIC
@@ -958,81 +1030,80 @@ class SecurityAuditor:
                                 pass  # Keep them
 
                         print(f"  ✨ POTENTIAL VULN: {vuln_name} (Reward: {reward})")
+                        if flag_found:
+                            print(f"    🏁 FLAG FOUND: {', '.join(flags)}")
 
                         # --- ROBUST VALIDATION ---
                         validation_result = False
-                        if env.last_response:
+                        if response:
                             validation_result = validator.validate(
-                                vuln_name, env.last_response, info.get("payload")
+                                vuln_name, response, info.get("payload")
                             )
-                        else:
-                            # Action failed or returned no response, skipping validation
-                            pass
 
-                        if validation_result:
-                            # HIGH CONFIDENCE (Validator Confirmed)
+                        evidence = self._build_evidence(
+                            env_confirmed, validation_result, flags, response
+                        )
+
+                        if flag_found:
+                            confidence = "High"
+                        elif validation_result:
                             confidence = "High" if env_confirmed else "Medium"
-                            finding = Finding(
-                                url=info.get("url", url),
-                                vuln_type=vuln_name,
-                                confidence=confidence,
-                                reward=reward,
-                                payload=info.get("payload", ""),
-                                method=info.get("method", "GET"),
-                            )
-                            # Avoid duplicates
-                            if not any(
-                                f.vuln_type == finding.vuln_type
-                                and f.url == finding.url
-                                for f in findings
-                            ):
-                                findings.append(finding)
-                                self.log_finding(finding)
-                                print(f"    🚨 CONFIRMED: {vuln_name}")
-
                         elif env_confirmed:
-                            # MEDIUM CONFIDENCE (Env Confirmed, Validator Rejected/Missed)
-                            print(
-                                f"    ⚠️ VALIDATOR REJECTED (Env Confirmed!): {vuln_name}"
-                            )
-                            finding = Finding(
-                                url=info.get("url", url),
-                                vuln_type=vuln_name,
-                                confidence="Medium",
-                                reward=reward,
-                                payload=info.get("payload", ""),
-                                method=info.get("method", "GET"),
-                            )
-                            if not any(
-                                f.vuln_type == finding.vuln_type
-                                and f.url == finding.url
-                                for f in findings
-                            ):
-                                findings.append(finding)
-                                self.log_finding(finding)
-                                print(f"    🚨 KEPT (Env Confirmed): {vuln_name}")
-
+                            confidence = "Medium"
                         else:
-                            # LOW CONFIDENCE (Agent thinks so, but Env/Validator disagree)
-                            # User Request: "even 2600 pth find with that vuln is found in training session check phyase 2 and fix phase 3 issue"
-                            # We keep it as Low Confidence instead of rejecting.
-                            print(f"    ⚠️ VALIDATOR REJECTED: {vuln_name}")
-                            finding = Finding(
-                                url=info.get("url", url),
-                                vuln_type=vuln_name,
-                                confidence="Low (Validator Rejected)",
-                                reward=reward,
-                                payload=info.get("payload", ""),
-                                method=info.get("method", "GET"),
-                            )
-                            if not any(
-                                f.vuln_type == finding.vuln_type
-                                and f.url == finding.url
+                            confidence = "Low (Validator Rejected)"
+
+                        finding = Finding(
+                            url=info.get("url", url),
+                            vuln_type=vuln_name,
+                            confidence=confidence,
+                            reward=reward,
+                            payload=info.get("payload", ""),
+                            method=info.get("method", "GET"),
+                            status_code=status_code,
+                            flags=flags,
+                            evidence=evidence,
+                            response_snippet=response_snippet,
+                            env_confirmed=env_confirmed,
+                        )
+
+                        existing = next(
+                            (
+                                f
                                 for f in findings
-                            ):
-                                findings.append(finding)
-                                # Don't log to file/console as CONFIRMED, but keep in list for report
-                                print(f"    ⚠️ KEPT (Low Confidence): {vuln_name}")
+                                if f.vuln_type == finding.vuln_type
+                                and f.url == finding.url
+                            ),
+                            None,
+                        )
+                        if existing:
+                            if flags:
+                                existing.flags = sorted(set(existing.flags + flags))
+                            if not existing.response_snippet and response_snippet:
+                                existing.response_snippet = response_snippet
+                            if not existing.evidence and evidence:
+                                existing.evidence = evidence
+                            existing.reward = max(existing.reward, reward)
+                            if env_confirmed:
+                                existing.env_confirmed = True
+                            if status_code is not None:
+                                existing.status_code = status_code
+                            if existing.confidence != "High" and confidence == "High":
+                                existing.confidence = confidence
+                            if not existing.payload and finding.payload:
+                                existing.payload = finding.payload
+                            if not existing.method and finding.method:
+                                existing.method = finding.method
+                        else:
+                            findings.append(finding)
+                            self.log_finding(finding)
+
+                        if confidence.startswith("High"):
+                            print(f"    🚨 CONFIRMED: {vuln_name}")
+                        elif confidence.startswith("Medium"):
+                            print(f"    🚨 KEPT (Env Confirmed): {vuln_name}")
+                        else:
+                            print(f"    ⚠️ KEPT (Low Confidence): {vuln_name}")
 
                 state = next_state
 

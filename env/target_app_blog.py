@@ -23,6 +23,8 @@ import hashlib
 import os
 import jwt
 import requests  # Fix: Missing import for SSRF functionality
+import json
+import re
 
 app = Flask(__name__)
 app.secret_key = "blog_secret_2025"
@@ -43,6 +45,50 @@ SECURITY_HEADERS = {
     "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
     "Content-Security-Policy": "default-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;",
 }
+
+CTF_APP_TAG = "blog"
+
+
+def _slugify(value: str) -> str:
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", "_", value.strip().lower())
+    return cleaned.strip("_") or "unknown"
+
+
+def _generate_ctf_flag(vuln_id: str) -> str:
+    return f"CTF{{{CTF_APP_TAG}_{_slugify(vuln_id)}}}"
+
+
+def _apply_ctf_flag(response):
+    if response.headers.get("X-CTF-Flag"):
+        return response
+
+    flag_value = None
+    vuln_id = response.headers.get("X-Vuln-Confirmed", "").strip()
+    if vuln_id:
+        flag_value = _generate_ctf_flag(vuln_id)
+
+    mimetype = response.mimetype or ""
+    if not flag_value and (
+        mimetype.startswith("text/")
+        or mimetype in ("application/json", "application/xhtml+xml")
+    ):
+        body = response.get_data(as_text=True) or ""
+        match = re.search(r"CTF\{[^}]+\}", body)
+        if match:
+            flag_value = match.group(0)
+
+    if flag_value:
+        response.headers["X-CTF-Flag"] = flag_value
+        if response.mimetype == "application/json":
+            try:
+                payload = response.get_json()
+                if isinstance(payload, dict) and "flag" not in payload:
+                    payload["flag"] = flag_value
+                    response.set_data(json.dumps(payload))
+            except Exception:
+                pass
+
+    return response
 
 import time
 
@@ -69,7 +115,7 @@ def add_security_headers(response):
     for k, v in SECURITY_HEADERS.items():
         if k not in response.headers:
             response.headers[k] = v
-    return response
+    return _apply_ctf_flag(response)
 
 
 @app.before_request

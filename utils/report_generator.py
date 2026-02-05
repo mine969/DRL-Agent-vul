@@ -1,7 +1,8 @@
 """Report generation utilities - separated for better code organization"""
 
-from typing import List, Dict, Any
-from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
+from dataclasses import dataclass, field
+import html as html_lib
 import datetime
 
 
@@ -15,11 +16,18 @@ class Finding:
     reward: float
     payload: str = ""
     method: str = "GET"
+    status_code: Optional[int] = None
+    flags: List[str] = field(default_factory=list)
+    evidence: str = ""
+    response_snippet: str = ""
+    env_confirmed: bool = False
 
     def get(self, key, default=None):
         """Allow dictionary-like access for GUI compatibility."""
         if key == "type":
             return self.vuln_type
+        if key == "flag":
+            return self.flags[0] if self.flags else default
         return getattr(self, key, default)
 
 
@@ -99,7 +107,7 @@ class ReportGenerator:
         stats = self._calculate_stats(findings, vuln_db)
 
         with open(filename, "w", encoding="utf-8") as f:
-            self._write_txt_header(f, stats, len(urls), len(findings))
+            self._write_txt_header(f, stats, len(urls), len(findings), len(self._collect_flags(findings)))
             self._write_txt_findings(f, findings, vuln_db)
             self._write_txt_urls(f, urls)
             self._write_txt_footer(f)
@@ -119,6 +127,7 @@ class ReportGenerator:
 
         filename = f"reports/vulnerability_report_{self.timestamp}.md"
         stats = self._calculate_stats(findings, vuln_db)
+        captured_flags = self._collect_flags(findings)
 
         # Separate findings into Confirmed (Red) and Suspicious (Yellow)
         # Separate findings into Confirmed (Red) and Suspicious (Yellow)
@@ -140,6 +149,7 @@ class ReportGenerator:
 
             f.write(f"| **Pages Scanned** | {len(urls)} |\n")
             f.write(f"| **Total Issues** | {len(findings)} |\n\n")
+            f.write(f"| **Flags Captured** | {len(captured_flags)} |\n\n")
 
             # Executive Summary
             f.write(f"## 📊 Executive Summary\n\n")
@@ -157,6 +167,12 @@ class ReportGenerator:
             f.write(
                 f"| 🟢 **LOW** | {stats['low']} | {'ℹ️ Info' if stats['low'] > 0 else '✅ Clean'} |\n\n"
             )
+
+            if captured_flags:
+                f.write("## 🏁 Captured Flags\n\n")
+                for flag in captured_flags:
+                    f.write(f"- `{flag}`\n")
+                f.write("\n")
 
             # --- CONFIRMED VULNERABILITIES ---
             if confirmed_findings:
@@ -179,6 +195,17 @@ class ReportGenerator:
                     )
                     f.write(f"- **Vulnerable URL**: `{finding.url}`\n")
                     f.write(f"- **HTTP Method**: `{finding.method}`\n\n")
+                    if finding.status_code is not None:
+                        f.write(f"- **Status Code**: `{finding.status_code}`\n")
+                    f.write(f"- **Reward**: `{finding.reward:.3f}`\n")
+                    f.write(f"- **Environment Confirmed**: `{finding.env_confirmed}`\n")
+                    if finding.flags:
+                        f.write(f"- **Flags**: {', '.join(f'`{flag}`' for flag in finding.flags)}\n")
+                    if finding.evidence:
+                        f.write(f"- **Evidence**: {finding.evidence}\n")
+                    if finding.response_snippet:
+                        f.write(f"- **Response Snippet**: `{finding.response_snippet}`\n")
+                    f.write("\n")
 
                     f.write(f"**📝 Description**\n")
                     f.write(f"{vuln_info.get('description', 'N/A')}\n\n")
@@ -292,6 +319,8 @@ class ReportGenerator:
                     f.write(f"### {idx}. 🟡 {finding.vuln_type}\n")
                     f.write(f"- **URL**: `{finding.url}`\n")
                     f.write(f"- **Confidence**: Low/Medium\n")
+                    if finding.flags:
+                        f.write(f"- **Flags**: {', '.join(f'`{flag}`' for flag in finding.flags)}\n")
                     f.write(
                         f"- **Note**: The agent detected an anomaly here. Check manually.\n\n"
                     )
@@ -324,8 +353,16 @@ class ReportGenerator:
 
         return stats
 
+    def _collect_flags(self, findings: List[Finding]) -> List[str]:
+        flags = set()
+        for finding in findings:
+            for flag in getattr(finding, "flags", []) or []:
+                if flag:
+                    flags.add(flag)
+        return sorted(flags)
+
     def _write_txt_header(
-        self, f, stats: Dict[str, int], url_count: int, vuln_count: int
+        self, f, stats: Dict[str, int], url_count: int, vuln_count: int, flag_count: int
     ):
         """Write text report header"""
         f.write("=" * 70 + "\n")
@@ -340,6 +377,7 @@ class ReportGenerator:
         f.write("-" * 70 + "\n")
         f.write(f"Pages Discovered:        {url_count}\n")
         f.write(f"Total Vulnerabilities:   {vuln_count}\n")
+        f.write(f"Flags Captured:          {flag_count}\n")
         f.write(f"  - Critical:            {stats['critical']}\n")
         f.write(f"  - High:                {stats['high']}\n")
         f.write(f"  - Medium:              {stats['medium']}\n\n")
@@ -361,6 +399,17 @@ class ReportGenerator:
                 f.write(f"Impact Level:  {impact}\n")
                 f.write(f"CVSS Score:    {vuln_info.get('cvss_score', 'N/A')}\n")
                 f.write(f"Affected URL:  {finding.url}\n\n")
+                f.write(f"HTTP Method:   {finding.method}\n")
+                if finding.status_code is not None:
+                    f.write(f"Status Code:   {finding.status_code}\n")
+                f.write(f"Reward:        {finding.reward:.3f}\n")
+                if finding.flags:
+                    f.write(f"Flags:         {', '.join(finding.flags)}\n")
+                if finding.evidence:
+                    f.write(f"Evidence:      {finding.evidence}\n")
+                if finding.response_snippet:
+                    f.write(f"Snippet:       {finding.response_snippet}\n")
+                f.write("\n")
 
                 f.write(f"Description:\n")
                 f.write(f"  {vuln_info.get('description', 'N/A')}\n\n")
@@ -445,6 +494,10 @@ class ReportGenerator:
                 <div class="stat-number critical">{len(findings)}</div>
             </div>
             <div class="stat-card">
+                <div>Flags Captured</div>
+                <div class="stat-number">{len(self._collect_flags(findings))}</div>
+            </div>
+            <div class="stat-card">
                 <div>Critical Issues</div>
                 <div class="stat-number critical">{stats['critical']}</div>
             </div>
@@ -461,6 +514,15 @@ class ReportGenerator:
             display_name = normalize_vuln_name(finding.vuln_type)
             vuln_info = vuln_db.get(display_name, {})
             impact = vuln_info.get("impact", "UNKNOWN")
+            flags_display = ", ".join(finding.flags) if finding.flags else "None"
+            evidence_display = (
+                html_lib.escape(finding.evidence) if finding.evidence else ""
+            )
+            snippet_display = (
+                html_lib.escape(finding.response_snippet)
+                if finding.response_snippet
+                else ""
+            )
             html += f"""
         <div class="vulnerability">
             <h3>#{idx}. {display_name}</h3>
@@ -468,6 +530,11 @@ class ReportGenerator:
             <p><strong>Impact:</strong> {impact}</p>
             <p><strong>CVSS Score:</strong> {vuln_info.get('cvss_score', 'N/A')}</p>
             <p><strong>URL:</strong> {finding.url}</p>
+            <p><strong>Status:</strong> {finding.status_code or 'N/A'}</p>
+            <p><strong>Reward:</strong> {finding.reward:.3f}</p>
+            <p><strong>Flags:</strong> {flags_display}</p>
+            <p><strong>Evidence:</strong> {evidence_display or 'N/A'}</p>
+            <p><strong>Snippet:</strong> {snippet_display or 'N/A'}</p>
             <p>{vuln_info.get('description', '')}</p>
         </div>
 """

@@ -5,7 +5,6 @@ AI-Powered Web Security Scanner - GUI Application
 Modern, accessible GUI for the security scanner with:
 - Cyberpunk/Red Team Aesthetic
 - Real-time logs & Progress tracking
-- ONE-CLICK FLASH ATTACK
 - Exploit Generation
 - Report Management
 
@@ -20,6 +19,7 @@ import os
 import sys
 import glob
 import json
+import time
 from datetime import datetime
 
 # Add parent directory to path
@@ -29,6 +29,43 @@ from autonomous_scan import SecurityAuditor, Finding
 from utils.vulnerability_database import VULNERABILITY_DATABASE
 from utils.model_loader import find_latest_checkpoint
 import webbrowser
+
+
+TARGET_PRESETS = [
+    ("Custom / Manual", ""),
+    ("E-Commerce Platform", "http://localhost:5002"),
+    ("Social Media Platform", "http://localhost:5003"),
+    ("Banking Application", "http://localhost:5004"),
+    ("Blog Platform", "http://localhost:5005"),
+    ("File Sharing Platform", "http://localhost:5006"),
+]
+
+SCAN_PROFILES = [
+    (
+        "Hybrid",
+        {
+            "depth": 30,
+            "intensity": 3,
+            "persist": True,
+            "ai_mode": False,
+            "pentester": False,
+            "description": "Scripted recon + AI testing (balanced).",
+            "apply": True,
+        },
+    ),
+    (
+        "Full AI",
+        {
+            "depth": 50,
+            "intensity": 8,
+            "persist": True,
+            "ai_mode": True,
+            "pentester": True,
+            "description": "AI recon + chain attacks + online learning.",
+            "apply": True,
+        },
+    ),
+]
 
 
 class ToolTip(object):
@@ -65,10 +102,16 @@ class ToolTip(object):
             self.widget.after_cancel(id)
 
     def showtip(self, event=None):
-        x = y = 0
-        x, y, cx, cy = self.widget.bbox("insert")
-        x += self.widget.winfo_rootx() + 25
-        y += self.widget.winfo_rooty() + 20
+        x = self.widget.winfo_rootx() + 25
+        y = self.widget.winfo_rooty() + 20
+        try:
+            bbox = self.widget.bbox("insert")
+        except tk.TclError:
+            bbox = None
+        if bbox:
+            x, y, _, _ = bbox
+            x += self.widget.winfo_rootx() + 25
+            y += self.widget.winfo_rooty() + 20
         # creates a toplevel window
         self.tw = tk.Toplevel(self.widget)
         # Leaves only the label and removes the app window
@@ -418,8 +461,17 @@ class SecurityScannerGUI:
 
         # Variables
         self.target_url = tk.StringVar(value="http://localhost:5002")
+        self.target_preset = tk.StringVar(value=TARGET_PRESETS[1][0])
+        self.scan_profile = tk.StringVar(value=SCAN_PROFILES[0][0])
         self.crawl_depth = tk.IntVar(value=30)
         self.test_episodes = tk.IntVar(value=3)
+        self.persist_mode = tk.BooleanVar(value=True)  # Default to Persistence Mode
+        self.pentester_mode = tk.BooleanVar(value=False)
+        self.target_entry = None
+        self.last_live_view_update = 0.0
+        self.live_view_warned = False
+        self.live_view_watchdog_id = None
+        self.is_scanning = False
         # Find latest model automatically
         latest_ep, latest_model_path = find_latest_checkpoint()
         default_model = (
@@ -429,7 +481,6 @@ class SecurityScannerGUI:
         )
 
         self.model_path = tk.StringVar(value=default_model)
-        self.persist_mode = tk.BooleanVar(value=True)  # Default to Persistence Mode
 
         self.setup_ui()
         self.load_available_models()
@@ -537,12 +588,14 @@ class SecurityScannerGUI:
 
         # --- Control Widgets in Scrollable Frame ---
         self.add_section_header(self.scrollable_frame, "MISSION PARAMETERS")
-        self.create_input_field(
+        self.create_target_selector(self.scrollable_frame)
+        self.target_entry = self.create_input_field(
             self.scrollable_frame,
             "TARGET URL:",
             self.target_url,
             "http://localhost:5002",
         )
+        self.create_profile_selector(self.scrollable_frame)
         self.create_slider_field(
             self.scrollable_frame,
             "CRAWL DEPTH:",
@@ -578,43 +631,16 @@ class SecurityScannerGUI:
             font=("Segoe UI", 9, "bold"),
         ).pack(anchor=tk.W)
 
-        # Pentester Mode Checkbox (Chain Attacks)
-        self.pentester_mode = tk.BooleanVar(value=False)
-        tk.Checkbutton(
-            persist_frame,
-            text="ENABLE CHAIN ATTACKS (Pentester Mode)",
-            variable=self.pentester_mode,
-            bg=self.colors["bg_panel"],
-            fg="#FF00FF",
-            selectcolor=self.colors["bg_dark"],
-            activebackground=self.colors["bg_panel"],
-            activeforeground="#FF00FF",
-            font=("Segoe UI", 9, "bold"),
-        ).pack(anchor=tk.W)
+        self.apply_scan_profile(self.scan_profile.get())
 
         tk.Frame(
             self.scrollable_frame, bg=self.colors["bg_panel"], height=20
         ).pack()  # Spacer
 
-        # ONE CLICK BUTTONS
-        self.flash_btn = tk.Button(
-            self.scrollable_frame,
-            text="FLASH ATTACK (ONE-CLICK)",
-            font=("Segoe UI", 12, "bold"),
-            bg=self.colors["accent"],
-            fg="#000000",
-            activebackground="#FFFFFF",
-            activeforeground="#000000",
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=self.flash_attack,
-            height=2,
-        )
-        self.flash_btn.pack(pady=5, padx=15, fill=tk.X)
-
+        # SCAN CONTROL
         self.scan_button = tk.Button(
             self.scrollable_frame,
-            text="HYBRID SCAN (Standard)",
+            text="START SCAN",
             font=("Segoe UI", 11, "bold"),
             bg=self.colors["highlight"],
             fg=self.colors["accent"],
@@ -625,26 +651,9 @@ class SecurityScannerGUI:
         )
         ToolTip(
             self.scan_button,
-            "Hybrid Mode: Fast Script Recon + AI Verification (Balanced)",
+            "Run the selected scan mode (Hybrid or Full AI)",
         )
         self.scan_button.pack(pady=5, padx=15, fill=tk.X)
-
-        self.scan_ai_button = tk.Button(
-            self.scrollable_frame,
-            text="FULL AI SCAN (Unleashed)",
-            font=("Segoe UI", 11, "bold"),
-            bg="#6200ea",
-            fg="white",
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=lambda: self.start_scan(ai_mode=True, pentester=True),
-            height=2,
-        )
-        ToolTip(
-            self.scan_ai_button,
-            "Full AI Mode: AI Recon + Chain Attacks + Online Learning (Maximum Power)",
-        )
-        self.scan_ai_button.pack(pady=5, padx=15, fill=tk.X)
 
         self.stop_button = tk.Button(
             self.scrollable_frame,
@@ -801,6 +810,92 @@ class SecurityScannerGUI:
             fg=self.colors["accent"],
         ).pack(pady=(20, 10), padx=15, anchor=tk.W)
 
+    def create_target_selector(self, parent):
+        frame = tk.Frame(parent, bg=self.colors["bg_panel"])
+        frame.pack(pady=8, padx=15, fill=tk.X)
+        tk.Label(
+            frame,
+            text="TARGET PRESET:",
+            font=("Segoe UI", 9, "bold"),
+            bg=self.colors["bg_panel"],
+            fg=self.colors["text_dim"],
+        ).pack(anchor=tk.W)
+
+        self.target_combo = ttk.Combobox(
+            frame, textvariable=self.target_preset, state="readonly"
+        )
+        self.target_combo["values"] = [name for name, _ in TARGET_PRESETS]
+        self.target_combo.pack(fill=tk.X, pady=(5, 0))
+        self.target_combo.bind("<<ComboboxSelected>>", self.on_target_preset_change)
+        ToolTip(
+            self.target_combo,
+            "Quick select a mock target. Use Custom for manual entry.",
+        )
+        self.on_target_preset_change()
+
+    def create_profile_selector(self, parent):
+        frame = tk.Frame(parent, bg=self.colors["bg_panel"])
+        frame.pack(pady=8, padx=15, fill=tk.X)
+        tk.Label(
+            frame,
+            text="SCAN MODE:",
+            font=("Segoe UI", 9, "bold"),
+            bg=self.colors["bg_panel"],
+            fg=self.colors["text_dim"],
+        ).pack(anchor=tk.W)
+
+        self.profile_combo = ttk.Combobox(
+            frame, textvariable=self.scan_profile, state="readonly"
+        )
+        self.profile_combo["values"] = [name for name, _ in SCAN_PROFILES]
+        self.profile_combo.pack(fill=tk.X, pady=(5, 0))
+        self.profile_combo.bind("<<ComboboxSelected>>", self.on_profile_change)
+
+        self.profile_hint = tk.Label(
+            frame,
+            text="",
+            font=("Segoe UI", 8),
+            bg=self.colors["bg_panel"],
+            fg=self.colors["text_dim"],
+            wraplength=280,
+            justify="left",
+        )
+        self.profile_hint.pack(anchor=tk.W, pady=(4, 0))
+
+    def on_target_preset_change(self, event=None):
+        selected = self.target_preset.get()
+        for name, url in TARGET_PRESETS:
+            if name == selected:
+                if url:
+                    self.target_url.set(url)
+                break
+
+    def on_profile_change(self, event=None):
+        self.apply_scan_profile(self.scan_profile.get())
+
+    def _get_scan_profile_config(self, profile_name):
+        for name, config in SCAN_PROFILES:
+            if name == profile_name:
+                return config
+        return {}
+
+    def apply_scan_profile(self, profile_name):
+        config = self._get_scan_profile_config(profile_name)
+        description = config.get("description", "")
+        if hasattr(self, "profile_hint"):
+            self.profile_hint.config(text=description)
+
+        if config.get("apply"):
+            if "depth" in config:
+                self.crawl_depth.set(config["depth"])
+            if "intensity" in config:
+                self.test_episodes.set(config["intensity"])
+            if "persist" in config:
+                self.persist_mode.set(config["persist"])
+            if "pentester" in config:
+                self.pentester_mode.set(config["pentester"])
+
+
     def create_input_field(self, parent, label_text, variable, placeholder):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
         frame.pack(pady=8, padx=15, fill=tk.X)
@@ -822,8 +917,10 @@ class SecurityScannerGUI:
             borderwidth=1,
         )
         entry.pack(fill=tk.X, ipady=8, pady=(5, 0))
-        entry.insert(0, placeholder)
+        if not variable.get() and placeholder:
+            entry.insert(0, placeholder)
         ToolTip(entry, f"Enter the {label_text.lower().replace(':', '')} here")
+        return entry
 
     def create_slider_field(
         self, parent, label_text, variable, from_, to, default, tooltip_text=None
@@ -955,6 +1052,63 @@ class SecurityScannerGUI:
         self.output_text.insert(tk.END, f"{prefix} {timestamp} {message}\n", level)
         self.output_text.see(tk.END)
 
+    def update_live_view(self, html_content):
+        if not self.is_scanning:
+            return
+
+        if html_content is None:
+            self._set_live_view_message(
+                "Live view unavailable. No browser content detected yet.\n"
+                "If this persists, run without browser mode or install a compatible driver."
+            )
+            return
+
+        content = str(html_content).strip()
+        if not content:
+            self._set_live_view_message(
+                "Live view unavailable. Empty response content received."
+            )
+            return
+
+        self.last_live_view_update = time.time()
+        self.live_view_warned = False
+
+        max_chars = 10000
+        if len(content) > max_chars:
+            content = content[:max_chars] + "\n... [truncated]"
+
+        header = f"[{datetime.now().strftime('%H:%M:%S')}] Live view snapshot\n\n"
+        self.live_view_text.delete(1.0, tk.END)
+        self.live_view_text.insert(tk.END, header + content)
+
+    def _set_live_view_message(self, message):
+        self.live_view_text.delete(1.0, tk.END)
+        self.live_view_text.insert(tk.END, message)
+
+    def _schedule_live_view_watchdog(self):
+        if self.live_view_watchdog_id:
+            self.root.after_cancel(self.live_view_watchdog_id)
+        self.live_view_watchdog_id = self.root.after(1500, self._live_view_watchdog)
+
+    def _stop_live_view_watchdog(self):
+        if self.live_view_watchdog_id:
+            self.root.after_cancel(self.live_view_watchdog_id)
+            self.live_view_watchdog_id = None
+
+    def _live_view_watchdog(self):
+        if not self.is_scanning:
+            self.live_view_watchdog_id = None
+            return
+
+        if time.time() - self.last_live_view_update > 6 and not self.live_view_warned:
+            self._set_live_view_message(
+                "Live view unavailable. No browser content detected yet.\n"
+                "Scanning continues in the background."
+            )
+            self.live_view_warned = True
+
+        self.live_view_watchdog_id = self.root.after(1500, self._live_view_watchdog)
+
     def add_finding(self, finding):
         self.findings.append(finding)
         vuln_type = finding.get("type", "Vuln")
@@ -999,10 +1153,18 @@ class SecurityScannerGUI:
         # Generate full URL examples with payloads
         full_url_examples = self._generate_full_url_payloads(vuln_url, vuln_type)
 
+        flags = finding.get("flags", [])
+        flags_text = ", ".join(flags) if isinstance(flags, list) and flags else "None"
+
         content = f"""# 🚨 VULNERABILITY DETECTED
-Type: {finding.get('type')}
-URL:  {finding.get('url')}
-Payload: {finding.get('payload')}
+ Type: {finding.get('type')}
+ URL:  {finding.get('url')}
+ Payload: {finding.get('payload')}
+ Flags: {flags_text}
+ Evidence: {finding.get('evidence', '')}
+ Status Code: {finding.get('status_code', 'N/A')}
+ Reward: {finding.get('reward', 'N/A')}
+ Snippet: {finding.get('response_snippet', '')}
 
 # 🛠️ ATTACK VECTOR
 {ExploitGenerator.get_steps(finding)}
@@ -1231,13 +1393,15 @@ Payload: {finding.get('payload')}
         self.root.clipboard_append(content)
         messagebox.showinfo("COPIED", "Exploit payload copied to clipboard.")
 
-    def flash_attack(self):
-        """One-Click Attack Mode"""
-        self.crawl_depth.set(10)
-        self.test_episodes.set(1)
-        self.start_scan()
+    def start_scan(self, ai_mode=None, pentester=None):
+        profile_config = self._get_scan_profile_config(self.scan_profile.get())
+        if ai_mode is None:
+            ai_mode = bool(profile_config.get("ai_mode", False))
+        if pentester is None:
+            pentester = self.pentester_mode.get()
+        if pentester:
+            ai_mode = True
 
-    def start_scan(self, ai_mode=False, pentester=False):
         target = self.target_url.get().strip()
 
         # Validation
@@ -1262,8 +1426,6 @@ Payload: {finding.get('payload')}
             model = model_selection
 
         self.scan_button.config(state=tk.DISABLED)
-        self.scan_ai_button.config(state=tk.DISABLED)  # Disable AI button too
-        self.flash_btn.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.is_scanning = True
         self.progress.start(10)
@@ -1271,16 +1433,24 @@ Payload: {finding.get('payload')}
         self.findings_list.delete(0, tk.END)
         self.findings = []
         self.exploit_text.delete(1.0, tk.END)
+        mode_label = "FULL AI" if ai_mode else "HYBRID"
         self.exploit_text.insert(
             tk.END,
-            f"// Scanning target... Mode: {'FULL AI (Unfiltered)' if ai_mode else 'Classic'}... Awaiting findings...",
+            f"// Scanning target... Mode: {mode_label}... Awaiting findings...",
         )
+        self.live_view_text.delete(1.0, tk.END)
+        self.live_view_text.insert(tk.END, "Waiting for agent visual input...\n")
+        self.last_live_view_update = time.time()
+        self.live_view_warned = False
+        self._schedule_live_view_watchdog()
 
         threading.Thread(
-            target=self.run_scan, args=(target, model, ai_mode), daemon=True
+            target=self.run_scan,
+            args=(target, model, ai_mode, pentester),
+            daemon=True,
         ).start()
 
-    def run_scan(self, target, model, ai_mode=False):
+    def run_scan(self, target, model, ai_mode=False, pentester=False):
         # Redirect stdout to GUI
         class StdoutRedirector:
             def __init__(self, text_widget):
@@ -1354,7 +1524,7 @@ Payload: {finding.get('payload')}
                     test_intensity=self.test_episodes.get(),
                     persist=self.persist_mode.get(),
                     ai_mode=ai_mode,
-                    pentester=pentester,  # Pass explicit value or checkbox?
+                    pentester=pentester,
                     render_callback=render_callback,  # Pass the callback
                 )
                 total_findings += len(findings)
@@ -1381,9 +1551,8 @@ Payload: {finding.get('payload')}
     def scan_complete(self, count):
         self.log(f"MISSION COMPLETE. {count} TARGETS COMPROMISED.", "SUCCESS")
         self.progress.stop()
+        self._stop_live_view_watchdog()
         self.scan_button.config(state=tk.NORMAL)
-        self.scan_ai_button.config(state=tk.NORMAL)
-        self.flash_btn.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.view_report_btn.config(state=tk.NORMAL)
         self.is_scanning = False
@@ -1394,6 +1563,7 @@ Payload: {finding.get('payload')}
     def stop_scan(self):
         self.log("🛑 ABORTING MISSION...", "WARNING")
         self.is_scanning = False
+        self._stop_live_view_watchdog()
 
         # Stop the auditor if it exists
         if self.auditor:
@@ -1405,8 +1575,6 @@ Payload: {finding.get('payload')}
         # Reset UI state
         self.progress.stop()
         self.scan_button.config(state=tk.NORMAL)
-        self.scan_ai_button.config(state=tk.NORMAL)
-        self.flash_btn.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.log("❌ MISSION ABORTED BY USER", "WARNING")
 

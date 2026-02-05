@@ -10,7 +10,7 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 - 🎯 50 tuned actions for mock targets, 150 actions in full mode across 4 kill chain phases
 - 🎮 5 mock target applications for training
 - 🔍 Autonomous vulnerability scanning
-- 📊 Comprehensive reporting with CVSS scoring
+- 📊 Comprehensive reporting with CVSS scoring and captured flags
 - ⚙️ Flexible configuration system
 - 📝 Clean, maintainable codebase with type hints
 
@@ -45,6 +45,7 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 - **💥 Real-World Impact** - Business consequences
 - **⚔️ Exploitation Steps** - Step-by-step attack guide
 - **severity & CVSS** - Risk scoring
+- **🏁 Captured Flags** - CTF flags and evidence snippets when present
 
 ## Architecture
 
@@ -309,7 +310,8 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ✅ **OWASP 2025 Mapping** (Latest vulnerability categories)  
 ✅ **CVSS Scoring** (Risk assessment)  
 ✅ **Exploitation Steps** (Step-by-step attack guides)  
-✅ **Real-World Impact** (Business consequences)
+✅ **Real-World Impact** (Business consequences)  
+✅ **Captured Flags & Evidence** (CTF flags, status, snippets)
 
 ### Code Quality
 

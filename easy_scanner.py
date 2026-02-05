@@ -22,41 +22,75 @@ RESET = "\033[0m"
 BOLD = "\033[1m"
 
 TARGET_LABELS = {
-    "http://localhost:5002": "E-Commerce (Shop)",
-    "http://localhost:5003": "Social Media (Connect)",
-    "http://localhost:5004": "Online Banking (Finance)",
-    "http://localhost:5005": "Secure Blog (Content)",
-    "http://localhost:5006": "File Share (Storage)",
+    "http://localhost:5002": "E-Commerce Platform",
+    "http://localhost:5003": "Social Media Platform",
+    "http://localhost:5004": "Banking Application",
+    "http://localhost:5005": "Blog Platform",
+    "http://localhost:5006": "File Sharing Platform",
 }
 
 EXPECTED_VULNS = {
     "http://localhost:5002": [
         "SQL Injection",
-        "Mass Assignment (Broken Access Control)",
+        "Mass Assignment",
         "Business Logic Flaws",
-        "Insecure Direct Object Reference (IDOR)",
+        "Race Conditions",
+        "IDOR",
+        "Payment Bypass",
+        "Broken Access Control",
     ],
     "http://localhost:5003": [
-        "Cross-Site Scripting (XSS)",
+        "Stored/Reflected XSS",
         "File Upload",
-        "Cross-Site Request Forgery (CSRF)",
-        "Insecure Direct Object Reference (IDOR)",
+        "Path Traversal",
+        "IDOR",
+        "CSRF",
+        "Session Fixation",
+        "Predictable Reset Tokens",
     ],
     "http://localhost:5004": [
-        "Cross-Site Request Forgery (CSRF)",
-        "Insecure Direct Object Reference (IDOR)",
-        "Business Logic Flaws",
+        "CSRF",
+        "IDOR",
+        "Session Security Issues",
+        "Logic Flaws",
     ],
     "http://localhost:5005": [
-        "Cross-Site Scripting (XSS)",
-        "Server-Side Template Injection (SSTI)",
-        "Cross-Site Request Forgery (CSRF)",
+        "Stored XSS",
+        "SSTI",
+        "CSRF",
+        "Weak Authentication",
     ],
     "http://localhost:5006": [
         "File Upload",
         "Path Traversal",
-        "Insecure Direct Object Reference (IDOR)",
+        "IDOR",
+        "No File Type Validation",
     ],
+}
+
+SCAN_MODES = {
+    "hybrid": {
+        "label": "Hybrid Scan",
+        "description": "Scripted recon + AI testing (balanced).",
+        "config": {
+            "depth": 30,
+            "intensity": 3,
+            "persist": True,
+            "ai_mode": False,
+            "pentester": False,
+        },
+    },
+    "full_ai": {
+        "label": "Full AI Scan",
+        "description": "AI recon + chain attacks + online learning.",
+        "config": {
+            "depth": 50,
+            "intensity": 8,
+            "persist": True,
+            "ai_mode": True,
+            "pentester": True,
+        },
+    },
 }
 
 
@@ -74,61 +108,116 @@ def print_banner():
     print(f"{RESET}")
 
 
-def get_checkpoints():
-    """Find available model checkpoints"""
-    checkpoints = glob.glob("checkpoints/improved_mock_ep*.pth")
-    if not checkpoints:
-        return []
+def _extract_episode(filename):
+    match = re.search(r"ep(\d+)", filename)
+    if match:
+        return int(match.group(1))
+    return None
 
-    checkpoint_data = []
-    for path in checkpoints:
+
+def _model_sort_key(model):
+    kind_priority = 0 if model["kind"] == "checkpoint" else 1
+    ep_present = 0 if model["ep"] is not None else 1
+    ep_value = -model["ep"] if model["ep"] is not None else 0
+    return (kind_priority, ep_present, ep_value, -model["mtime"])
+
+
+def _format_model_label(model):
+    label = model["name"]
+    if model["kind"] == "base":
+        return f"{label} (Base)"
+    if model["ep"] is not None:
+        return f"{label} (ep {model['ep']})"
+    return label
+
+
+def get_available_models():
+    """Find available models (checkpoints + base models)."""
+    models = []
+
+    base_models = ["dqn_web_sec_model.pth", "dqn_juiceshop_model.pth"]
+    for path in base_models:
+        if os.path.exists(path):
+            models.append(
+                {
+                    "path": path,
+                    "ep": None,
+                    "name": os.path.basename(path),
+                    "kind": "base",
+                    "mtime": os.path.getmtime(path),
+                }
+            )
+
+    checkpoint_paths = glob.glob(os.path.join("checkpoints", "*.pth"))
+    for path in checkpoint_paths:
         filename = os.path.basename(path)
-        match = re.search(r"ep(\d+)", filename)
-        ep = int(match.group(1)) if match else 0
-        checkpoint_data.append({"path": path, "ep": ep, "name": filename})
+        models.append(
+            {
+                "path": path,
+                "ep": _extract_episode(filename),
+                "name": filename,
+                "kind": "checkpoint",
+                "mtime": os.path.getmtime(path),
+            }
+        )
 
-    # Sort by episode count (descending)
-    checkpoint_data.sort(key=lambda x: x["ep"], reverse=True)
-    return checkpoint_data
+    deduped = {}
+    for model in models:
+        norm_path = os.path.normpath(model["path"])
+        deduped[norm_path] = model
+
+    sorted_models = list(deduped.values())
+    sorted_models.sort(key=_model_sort_key)
+    return sorted_models
 
 
 def select_model():
     print(f"{YELLOW}[?] Select AI Brain Model:{RESET}")
-    models = get_checkpoints()
+    models = get_available_models()
 
     if not models:
-        print(f"{RED}[!] No models found in checkpoints/ folder!{RESET}")
+        print(
+            f"{RED}[!] No models found in checkpoints/ or project root!{RESET}"
+        )
+        print("   Train one with: python train_mock_targets.py --episodes 1000")
         input("Press Enter to exit...")
         sys.exit(1)
 
-    print(f"   {BOLD}0. Auto-Select Best Model (Episode {models[0]['ep']}){RESET}")
-    for i, m in enumerate(models[:5], 1):
-        print(f"   {i}. {m['name']} (Trained for {m['ep']} episodes)")
+    best_model = models[0]
+    print(
+        f"   {BOLD}0. Auto-Select Best Model ({_format_model_label(best_model)}){RESET}"
+    )
 
-    choice = input(f"\n{CYAN}>>> Select option (0-{min(5, len(models))}): {RESET}")
+    max_display = min(8, len(models))
+    for i, m in enumerate(models[:max_display], 1):
+        print(f"   {i}. {_format_model_label(m)}")
+
+    choice = input(
+        f"\n{CYAN}>>> Select option (0-{max_display}): {RESET}"
+    )
     if not choice or choice == "0":
-        return models[0]["path"]
+        return best_model["path"]
 
     try:
         idx = int(choice) - 1
-        if 0 <= idx < len(models):
+        if 0 <= idx < max_display:
             return models[idx]["path"]
     except:
         pass
 
     print(f"{RED}Invalid selection, defaulting to best model.{RESET}")
     time.sleep(1)
-    return models[0]["path"]
+    return best_model["path"]
 
 
 def select_target():
     print(f"\n{YELLOW}[?] Select Target Application:{RESET}")
     targets = [
-        {"name": "E-Commerce (Shop)", "url": "http://localhost:5002"},
-        {"name": "Social Media (Connect)", "url": "http://localhost:5003"},
-        {"name": "Online Banking (Finance)", "url": "http://localhost:5004"},
-        {"name": "Secure Blog (Content)", "url": "http://localhost:5005"},
-        {"name": "File Share (Storage)", "url": "http://localhost:5006"},
+        {"name": "E-Commerce Platform", "url": "http://localhost:5002"},
+        {"name": "Social Media Platform", "url": "http://localhost:5003"},
+        {"name": "Banking Application", "url": "http://localhost:5004"},
+        {"name": "Blog Platform", "url": "http://localhost:5005"},
+        {"name": "File Sharing Platform", "url": "http://localhost:5006"},
         {"name": "Custom URL", "url": "CUSTOM"},
         {"name": "Scan ALL Mock Sites", "url": "ALL"},
     ]
@@ -166,88 +255,11 @@ def select_target():
     return []
 
 
-def get_scan_config():
-    """Returns interactive scan configuration"""
-    print(f"\n{YELLOW}[?] Select Scan Profile:{RESET}")
-    print(
-        f"   {BOLD}1. Quick Scan   {RESET} (Depth=10, Intensity=3, No Persistence) - Fast check"
-    )
-
-    print(
-        f"   {BOLD}2. Deep Scan    {RESET} (Depth=30, Intensity=7, Persistence=On) - Thorough"
-    )
-    print(
-        f"   {BOLD}3. Aggressive   {RESET} (Depth=50, Intensity=10, Persistence=On) - Maximum Impact"
-    )
-    print(
-        f"   {BOLD}4. Full AI (Pentester){RESET} (Chain Attacks, Online Learning) - Unleashed"
-    )
-    print(f"   {BOLD}5. Custom Config{RESET} - Manually set parameters")
-
-    choice = input(f"\n{CYAN}>>> Select profile (1-5) [Default: 2]: {RESET}")
-
-    if choice == "1":
-        return {
-            "depth": 10,
-            "intensity": 3,
-            "persist": False,
-            "ai_mode": False,
-            "pentester": False,
-        }
-    elif choice == "3":
-        return {
-            "depth": 50,
-            "intensity": 10,
-            "persist": True,
-            "ai_mode": False,
-            "pentester": False,
-        }
-    elif choice == "4":
-        print(
-            f"\n{YELLOW}[!] Enabling Full AI Unleashed Mode (Chain Attacks + Learning){RESET}"
-        )
-        return {
-            "depth": 50,
-            "intensity": 50,
-            "persist": True,
-            "ai_mode": True,
-            "pentester": True,
-        }
-    elif choice == "5":
-        try:
-            d = int(input(f"   - Enter Crawl Depth (1-100): "))
-            i = int(input(f"   - Enter Attack Intensity (1-20): "))
-            p = (
-                input(f"   - Enable Persistence (Scan until found)? (Y/n): ").lower()
-                != "n"
-            )
-            ai = input(f"   - Enable AI Recon Mode? (Y/n): ").lower() == "y"
-            pent = input(f"   - Enable Pentester/Chain Attacks? (Y/n): ").lower() == "y"
-            return {
-                "depth": d,
-                "intensity": i,
-                "persist": p,
-                "ai_mode": ai,
-                "pentester": pent,
-            }
-        except:
-            print(f"{RED}Invalid input, using Default Deep Scan.{RESET}")
-            return {
-                "depth": 30,
-                "intensity": 7,
-                "persist": True,
-                "ai_mode": False,
-                "pentester": False,
-            }
-    else:
-        # Default to Deep Scan (Option 2)
-        return {
-            "depth": 30,
-            "intensity": 7,
-            "persist": True,
-            "ai_mode": False,
-            "pentester": False,
-        }
+def get_scan_config(scan_mode):
+    mode = SCAN_MODES.get(scan_mode)
+    if not mode:
+        return SCAN_MODES["hybrid"]["config"]
+    return mode["config"]
 
 
 def find_latest_report():
@@ -270,25 +282,29 @@ def open_report(report_path):
 
 
 def select_run_mode():
-    print(f"{YELLOW}[?] Choose Mode:{RESET}")
-    print(f"   {BOLD}1. Guided User Test{RESET} - expected vulnerabilities + summaries")
-    print(f"   {BOLD}2. Standard Scan{RESET} - full control")
+    print(f"{YELLOW}[?] Choose Scan Mode:{RESET}")
+    print(
+        f"   {BOLD}1. {SCAN_MODES['hybrid']['label']}{RESET} - {SCAN_MODES['hybrid']['description']}"
+    )
+    print(
+        f"   {BOLD}2. {SCAN_MODES['full_ai']['label']}{RESET} - {SCAN_MODES['full_ai']['description']}"
+    )
     print(f"   {BOLD}3. Open Latest Report{RESET}")
     print(f"   {BOLD}4. Exit{RESET}")
     choice = input(f"\n{CYAN}>>> Select option (1-4) [Default: 1]: {RESET}")
 
     if not choice or choice == "1":
-        return "showcase"
+        return "hybrid"
     if choice == "2":
-        return "standard"
+        return "full_ai"
     if choice == "3":
         return "report"
     if choice == "4":
         return "exit"
 
-    print(f"{RED}Invalid selection, defaulting to Guided User Test.{RESET}")
+    print(f"{RED}Invalid selection, defaulting to Hybrid Scan.{RESET}")
     time.sleep(1)
-    return "showcase"
+    return "hybrid"
 
 
 def _is_url_reachable(url, timeout=2):
@@ -310,23 +326,22 @@ def check_targets_reachable(target_urls):
     return offline
 
 
-def print_user_test_intro():
+def print_scan_intro():
     print(
-        f"\n{YELLOW}[User Test] This guided mode scans mock targets and highlights typical vulnerabilities.{RESET}"
+        f"\n{YELLOW}[Info] Authorized testing only. Local mock targets recommended.{RESET}"
     )
-    print("   - Authorized use only (localhost targets recommended).")
     print("   - Start mock apps with: python start_services.py")
 
 
 def print_expected_vulns(target_urls):
-    print(f"\n{YELLOW}[User Test] Expected vulnerability showcase:{RESET}")
+    print(f"\n{YELLOW}[Expected] Target vulnerability coverage:{RESET}")
     for url in target_urls:
         label = TARGET_LABELS.get(url, url)
         expected = EXPECTED_VULNS.get(url)
         if expected:
             print(f"   - {label}: {', '.join(expected)}")
         else:
-            print(f"   - {label}: No showcase list available")
+            print(f"   - {label}: No expected list available")
 
 
 def snapshot_reports():
@@ -376,26 +391,26 @@ def parse_confirmed_vulns(report_path):
     return deduped
 
 
-def print_showcase_summary(url, report_path):
+def print_scan_summary(url, report_path):
     label = TARGET_LABELS.get(url, url)
     expected = EXPECTED_VULNS.get(url, [])
     if expected:
         print(
-            f"\n{GREEN}[User Test] Expected for {label}: {', '.join(expected)}{RESET}"
+            f"\n{GREEN}[Expected] {label}: {', '.join(expected)}{RESET}"
         )
     else:
-        print(f"\n{YELLOW}[User Test] Expected list not available for {label}.{RESET}")
+        print(f"\n{YELLOW}[Expected] No list available for {label}.{RESET}")
 
     confirmed = parse_confirmed_vulns(report_path)
     if confirmed:
         print(
-            f"{GREEN}[User Test] Confirmed in latest report: {', '.join(confirmed)}{RESET}"
+            f"{GREEN}[Summary] Confirmed in latest report: {', '.join(confirmed)}{RESET}"
         )
     else:
         print(
-            f"{YELLOW}[User Test] No confirmed vulnerabilities detected in the latest report.{RESET}"
+            f"{YELLOW}[Summary] No confirmed vulnerabilities detected in the latest report.{RESET}"
         )
-        print("   Tip: Try a deeper or aggressive scan, or a more trained model.")
+        print("   Tip: Try Full AI mode or a more trained model.")
 
 
 def build_subprocess_env():
@@ -427,9 +442,8 @@ def build_scan_command(url, model_path, config):
     return cmd
 
 
-def run_scan_flow(showcase=False):
-    if showcase:
-        print_user_test_intro()
+def run_scan_flow(scan_mode):
+    print_scan_intro()
 
     # 1. Model
     model_path = select_model()
@@ -446,23 +460,24 @@ def run_scan_flow(showcase=False):
     else:
         print(f"{GREEN}[OK] Target Set: {target_urls[0]}{RESET}")
 
-    if showcase:
-        offline = check_targets_reachable(target_urls)
-        if offline:
-            print(f"\n{YELLOW}[User Test] Some targets are not reachable:{RESET}")
-            for url in offline:
-                print(f"   - {url}")
-            print("   Start mock apps with: python start_services.py")
-            proceed = input(f"{CYAN}>>> Continue anyway? (y/N): {RESET}")
-            if proceed.lower() != "y":
-                return False
+    offline = check_targets_reachable(target_urls)
+    if offline:
+        print(f"\n{YELLOW}[Info] Some targets are not reachable:{RESET}")
+        for url in offline:
+            print(f"   - {url}")
+        print("   Start mock apps with: python start_services.py")
+        proceed = input(f"{CYAN}>>> Continue anyway? (y/N): {RESET}")
+        if proceed.lower() != "y":
+            return False
 
-        print_expected_vulns(target_urls)
+    print_expected_vulns(target_urls)
 
-    # 3. Get optimized scan config
-    config = get_scan_config()
+    # 3. Apply scan mode config
+    config = get_scan_config(scan_mode)
+    mode_label = SCAN_MODES.get(scan_mode, {}).get("label", scan_mode)
     print(
-        f"{GREEN}[OK] Scan Configured: Depth={config['depth']}, Intensity={config['intensity']}{RESET}"
+        f"{GREEN}[OK] Mode: {mode_label}{RESET}"
+        f"\n{GREEN}[OK] Scan Configured: Depth={config['depth']}, Intensity={config['intensity']}{RESET}"
     )
 
     # Confirm
@@ -495,8 +510,7 @@ def run_scan_flow(showcase=False):
                     break
 
         last_report = find_new_report(before_reports)
-        if showcase:
-            print_showcase_summary(url, last_report)
+        print_scan_summary(url, last_report)
 
     print(f"\n{YELLOW}Batch Scan finished.{RESET}")
 
@@ -533,7 +547,7 @@ def main():
             input(f"\n{CYAN}Press ENTER to return to menu...{RESET}")
             continue
 
-        if not run_scan_flow(showcase=(mode == "showcase")):
+        if mode in ("hybrid", "full_ai") and not run_scan_flow(mode):
             continue
 
         choice = input(f"\n{CYAN}>>> Scan another target? (y/n): {RESET}")

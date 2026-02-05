@@ -173,6 +173,8 @@ with open(latest) as f:
     content = f.read()
     if "CRITICAL" in content:
         print("Critical vulnerabilities found!")
+    if "Flags Captured" in content or "CTF{" in content:
+        print("Captured flags detected in report!")
 ```
 
 ---

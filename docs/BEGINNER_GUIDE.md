@@ -80,6 +80,7 @@ After scanning, you'll get a file called `vulnerability_report_[timestamp].html`
 - ⚠️ Impact level (Critical, High, Medium, Low)
 - 📝 How attackers could exploit each vulnerability
 - 🛠️ How to fix each problem
+- 🏁 Captured flags (CTF{...}) and evidence snippets when present
 
 ---
 
@@ -167,6 +168,11 @@ python scanner_gui.py
 ---
 
 ## 📊 Understanding the Report
+
+### Captured Flags & Evidence
+
+- **Flags Captured**: Any `CTF{...}` values found during scanning
+- **Evidence**: Status codes, rewards, and response snippets that justify the finding
 
 ### Impact Levels
 

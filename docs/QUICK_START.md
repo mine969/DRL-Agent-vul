@@ -170,7 +170,7 @@ python autonomous_scan.py http://target.com --depth 50 --intensity 5
 
 ### After Your First Scan
 
-1. ✅ Review the HTML report
+1. ✅ Review the HTML report (includes captured flags and evidence)
 2. ✅ Test exploit URLs manually
 3. ✅ Try different scan modes
 4. ✅ Experiment with stealth levels

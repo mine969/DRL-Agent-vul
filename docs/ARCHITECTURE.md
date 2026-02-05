@@ -270,7 +270,7 @@ utils/
 
 ### 2. Factory Pattern
 - **Target Creation**: Factory for creating target environments
-- **Report Generation**: Factory for different report formats
+- **Report Generation**: Factory for different report formats, including captured flags and evidence
 
 ### 3. Observer Pattern
 - **Training Callbacks**: Monitor training progress

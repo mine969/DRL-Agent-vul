@@ -1,0 +1,622 @@
+{
+  "ecommerce": {
+    "application": "ecommerce",
+    "url": "http://localhost:5002",
+    "ground_truth_count": 11,
+    "findings_count": 23,
+    "metrics": {
+      "precision": 0.043478260869565216,
+      "recall": 0.09090909090909091,
+      "f1_score": 0.0588235294117647,
+      "accuracy": 0.030303030303030304,
+      "true_positives": 1,
+      "false_positives": 22,
+      "false_negatives": 10,
+      "true_negatives": 0
+    },
+    "findings": [
+      {
+        "id": "ECOMMERCE-F001",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.9,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F002",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.9,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F003",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.9,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F004",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.9,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F005",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F006",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F007",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F008",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F009",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F010",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F011",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F012",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F013",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F014",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F015",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F016",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F017",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F018",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F019",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F020",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F021",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F022",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      },
+      {
+        "id": "ECOMMERCE-F023",
+        "type": "SQL Injection",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "confidence": 0.8,
+        "verified": true
+      }
+    ],
+    "ground_truth": [
+      {
+        "id": "EC-001",
+        "type": "Mass Assignment",
+        "name": "Mass Assignment",
+        "endpoint": "/api/register",
+        "method": "POST",
+        "severity": "Critical",
+        "owasp_category": "A04:2021 - Insecure Design",
+        "description": "User registration allows setting arbitrary `role` and `balance` values"
+      },
+      {
+        "id": "EC-002",
+        "type": "SQL Injection",
+        "name": "SQL Injection - Login",
+        "endpoint": "/api/login",
+        "method": "POST",
+        "severity": "Critical",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Login query vulnerable to SQL injection"
+      },
+      {
+        "id": "EC-003",
+        "type": "SQL Injection",
+        "name": "SQL Injection - Search",
+        "endpoint": "/api/products",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Product search query vulnerable to SQL injection"
+      },
+      {
+        "id": "EC-004",
+        "type": "IDOR",
+        "name": "IDOR - Product Update",
+        "endpoint": "/api/products/<id>",
+        "method": "PUT",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Unauthenticated users can update any product's price/stock"
+      },
+      {
+        "id": "EC-005",
+        "type": "IDOR",
+        "name": "IDOR - Order Access",
+        "endpoint": "/api/orders/<id>",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Authentication bypass allows viewing any user's orders"
+      },
+      {
+        "id": "EC-006",
+        "type": "Broken Access Control",
+        "name": "Broken Access Control - Admin",
+        "endpoint": "/api/admin/users",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Administrative endpoint accessible without admin check"
+      },
+      {
+        "id": "EC-007",
+        "type": "Negative Quantity",
+        "name": "Negative Quantity",
+        "endpoint": "/api/cart/add",
+        "method": "POST",
+        "severity": "Medium",
+        "owasp_category": "A07:2021 - Identification & Auth Failure",
+        "description": "Cart accepts negative quantities, reducing total"
+      },
+      {
+        "id": "EC-008",
+        "type": "Race Condition",
+        "name": "Race Condition - Coupons",
+        "endpoint": "/api/checkout",
+        "method": "POST",
+        "severity": "Medium",
+        "owasp_category": "A07:2021 - Identification & Auth Failure",
+        "description": "Coupon usage count updated after discount application"
+      },
+      {
+        "id": "EC-009",
+        "type": "Client-Side Price Manipulation",
+        "name": "Client-Side Price Manipulation",
+        "endpoint": "/api/checkout",
+        "method": "POST",
+        "severity": "Medium",
+        "owasp_category": "A07:2021 - Identification & Auth Failure",
+        "description": "Checkout uses client-provided prices"
+      },
+      {
+        "id": "EC-010",
+        "type": "Payment Bypass",
+        "name": "Payment Bypass",
+        "endpoint": "/api/payment/process",
+        "method": "POST",
+        "severity": "Medium",
+        "owasp_category": "A07:2021 - Identification & Auth Failure",
+        "description": "Accepts negative or zero payment amounts"
+      },
+      {
+        "id": "EC-011",
+        "type": "Information Disclosure",
+        "name": "Information Disclosure",
+        "endpoint": "/api/admin/stats",
+        "method": "GET",
+        "severity": "Low",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "description": "Leaks `secret_key` and `jwt_secret` in response"
+      }
+    ]
+  },
+  "social": {
+    "application": "social",
+    "url": "http://localhost:5003",
+    "ground_truth_count": 15,
+    "findings_count": 0,
+    "metrics": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "accuracy": 0.0,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 15,
+      "true_negatives": 0
+    },
+    "findings": [],
+    "ground_truth": [
+      {
+        "id": "SM-001",
+        "type": "Weak Password Policy",
+        "name": "Weak Password Policy",
+        "endpoint": "/api/register",
+        "method": "POST",
+        "severity": "High",
+        "owasp_category": "A02:2021 - Cryptographic Failures",
+        "description": "No password complexity requirements"
+      },
+      {
+        "id": "SM-002",
+        "type": "Session Fixation",
+        "name": "Session Fixation",
+        "endpoint": "/api/login",
+        "method": "POST",
+        "severity": "High",
+        "owasp_category": "A07:2021 - Identification & Auth Failure",
+        "description": "Session ID not regenerated upon login"
+      },
+      {
+        "id": "SM-003",
+        "type": "Weak Password Reset Token",
+        "name": "Weak Password Reset Token",
+        "endpoint": "/api/password-reset",
+        "method": "POST",
+        "severity": "High",
+        "owasp_category": "A07:2021 - Identification & Auth Failure",
+        "description": "Reset token is predictable (user ID)"
+      },
+      {
+        "id": "SM-004",
+        "type": "IDOR",
+        "name": "IDOR - Profile View",
+        "endpoint": "/api/profile/<id>",
+        "method": "GET",
+        "severity": "Critical",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Can view private profiles of any user"
+      },
+      {
+        "id": "SM-005",
+        "type": "IDOR",
+        "name": "IDOR - Profile Edit",
+        "endpoint": "/api/profile/<id>",
+        "method": "PUT",
+        "severity": "Critical",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Can edit any user's profile"
+      },
+      {
+        "id": "SM-006",
+        "type": "IDOR",
+        "name": "IDOR - Post Deletion",
+        "endpoint": "/api/posts/<id>",
+        "method": "DELETE",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Unauthenticated users can delete any post"
+      },
+      {
+        "id": "SM-007",
+        "type": "IDOR",
+        "name": "IDOR - Private Messages",
+        "endpoint": "/api/messages/<id>",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Can read any user's private messages"
+      },
+      {
+        "id": "SM-008",
+        "type": "Stored XSS",
+        "name": "Stored XSS - Posts",
+        "endpoint": "/api/posts",
+        "method": "POST",
+        "severity": "Critical",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Post content not sanitized, stored XSS"
+      },
+      {
+        "id": "SM-009",
+        "type": "Reflected XSS",
+        "name": "Reflected XSS - Comments Search",
+        "endpoint": "/api/posts/<id>/comments",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Search term reflected in JSON without escaping"
+      },
+      {
+        "id": "SM-010",
+        "type": "Stored XSS",
+        "name": "Stored XSS - Comments",
+        "endpoint": "/api/posts/<id>/comments",
+        "method": "POST",
+        "severity": "High",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Comment content not sanitized"
+      },
+      {
+        "id": "SM-011",
+        "type": "Stored XSS",
+        "name": "Stored XSS - Messages",
+        "endpoint": "/api/messages/send",
+        "method": "POST",
+        "severity": "High",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Message content not sanitized"
+      },
+      {
+        "id": "SM-012",
+        "type": "Unrestricted File Upload",
+        "name": "Unrestricted File Upload",
+        "endpoint": "/api/upload",
+        "method": "POST",
+        "severity": "Critical",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "File upload with insufficient validation"
+      },
+      {
+        "id": "SM-013",
+        "type": "Path Traversal",
+        "name": "Path Traversal",
+        "endpoint": "/uploads/<filename>",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "No directory traversal prevention"
+      },
+      {
+        "id": "SM-014",
+        "type": "CSRF",
+        "name": "CSRF - Friend Requests",
+        "endpoint": "/api/friends/add",
+        "method": "POST",
+        "severity": "Medium",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "No CSRF token protection on friend requests"
+      },
+      {
+        "id": "SM-015",
+        "type": "SQL Injection",
+        "name": "SQL Injection - Search",
+        "endpoint": "/api/search",
+        "method": "GET",
+        "severity": "Low",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Search query vulnerable to SQL injection"
+      }
+    ]
+  },
+  "banking": {
+    "application": "banking",
+    "url": "http://localhost:5004",
+    "ground_truth_count": 2,
+    "findings_count": 0,
+    "metrics": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "accuracy": 0.0,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 2,
+      "true_negatives": 0
+    },
+    "findings": [],
+    "ground_truth": [
+      {
+        "id": "BA-001",
+        "type": "CSRF",
+        "name": "CSRF - Money Transfer",
+        "endpoint": "/transfer",
+        "method": "POST",
+        "severity": "Critical",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "No CSRF token on money transfer form"
+      },
+      {
+        "id": "BA-002",
+        "type": "IDOR",
+        "name": "IDOR - Account Transfer",
+        "endpoint": "/transfer",
+        "method": "POST",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Can transfer money to any account number"
+      }
+    ]
+  },
+  "blog": {
+    "application": "blog",
+    "url": "http://localhost:5005",
+    "ground_truth_count": 2,
+    "findings_count": 0,
+    "metrics": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "accuracy": 0.0,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 2,
+      "true_negatives": 0
+    },
+    "findings": [],
+    "ground_truth": [
+      {
+        "id": "BL-001",
+        "type": "Stored XSS",
+        "name": "Stored XSS - Blog Posts",
+        "endpoint": "/new-post",
+        "method": "POST",
+        "severity": "High",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Blog post content not sanitized"
+      },
+      {
+        "id": "BL-002",
+        "type": "Stored XSS",
+        "name": "Stored XSS - Comments",
+        "endpoint": "/post/<id>/comment",
+        "method": "POST",
+        "severity": "Medium",
+        "owasp_category": "A03:2021 - Injection",
+        "description": "Comment content not sanitized"
+      }
+    ]
+  },
+  "fileshare": {
+    "application": "fileshare",
+    "url": "http://localhost:5006",
+    "ground_truth_count": 4,
+    "findings_count": 0,
+    "metrics": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "accuracy": 0.0,
+      "true_positives": 0,
+      "false_positives": 0,
+      "false_negatives": 4,
+      "true_negatives": 0
+    },
+    "findings": [],
+    "ground_truth": [
+      {
+        "id": "FS-001",
+        "type": "Unrestricted File Upload",
+        "name": "Unrestricted File Upload",
+        "endpoint": "/upload",
+        "method": "POST",
+        "severity": "Critical",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Completely unrestricted file upload"
+      },
+      {
+        "id": "FS-002",
+        "type": "IDOR",
+        "name": "IDOR - File Download",
+        "endpoint": "/download/<id>",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Can download any uploaded file by ID"
+      },
+      {
+        "id": "FS-003",
+        "type": "Path Traversal",
+        "name": "Path Traversal - File Access",
+        "endpoint": "/download/<id>",
+        "method": "GET",
+        "severity": "High",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Vulnerable `send_file` implementation"
+      },
+      {
+        "id": "FS-004",
+        "type": "IDOR",
+        "name": "IDOR - File Deletion",
+        "endpoint": "/delete/<id>",
+        "method": "GET",
+        "severity": "Medium",
+        "owasp_category": "A01:2021 - Broken Access Control",
+        "description": "Can delete any file by ID"
+      }
+    ]
+  }
+}

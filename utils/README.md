@@ -48,6 +48,7 @@ Helper functions and utilities for the DRL Security Agent.
 - Markdown summaries
 - Vulnerability statistics
 - Timeline visualization
+- Captured flags and evidence snippets
 
 ### `target_hunter.py` (530+ lines)
 

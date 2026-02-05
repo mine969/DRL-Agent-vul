@@ -75,7 +75,7 @@ python scanner_gui.py
 - 🚀 **HYBRID SCAN**: Standard balanced audit
 - 🧠 **FULL AI SCAN**: Deep penetration test (Unleashed)
 - 🛑 **ABORT MISSION**: Cancel anytime
-- 📄 **OPEN REPORT**: View HTML report
+- 📄 **OPEN REPORT**: View HTML report with captured flags and evidence
 - 🔄 **FETCH PROXIES**: Auto-download proxies
 
 ---
@@ -124,7 +124,7 @@ python scanner_gui.py
   - CURL commands
   - Python scripts
   - Suggested payloads
-- Click **📄 OPEN REPORT** for full HTML report
+- Click **📄 OPEN REPORT** for full HTML report with captured flags
 
 ---
 

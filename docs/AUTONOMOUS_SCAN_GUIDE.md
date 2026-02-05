@@ -79,10 +79,11 @@ python autonomous_scan.py --mode targetless --google-dork "inurl:login" --shodan
 
 ### Phase 3: Reporting 📊
 
-- Generates `scan_report.md`
+- Generates `reports/vulnerability_report_[timestamp].md`
 - Lists all discovered URLs
 - Details found vulnerabilities
 - Includes confidence levels
+- Captures flags and evidence snippets when present
 
 ## Example Output
 
@@ -138,7 +139,7 @@ Vulnerabilities Found: 3
     Type: SQL Injection
     Confidence: High
 
-💾 Report saved to: scan_report.md
+💾 Report saved to: reports/vulnerability_report_[timestamp].md
 ```
 
 ## Parameters
@@ -200,7 +201,7 @@ python autonomous_scan.py http://site.com
 1. **Start Small**: Use `--depth 10` for quick scans
 2. **Go Deep**: Use `--depth 100` for thorough scans
 3. **Multiple Runs**: Run with different checkpoints to compare
-4. **Review Reports**: Check `scan_report.md` for details
+4. **Review Reports**: Check `reports/vulnerability_report_[timestamp].md` for details
 
 ## Limitations
 

@@ -158,6 +158,8 @@ User Input → Agent → Environment → Target Website
      └──────── Vulnerability Report ──────┘
 ```
 
+Reports include captured flags and evidence fields (status, reward, snippet) when present.
+
 ### GUI Mode
 
 ```

@@ -20,6 +20,10 @@ import os
 import json
 import time
 import re
+import io
+import subprocess
+import urllib.request
+import urllib.error
 from pathlib import Path
 from typing import Dict, List, Any, Tuple, Optional, Set
 from dataclasses import dataclass
@@ -28,6 +32,11 @@ from urllib.parse import urlparse
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Fix Windows console encoding for emojis
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 try:
     from config import get_config
@@ -45,6 +54,145 @@ except ImportError as e:
     DQNAgent = None
     WebSecurityGym = None
 
+
+MOCK_TARGETS = [
+    {
+        "name": "E-Commerce",
+        "script": "env/target_app_ecommerce.py",
+        "port": 5002,
+        "url": "http://localhost:5002",
+    },
+    {
+        "name": "Social Media",
+        "script": "env/target_app_social.py",
+        "port": 5003,
+        "url": "http://localhost:5003",
+    },
+    {
+        "name": "Banking App",
+        "script": "env/target_app_banking.py",
+        "port": 5004,
+        "url": "http://localhost:5004",
+    },
+    {
+        "name": "Blog Platform",
+        "script": "env/target_app_blog.py",
+        "port": 5005,
+        "url": "http://localhost:5005",
+    },
+    {
+        "name": "File Share",
+        "script": "env/target_app_fileshare.py",
+        "port": 5006,
+        "url": "http://localhost:5006",
+    },
+]
+
+
+def _is_url_reachable(url: str, timeout: int = 2) -> bool:
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=timeout):
+            return True
+    except urllib.error.HTTPError:
+        return True
+    except Exception:
+        return False
+
+
+def _resolve_python_executable(project_root: Path) -> str:
+    if hasattr(sys, "real_prefix") or (
+        hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+    ):
+        return sys.executable
+    venv_python = project_root / ".venv" / "Scripts" / "python.exe"
+    if venv_python.exists():
+        return str(venv_python)
+    return sys.executable
+
+
+def start_mock_services(project_root: Path) -> List[Dict[str, Any]]:
+    processes: List[Dict[str, Any]] = []
+    logs_dir = project_root / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    python_exe = _resolve_python_executable(project_root)
+
+    for target in MOCK_TARGETS:
+        if _is_url_reachable(target["url"]):
+            print(f"INFO: {target['name']} already reachable; skipping start")
+            continue
+
+        script_path = project_root / target["script"]
+        if not script_path.exists():
+            print(f"WARN: Missing target script: {script_path}")
+            continue
+
+        log_name = target["name"].replace(" ", "_").lower()
+        log_file = open(logs_dir / f"{log_name}_eval.log", "w")
+        process = subprocess.Popen(
+            [python_exe, str(script_path)],
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            cwd=str(project_root),
+        )
+        processes.append(
+            {
+                "process": process,
+                "name": target["name"],
+                "port": target["port"],
+                "log_file": log_file,
+            }
+        )
+        print(f"OK: Started {target['name']} (PID: {process.pid})")
+
+    return processes
+
+
+def wait_for_services(urls: List[str], timeout: int = 30) -> bool:
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if all(_is_url_reachable(url) for url in urls):
+            return True
+        time.sleep(0.5)
+    return False
+
+
+def stop_mock_services(processes: List[Dict[str, Any]]) -> None:
+    for proc_info in processes:
+        process = proc_info["process"]
+        try:
+            process.terminate()
+            process.wait(timeout=3)
+        except Exception:
+            try:
+                process.kill()
+                process.wait(timeout=3)
+            except Exception:
+                pass
+
+        log_file = proc_info.get("log_file")
+        if log_file:
+            try:
+                log_file.close()
+            except Exception:
+                pass
+
+
+def find_latest_checkpoint(project_root: Path) -> Optional[str]:
+    checkpoints_dir = project_root / "checkpoints"
+    if not checkpoints_dir.exists():
+        return None
+
+    candidates = list(checkpoints_dir.glob("improved_mock_ep*.pth"))
+    if not candidates:
+        return None
+
+    def _episode(path: Path) -> int:
+        match = re.search(r"ep(\d+)", path.name)
+        return int(match.group(1)) if match else 0
+
+    best = max(candidates, key=_episode)
+    return str(best)
 
 @dataclass
 class VulnerabilityFinding:
@@ -103,7 +251,11 @@ class AgentEvaluator:
     """Evaluates agent performance against ground truth vulnerabilities."""
 
     def __init__(
-        self, agent_type: str = "improved", checkpoint_path: Optional[str] = None
+        self,
+        agent_type: str = "improved",
+        checkpoint_path: Optional[str] = None,
+        max_steps_per_app: Optional[int] = None,
+        episodes_per_app: int = 1,
     ):
         """
         Initialize evaluator.
@@ -114,6 +266,8 @@ class AgentEvaluator:
         """
         self.agent_type = agent_type
         self.checkpoint_path = checkpoint_path
+        self.max_steps_per_app = max_steps_per_app
+        self.episodes_per_app = max(1, episodes_per_app)
         if not _IMPORTS_SUCCESSFUL or get_config is None:
             raise RuntimeError("Required imports not available. Run from project root.")
 
@@ -546,40 +700,45 @@ class AgentEvaluator:
         print(f"Ground truth: {len(ground_truth)} vulnerabilities")
 
         # Agent scanning simulation
-        findings = []
-        state, _ = env.reset()
-        max_steps = getattr(env, "max_steps_per_episode", 100)
+        raw_findings: List[VulnerabilityFinding] = []
+        max_steps = self.max_steps_per_app or getattr(env, "max_steps_per_episode", 100)
 
         print("Scanning in progress...")
-        for step in range(max_steps):
-            # Agent action
-            action = self.agent.act(state, training=False)
+        for episode in range(self.episodes_per_app):
+            state, _ = env.reset()
+            for step in range(max_steps):
+                # Agent action
+                action = self.agent.act(state, training=False)
 
-            # Execute action
-            next_state, reward, terminated, truncated, info = env.step(action)
+                # Execute action
+                next_state, reward, terminated, truncated, info = env.step(action)
 
-            action_name = self._resolve_action_name(env, action)
-            if info.get("vuln_found") == 1:
-                endpoint_url = info.get("url") or url
-                endpoint_path = self._normalize_path(urlparse(endpoint_url).path)
-                method = (info.get("method") or "GET").upper()
+                action_name = self._resolve_action_name(env, action)
+                if info.get("vuln_found") == 1:
+                    endpoint_url = info.get("url") or url
+                    endpoint_path = self._normalize_path(urlparse(endpoint_url).path)
+                    method = (info.get("method") or "GET").upper()
 
-                finding = VulnerabilityFinding(
-                    vuln_id=f"{app_name.upper()}-F{len(findings) + 1:03d}",
-                    vuln_type=self._action_to_vuln_type(action_name),
-                    endpoint=endpoint_path,
-                    method=method,
-                    confidence=self._reward_to_confidence(reward),
-                    payload=info.get("payload", ""),
-                    verified=True,
-                )
-                findings.append(finding)
+                    finding = VulnerabilityFinding(
+                        vuln_id=f"{app_name.upper()}-F{len(raw_findings) + 1:03d}",
+                        vuln_type=self._action_to_vuln_type(action_name),
+                        endpoint=endpoint_path,
+                        method=method,
+                        confidence=self._reward_to_confidence(reward),
+                        payload=info.get("payload", ""),
+                        verified=True,
+                    )
+                    raw_findings.append(finding)
 
-            state = next_state
-            if terminated or truncated:
-                break
+                state = next_state
+                if terminated or truncated:
+                    break
 
-        print(f"Agent found {len(findings)} potential vulnerabilities")
+        findings = self._dedupe_findings(raw_findings)
+        print(
+            f"Agent found {len(raw_findings)} findings "
+            f"({len(findings)} unique after dedupe)"
+        )
 
         # Compare with ground truth
         metrics = self._calculate_metrics(findings, ground_truth, app_name)
@@ -590,6 +749,7 @@ class AgentEvaluator:
             "url": url,
             "ground_truth_count": len(ground_truth),
             "findings_count": len(findings),
+            "findings_raw_count": len(raw_findings),
             "metrics": {
                 "precision": metrics.precision,
                 "recall": metrics.recall,
@@ -704,6 +864,23 @@ class AgentEvaluator:
         ):
             return "business logic"
         return name
+
+    def _dedupe_findings(
+        self, findings: List[VulnerabilityFinding]
+    ) -> List[VulnerabilityFinding]:
+        deduped: List[VulnerabilityFinding] = []
+        seen: Set[Tuple[str, str, str]] = set()
+        for finding in findings:
+            key = (
+                self._normalize_type(finding.vuln_type),
+                self._normalize_path(finding.endpoint),
+                (finding.method or "").upper(),
+            )
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(finding)
+        return deduped
 
     def _action_to_vuln_type(self, action_name: str) -> str:
         name = action_name.lower()
@@ -927,20 +1104,71 @@ def main():
         "--checkpoint", type=str, help="Path to trained checkpoint (optional)"
     )
     parser.add_argument("--output", type=str, help="Output file for results (optional)")
+    parser.add_argument(
+        "--start-services",
+        action="store_true",
+        help="Start mock target services automatically",
+    )
+    parser.add_argument(
+        "--services-timeout",
+        type=int,
+        default=30,
+        help="Seconds to wait for mock services to become reachable",
+    )
+    parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=None,
+        help="Maximum steps per application during evaluation (optional)",
+    )
+    parser.add_argument(
+        "--episodes-per-app",
+        type=int,
+        default=1,
+        help="Number of evaluation episodes per application",
+    )
 
     args = parser.parse_args()
 
-    # Create evaluator
-    evaluator = AgentEvaluator(agent_type=args.agent, checkpoint_path=args.checkpoint)
+    project_root = Path(__file__).parent.parent
+    processes: List[Dict[str, Any]] = []
 
-    # Load agent
-    evaluator.load_agent()
+    try:
+        if args.start_services:
+            print("Starting mock services for evaluation...")
+            processes = start_mock_services(project_root)
+            urls = [target["url"] for target in MOCK_TARGETS]
+            if not wait_for_services(urls, timeout=args.services_timeout):
+                raise RuntimeError(
+                    "Mock services not reachable. Check logs/ or start_services.py"
+                )
 
-    # Run evaluation
-    results = evaluator.run_full_evaluation()
+        if args.checkpoint is None and args.agent == "improved":
+            auto_checkpoint = find_latest_checkpoint(project_root)
+            if auto_checkpoint:
+                args.checkpoint = auto_checkpoint
+                print(f"Auto-selected checkpoint: {auto_checkpoint}")
 
-    # Save results
-    evaluator.save_results(results, args.output)
+        # Create evaluator
+        evaluator = AgentEvaluator(
+            agent_type=args.agent,
+            checkpoint_path=args.checkpoint,
+            max_steps_per_app=args.max_steps,
+            episodes_per_app=args.episodes_per_app,
+        )
+
+        # Load agent
+        evaluator.load_agent()
+
+        # Run evaluation
+        results = evaluator.run_full_evaluation()
+
+        # Save results
+        evaluator.save_results(results, args.output)
+    finally:
+        if processes:
+            print("Stopping mock services...")
+            stop_mock_services(processes)
 
 
 if __name__ == "__main__":

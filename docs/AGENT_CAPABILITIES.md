@@ -199,6 +199,8 @@ Mock targets use a tuned 50-action subset mapped into the full 150-action book.
 - **Real-World Impact**: Business consequences
 - **Remediation Guidance**: How to fix vulnerabilities
 - **Evidence**: Proof-of-concept code
+- **Captured Flags**: CTF flags when present
+- **Response Context**: Status codes, rewards, and snippets
 
 ## 🛠️ Technical Capabilities
 

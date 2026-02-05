@@ -36,6 +36,7 @@ An **AI-powered web security scanner** that uses Deep Reinforcement Learning to 
 - **Real-world impact** descriptions
 - **Remediation steps** for each finding
 - **Exploitation guides** step-by-step
+- **Captured flags** and evidence snippets (when present)
 
 ### 🎨 Modern GUI
 
@@ -260,6 +261,8 @@ RL/
 ---
 
 ## Report Formats
+
+All report formats include captured flags (CTF{...}) and evidence fields (status, reward, snippet) when available.
 
 ### HTML Report
 

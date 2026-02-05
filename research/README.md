@@ -61,7 +61,7 @@ agent = ImprovedDQNAgent(
 - Autonomous crawling and endpoint discovery
 - Intelligent attack payload selection
 - Vulnerability validation and confirmation
-- Comprehensive reporting
+- Comprehensive reporting with captured flags and evidence
 
 **Scanning Modes:**
 - Auto Mode: AI-driven exploration

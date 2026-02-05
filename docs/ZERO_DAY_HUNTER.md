@@ -362,6 +362,7 @@ All zero-day findings are included in standard reports:
 
 - HTML report with CVE links
 - Markdown report with payload details
+- Captured flags and evidence snippets when present
 - JSON export for further analysis
 
 ## Performance
