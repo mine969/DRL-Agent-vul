@@ -1,5 +1,5 @@
 """
-Quick Training Script - 10000 Episodes
+Quick Training Script - 5000 Episodes
 Simplified version with immediate feedback and checkpoint resume
 """
 import sys
@@ -16,7 +16,7 @@ import argparse
 sys.stdout.reconfigure(line_buffering=True)
 
 print("=" * 70, flush=True)
-print("🚀 STARTING TRAINING - 10000 EPISODES", flush=True)
+print("🚀 STARTING TRAINING - 5000 EPISODES", flush=True)
 print("=" * 70, flush=True)
 
 # Target URLs (rotating)
@@ -107,13 +107,13 @@ else:
 print("✅ Agent initialized!", flush=True)
 
 # Training loop
-print(f"\n🎯 Starting training from episode {start_episode} to 10000...", flush=True)
+print(f"\n🎯 Starting training from episode {start_episode} to 5000...", flush=True)
 print("=" * 70, flush=True)
 
 start_time = time.time()
 
 try:
-    for episode in range(start_episode, 10001):
+    for episode in range(start_episode, 5001):
         # Rotate targets
         target_url = TARGETS[episode % len(TARGETS)]
         
@@ -152,7 +152,7 @@ try:
             if episode % 10 == 0:
                 elapsed = time.time() - start_time
                 eps_per_sec = (episode - start_episode + 1) / elapsed
-                eta_seconds = (10000 - episode) / eps_per_sec if eps_per_sec > 0 else 0
+                eta_seconds = (5000 - episode) / eps_per_sec if eps_per_sec > 0 else 0
                 eta_minutes = int(eta_seconds / 60)
                 
                 print(f"\n📊 PROGRESS: Ep {episode:4d} | Avg Speed: {eps_per_sec:.2f} ep/s | ETA: {eta_minutes}m", flush=True)

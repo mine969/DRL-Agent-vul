@@ -50,11 +50,10 @@ python scanner_gui.py
 
 ### Scan Modes
 
-- **AUTO** - Balanced AI-driven scan
-- **AGGRESSIVE** - Deep penetration testing
-- **OSINT** - Reconnaissance only
-- **SPECIFIC** - Single attack type
-- **ZERO-DAY HUNTER** - Advanced fuzzing & CVEs
+- **HYBRID SCAN** - Standard script-based reconnaissance + AI verification.
+- **FULL AI SCAN** - Unleashed mode (Chain attacks, Online Learning, AI Recon).
+- **FLASH ATTACK** - Instant single-page check.
+- **SPECIFIC** - Single attack type.
 
 ### Stealth Configuration
 
@@ -73,7 +72,8 @@ python scanner_gui.py
 ### One-Click Actions
 
 - ⚡ **FLASH ATTACK**: Quick one-click scan
-- 🚀 **LAUNCH SCAN**: Begin scanning
+- 🚀 **HYBRID SCAN**: Standard balanced audit
+- 🧠 **FULL AI SCAN**: Deep penetration test (Unleashed)
 - 🛑 **ABORT MISSION**: Cancel anytime
 - 📄 **OPEN REPORT**: View HTML report
 - 🔄 **FETCH PROXIES**: Auto-download proxies
@@ -105,7 +105,8 @@ python scanner_gui.py
 ### 4. Start Scan
 
 - Click **⚡ FLASH ATTACK** for quick scan, OR
-- Click **🚀 LAUNCH SCAN** for configured scan
+- Click **🚀 HYBRID SCAN** for standard audit, OR
+- Click **🧠 FULL AI SCAN** for deep chain attacks.
 - Watch real-time progress!
 
 ### 5. Monitor Progress
@@ -171,18 +172,18 @@ python scanner_gui.py
 └── AI Model (dropdown)
 
 ⚙️ SCAN MODE
-├── 🤖 AUTO MODE
-├── 🔥 AGGRESSIVE MODE
-├── 🕵️ OSINT MODE
-├── 🎯 SPECIFIC ATTACK
-└── 💀 ZERO-DAY HUNTER
+├── 🚀 HYBRID SCAN (Standard)
+├── 🧠 FULL AI SCAN (Unleashed)
+├── ⚡ FLASH ATTACK (One-Click)
+└── 🎯 SPECIFIC ATTACK
 
 🥷 STEALTH CONFIGURATION
 ├── Stealth Level (dropdown)
 └── Proxy File (auto-fetch/browse)
 
 ⚡ FLASH ATTACK (button)
-🚀 LAUNCH SCAN (button)
+🚀 HYBRID SCAN (button)
+🧠 FULL AI SCAN (button)
 🛑 ABORT MISSION (button)
 ```
 
@@ -365,12 +366,9 @@ For reconnaissance:
 
 ```
 1. Enter: http://target.com
-2. Mode: 🔥 AGGRESSIVE
-3. Depth: 50
-4. Episodes: 5
-5. Stealth: High
-6. Proxies: Auto-fetch
-7. Click: 🚀 LAUNCH SCAN
+2. Click: 🧠 FULL AI SCAN
+3. Wait: ~15 minutes
+4. Review: Full report
 8. Wait: ~15 minutes
 9. Review: Full report
 ```
@@ -379,10 +377,10 @@ For reconnaissance:
 
 ```
 1. Enter: http://target.com
-2. Mode: 🕵️ OSINT
+2. Click: 🚀 HYBRID SCAN
 3. Depth: 30
-4. Click: 🚀 LAUNCH SCAN
-5. Review: Discovered endpoints
+4. Wait: ~5 minutes
+5. Review: Discovery & Validation
 ```
 
 ---
@@ -410,7 +408,8 @@ For reconnaissance:
 | ------------- | ----------------------------- |
 | Launch GUI    | `python scanner_gui.py`       |
 | Quick scan    | Click "⚡ FLASH ATTACK"       |
-| Full scan     | Click "🚀 LAUNCH SCAN"        |
+| Hybrid scan   | Click "🚀 HYBRID SCAN"        |
+| Full AI scan  | Click "🧠 FULL AI SCAN"       |
 | Stop scan     | Click "🛑 ABORT MISSION"      |
 | Fetch proxies | Click "🔄" next to proxy file |
 | View exploit  | Click finding in list         |
@@ -426,7 +425,7 @@ For reconnaissance:
 The 2025 GUI provides:
 
 - ✅ Cyberpunk red team interface
-- ✅ 4 scan modes (Auto/Aggressive/OSINT/Specific)
+- ✅ 3 primary scan modes (Flash, Hybrid, Full AI)
 - ✅ Auto-fetch proxies (6 sources)
 - ✅ Full exploit URLs (copy-paste ready)
 - ✅ 200+ attack payloads

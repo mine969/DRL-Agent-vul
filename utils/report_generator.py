@@ -116,7 +116,7 @@ class ReportGenerator:
         # Fix: Findings with reward > 1.0 or High/Medium confidence are confirmed
         confirmed_findings = []
         for f in findings:
-            print(f"DEBUG REPORT: Finding {f.vuln_type} | Reward: {f.reward} ({type(f.reward)}) | Confidence: {f.confidence}")
+            # Check if finding is confirmed based on reward or confidence
             if f.reward >= 1.0 or f.confidence in ['High', 'Medium']:
                 confirmed_findings.append(f)
         

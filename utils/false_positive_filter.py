@@ -55,6 +55,8 @@ class FalsePositiveFilter:
         
         return filtered
     
+        return False
+    
     def _is_false_positive(self, finding, target_url: str) -> bool:
         """Check if a finding is a false positive."""
         
@@ -63,16 +65,21 @@ class FalsePositiveFilter:
         if finding.reward > 50:
             return False
 
+        # Rule 0.5: User Override - Preserve "Validator Rejected" items if Phase 2 kept them
+        # The user explicitly wants to see findings that the Validator missed but the Agent found.
+        if "Validator Rejected" in finding.confidence:
+             return False
+
         # Rule 1: WordPress paths on non-WordPress sites
         if self._is_wordpress_false_positive(finding, target_url):
             return True
         
-        # Rule 2: 404 responses with positive rewards
-        if self._is_404_false_positive(finding):
-            return True
+        # Rule 2: 404 checks - REMOVED as checking URL string is too aggressive
+        # if self._is_404_false_positive(finding):
+        #    return True
         
-        # Rule 3: Very low reward findings (likely noise)
-        if finding.reward < 5:  # Lowered from 10
+        # Rule 3: Very low reward findings
+        if finding.reward <= 0:  # Only filter if non-positive
             return True
         
         # Rule 4: Generic "found endpoint" without actual vulnerability
@@ -96,10 +103,7 @@ class FalsePositiveFilter:
         return is_wp_path and is_non_wp_site
     
     def _is_404_false_positive(self, finding) -> bool:
-        """Check if this is a 404 response being reported as a finding."""
-        # If the finding mentions 404 or "not found" in the URL/payload
-        if '404' in str(finding.url) or 'not found' in str(finding.payload).lower():
-            return True
+        """Deprecated: Too aggressive."""
         return False
     
     def _is_endpoint_discovery_only(self, finding) -> bool:
@@ -107,7 +111,7 @@ class FalsePositiveFilter:
         # If vulnerability type is just "Found" or "Discovered" without specifics
         generic_types = ['found', 'discovered', 'endpoint', 'page']
         if any(generic in finding.vuln_type.lower() for generic in generic_types):
-            if finding.reward < 50:  # Low reward for generic discovery
+            if finding.reward < 10:  # Lowered threshold from 50
                 return True
         return False
 

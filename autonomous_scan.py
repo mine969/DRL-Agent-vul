@@ -45,104 +45,7 @@ from utils.target_hunter import TargetHunter
 
 
 
-class ProxyRotator:
-    """
-    Rotates through a list of proxies to avoid IP bans.
-    """
-    def __init__(self, proxy_list: List[str] = None):
-        self.proxy_list = proxy_list or []
-        self.current_index = 0
-        
-    def get_next_proxy(self) -> Optional[Dict[str, str]]:
-        """Get the next proxy in rotation."""
-        if not self.proxy_list:
-            return None
-        
-        proxy = self.proxy_list[self.current_index]
-        self.current_index = (self.current_index + 1) % len(self.proxy_list)
-        
-        return {
-            'http': proxy,
-            'https': proxy
-        }
-    
-    def add_proxy(self, proxy: str):
-        """Add a proxy to the rotation list."""
-        self.proxy_list.append(proxy)
-
-
-class RequestObfuscator:
-    """
-    Advanced request obfuscation to avoid pattern detection.
-    """
-    
-    COMMON_REFERRERS = [
-        'https://www.google.com/search?q=',
-        'https://www.bing.com/search?q=',
-        'https://duckduckgo.com/?q=',
-        'https://www.facebook.com/',
-        'https://twitter.com/',
-        'https://www.linkedin.com/',
-        'https://www.reddit.com/',
-    ]
-    
-    def __init__(self, stealth_level: str = "medium"):
-        """
-        stealth_level: low, medium, high, paranoid
-        """
-        self.stealth_level = stealth_level
-        self.delays = {
-            'low': (0.1, 0.5),
-            'medium': (0.5, 2.0),
-            'high': (1.0, 5.0),
-            'paranoid': (5.0, 15.0)
-        }
-    
-    def shuffle_urls(self, urls: List[str]) -> List[str]:
-        """Randomize URL order to avoid sequential scanning patterns."""
-        shuffled = urls.copy()
-        random.shuffle(shuffled)
-        return shuffled
-    
-    def get_fake_referrer(self, target_url: str = None) -> str:
-        """Generate a believable referrer header."""
-        referrer = random.choice(self.COMMON_REFERRERS)
-        
-        if target_url and 'google.com' in referrer:
-            # Make it look like we came from a Google search
-            domain = urlparse(target_url).netloc
-            referrer += domain.replace('www.', '')
-        
-        return referrer
-    
-    def get_delay(self) -> float:
-        """Get randomized delay based on stealth level."""
-        min_delay, max_delay = self.delays.get(self.stealth_level, (0.5, 2.0))
-        return random.uniform(min_delay, max_delay)
-    
-    def add_noise_to_request(self, kwargs: dict):
-        """Add random noise to request to vary fingerprint."""
-        if 'headers' not in kwargs:
-            kwargs['headers'] = {}
-        
-        # Random Accept-Language
-        languages = ['en-US,en;q=0.9', 'en-GB,en;q=0.9', 'en-US,en;q=0.5']
-        kwargs['headers']['Accept-Language'] = random.choice(languages)
-        
-        # Random DNT header (sometimes omit it)
-        if random.random() > 0.5:
-            kwargs['headers']['DNT'] = '1'
-        
-        # Fake referrer
-        kwargs['headers']['Referer'] = self.get_fake_referrer()
-        
-        # Vary Accept header slightly
-        accept_headers = [
-            'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
-        ]
-        kwargs['headers']['Accept'] = random.choice(accept_headers)
+# Removed ProxyRotator and RequestObfuscator classes - not needed for mock target scanning
 
 
 class OptimizedSession:
@@ -158,13 +61,8 @@ class OptimizedSession:
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
     ]
     
-    def __init__(self, pool_connections: int = 10, pool_maxsize: int = 20, 
-                 use_proxies: bool = False, proxy_list: List[str] = None,
-                 stealth_level: str = "medium"):
+    def __init__(self, pool_connections: int = 10, pool_maxsize: int = 20):
         self.session = requests.Session()
-        self.use_proxies = use_proxies
-        self.proxy_rotator = ProxyRotator(proxy_list) if use_proxies else None
-        self.obfuscator = RequestObfuscator(stealth_level)
         
         # Retry logic
         retry_strategy = Retry(
@@ -195,36 +93,22 @@ class OptimizedSession:
             'Upgrade-Insecure-Requests': '1'
         }
     
-    def _apply_stealth(self, kwargs: dict):
-        """Apply stealth features to the request."""
-        # Random User-Agent
+    def _apply_headers(self, kwargs: dict):
+        """Apply basic headers to the request."""
         if 'headers' not in kwargs:
             kwargs['headers'] = {}
         kwargs['headers'].update(self._get_random_headers())
-        
-        # Add obfuscation noise
-        self.obfuscator.add_noise_to_request(kwargs)
-        
-        # Proxy rotation
-        if self.use_proxies and self.proxy_rotator:
-            proxy = self.proxy_rotator.get_next_proxy()
-            if proxy:
-                kwargs['proxies'] = proxy
-        
-        # Stealth-level delay
-        delay = self.obfuscator.get_delay()
-        time.sleep(delay)
     
     def get(self, url: str, **kwargs) -> requests.Response:
-        """Send a GET request with stealth features."""
+        """Send a GET request."""
         kwargs.setdefault('timeout', self.timeout)
-        self._apply_stealth(kwargs)
+        self._apply_headers(kwargs)
         return self.session.get(url, **kwargs)
 
     def post(self, url: str, **kwargs) -> requests.Response:
-        """Send a POST request with stealth features."""
+        """Send a POST request."""
         kwargs.setdefault('timeout', self.timeout)
-        self._apply_stealth(kwargs)
+        self._apply_headers(kwargs)
         return self.session.post(url, **kwargs)
     
     def close(self):
@@ -232,38 +116,7 @@ class OptimizedSession:
         self.session.close()
 
 
-class WaybackMachine:
-    """
-    Integrates with Archive.org to find historical URLs.
-    """
-    def __init__(self, domain):
-        self.domain = domain
-        self.cdx_api = "http://web.archive.org/cdx/search/cdx"
-        
-    def get_historical_urls(self, limit=500):
-        print(f"🌍 Querying Wayback Machine for {self.domain}...")
-        params = {
-            'url': f'*.{self.domain}/*',
-            'collapse': 'urlkey',
-            'output': 'json',
-            'fl': 'original',
-            'limit': limit,
-            'filter': 'statuscode:200'
-        }
-        
-        try:
-            response = requests.get(self.cdx_api, params=params, timeout=10)
-            if response.status_code == 200:
-                data = response.json()
-                if data:
-                    # Skip header row
-                    urls = [row[0] for row in data[1:]]
-                    print(f"  ✅ Wayback Machine found {len(urls)} historical URLs")
-                    return urls
-            return []
-        except Exception as e:
-            print(f"  ⚠️ Wayback Machine error: {e}")
-            return []
+# Removed WaybackMachine class - not needed for localhost mock targets
 
 class WebsiteExplorer:
     """
@@ -271,53 +124,13 @@ class WebsiteExplorer:
     Its job is to find all the pages on the website so we know what to attack.
     """
     
-    def __init__(self, base_url: str, use_proxies: bool = False, proxy_list: List[str] = None, stealth_level: str = "medium"):
+    def __init__(self, base_url: str):
         self.base_url = base_url.rstrip('/')
         self.domain = urlparse(base_url).netloc
         self.discovered_urls: Set[str] = set()
-        self.session = OptimizedSession(use_proxies=use_proxies, proxy_list=proxy_list, stealth_level=stealth_level)
-        self.wayback = WaybackMachine(self.domain)
-        self.obfuscator = RequestObfuscator(stealth_level)
+        self.session = OptimizedSession()
         
-    def scan_ports(self, ports: List[int] = None) -> List[str]:
-        """
-        Scans common web ports to find hidden services.
-        """
-        if ports is None:
-            # Common web ports
-            ports = [80, 443, 8080, 8443, 8000, 8008, 8888, 3000, 5000, 9000, 9200, 9443]
-            
-        print(f"🔌 Scanning {len(ports)} common ports on {self.domain}...")
-        open_services = []
-        
-        import socket
-        
-        for port in ports:
-            try:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.settimeout(1.0) # Fast timeout
-                result = sock.connect_ex((self.domain, port))
-                sock.close()
-                
-                if result == 0:
-                    # Port is open, try to determine protocol
-                    protocols = []
-                    if port in [443, 8443, 9443]:
-                        protocols = ["https"]
-                    elif port in [80, 8080, 8000, 3000, 5000]:
-                        protocols = ["http"]
-                    else:
-                        protocols = ["http", "https"]
-                        
-                    for proto in protocols:
-                        url = f"{proto}://{self.domain}:{port}"
-                        open_services.append(url)
-                        print(f"  ✨ Found open service: {url}")
-                        
-            except Exception:
-                pass
-                
-        return open_services
+
 
     def explore(self, max_pages: int = 50, auto_login: bool = True) -> List[str]:
         """
@@ -349,15 +162,6 @@ class WebsiteExplorer:
         
         visited_pages: Set[str] = set()
         
-        # --- WAYBACK MACHINE INTEGRATION ---
-        # Add historical URLs to the queue
-        if "localhost" not in self.domain and "127.0.0.1" not in self.domain:
-            historical_urls = self.wayback.get_historical_urls()
-            for url in historical_urls:
-                # Only add if it matches our domain
-                if self.domain in url:
-                    pages_to_visit.append(url)
-                    self.discovered_urls.add(url)
         
         while pages_to_visit and len(visited_pages) < max_pages:
             current_url = pages_to_visit.popleft()
@@ -381,15 +185,22 @@ class WebsiteExplorer:
                 self._extract_links(soup, current_url, pages_to_visit, visited_pages)
                 self._log_interesting_elements(soup)
                 
+                # AUTO-LOGIN: If we found a login page and haven't logged in yet
+                if auto_login and not hasattr(self, 'is_logged_in'):
+                    if "/login" in current_url or "/signin" in current_url or "login" in current_url.split('/')[-1]:
+                        print(f"  🔍 Detected potential login page: {current_url}")
+                        success = self.attempt_login(current_url)
+                        if success:
+                            self.is_logged_in = True
+                            print("  ✅ Login Successful! Session authenticated.")
+                
             except Exception as e:
                 print(f"  ❌ Error visiting page: {str(e)[:50]}")
         
         print(f"\n✅ Reconnaissance complete!")
         print(f"📊 Discovered {len(self.discovered_urls)} unique URLs\n")
         
-        # Shuffle URLs to avoid sequential scanning pattern
-        discovered_list = list(self.discovered_urls)
-        return self.obfuscator.shuffle_urls(discovered_list)
+        return list(self.discovered_urls)
     
     def _extract_links(self, soup, current_url, queue, visited):
         """Helper to find and add new links to the queue."""
@@ -470,14 +281,13 @@ class WebsiteExplorer:
                 
                 # Common credential combinations
                 credentials = [
+                    ('admin', 'admin123'),  # Mock targets default
                     ('admin', 'password'),
                     ('admin', 'admin'),
-                    ('admin', ''),
-                    ('user', 'user'),
+                    ('user', 'password'),
+                    ('john_doe', 'password'),  # Mock target user
                     ('test', 'test'),
                     ('guest', 'guest'),
-                    # DVWA default
-                    ('admin', 'password'),
                 ]
                 
                 for username, password in credentials:
@@ -508,19 +318,25 @@ class WebsiteExplorer:
                     else:
                         login_response = self.session.get(form_url, params=form_data)
                     
-                    # Check if login succeeded
-                    if self._check_login_success(login_response):
-                        print(f"  ✅ Login successful with: {username}/{password}")
+                    # Check for success indicators
+                    # 1. New cookies set? (Simple check)
+                    # 2. Redirected to different page?
+                    # 3. "Logout" or "Dashboard" in text?
+                    
+                    if "logout" in login_response.text.lower() or "dashboard" in login_response.text.lower() or "welcome" in login_response.text.lower():
+                        print(f"  🔓 Login Successful! (Keyword match)")
                         return True
-                
-                print(f"  ❌ All credential attempts failed")
-                return False
-        
+                    
+                    # If we were redirected away from login and it's not the same page
+                    if login_response.url != login_url and "login" not in login_response.url:
+                        print(f"  🔓 Login Successful! (Redirected to {login_response.url})")
+                        return True
+                        
         except Exception as e:
-            print(f"  ❌ Login attempt error: {str(e)[:50]}")
-            return False
-        
+            print(f"  ❌ Login Failed: {e}")
+            
         return False
+    
     
     def _check_login_success(self, response) -> bool:
         """Check if login was successful based on response."""
@@ -558,63 +374,74 @@ class WebsiteExplorer:
         """
         Guesses common hidden pages (like /admin or /login) that might not be linked.
         """
-        common_paths = [
-            # Admin & Auth
-            '/admin', '/login', '/dashboard', '/api', '/search',
-            '/profile', '/user', '/upload', '/download', '/config',
-            '/debug', '/test', '/dev', '/backup', '/files',
-            
-            # DVWA (Damn Vulnerable Web Application) Paths
-            '/vulnerabilities/brute/',
-            '/vulnerabilities/sqli/',
-            '/vulnerabilities/sqli_blind/',
-            '/vulnerabilities/xss_r/',
-            '/vulnerabilities/xss_s/',
-            '/vulnerabilities/csrf/',
-            '/vulnerabilities/fi/',
-            '/vulnerabilities/upload/',
-            '/vulnerabilities/captcha/',
-            '/vulnerabilities/exec/',
-            '/vulnerabilities/javascript/',
-            '/vulnerabilities/weak_id/',
-            '/setup.php',
-            '/security.php',
-            '/instructions.php',
-            '/dvwa/',
-            
-            # WebGoat Paths
-            '/WebGoat/login',
-            '/WebGoat/attack',
-            
-            # Juice Shop Paths
-            '/rest/user/login',
-            '/api/Users',
-            '/ftp',
-            
-            # Government/Corporate Common Pages
-            '/about', '/about-us', '/about-myanmar', '/about-government',
-            '/news', '/news-media', '/media', '/press', '/announcements',
-            '/services', '/contact', '/contact-us', '/help', '/support',
-            '/departments', '/ministries', '/agencies', '/offices',
-            '/policies', '/laws', '/regulations', '/documents',
-            '/gallery', '/photos', '/videos', '/events',
-            '/history', '/leadership', '/organization', '/structure',
-            
-            # Content Sections
-            '/home', '/index', '/main', '/portal',
-            '/en', '/mm', '/language',
-            
-            # Common Web App Paths
-            '/wp-admin', '/wp-login.php',  # WordPress
-            '/administrator', '/admin.php',  # Joomla/Generic
-            '/phpmyadmin', '/pma',  # phpMyAdmin
-            '/console', '/actuator',  # Spring Boot
-            
-            # Technical
-            '/robots.txt', '/sitemap.xml', '/sitemap', '/.git', 
-            '/phpinfo.php', '/info.php', '/.env', '/.htaccess',
-            '/web.config', '/composer.json', '/package.json'
-        ]
+        # Optimized for mock targets - only check relevant paths
+        if "localhost" in self.base_url or "127.0.0.1" in self.base_url:
+            common_paths = [
+                '/admin', '/login', '/dashboard', '/api', '/search',
+                '/profile', '/user', '/upload', '/download', '/config',
+                '/console', '/debug', '/test',
+                '/products', '/cart', '/checkout', '/orders',
+                '/register', '/logout', '/settings'
+            ]
+        else:
+            # Full path list for real-world targets
+            common_paths = [
+                # Admin & Auth
+                '/admin', '/login', '/dashboard', '/api', '/search',
+                '/profile', '/user', '/upload', '/download', '/config',
+                '/debug', '/test', '/dev', '/backup', '/files',
+                
+                # DVWA (Damn Vulnerable Web Application) Paths
+                '/vulnerabilities/brute/',
+                '/vulnerabilities/sqli/',
+                '/vulnerabilities/sqli_blind/',
+                '/vulnerabilities/xss_r/',
+                '/vulnerabilities/xss_s/',
+                '/vulnerabilities/csrf/',
+                '/vulnerabilities/fi/',
+                '/vulnerabilities/upload/',
+                '/vulnerabilities/captcha/',
+                '/vulnerabilities/exec/',
+                '/vulnerabilities/javascript/',
+                '/vulnerabilities/weak_id/',
+                '/setup.php',
+                '/security.php',
+                '/instructions.php',
+                '/dvwa/',
+                
+                # WebGoat Paths
+                '/WebGoat/login',
+                '/WebGoat/attack',
+                
+                # Juice Shop Paths
+                '/rest/user/login',
+                '/api/Users',
+                '/ftp',
+                
+                # Government/Corporate Common Pages
+                '/about', '/about-us', '/about-myanmar', '/about-government',
+                '/news', '/news-media', '/media', '/press', '/announcements',
+                '/services', '/contact', '/contact-us', '/help', '/support',
+                '/departments', '/ministries', '/agencies', '/offices',
+                '/policies', '/laws', '/regulations', '/documents',
+                '/gallery', '/photos', '/videos', '/events',
+                '/history', '/leadership', '/organization', '/structure',
+                
+                # Content Sections
+                '/home', '/index', '/main', '/portal',
+                '/en', '/mm', '/language',
+                
+                # Common Web App Paths
+                '/wp-admin', '/wp-login.php',  # WordPress
+                '/administrator', '/admin.php',  # Joomla/Generic
+                '/phpmyadmin', '/pma',  # phpMyAdmin
+                '/console', '/actuator',  # Spring Boot
+                
+                # Technical
+                '/robots.txt', '/sitemap.xml', '/sitemap', '/.git', 
+                '/phpinfo.php', '/info.php', '/.env', '/.htaccess',
+                '/web.config', '/composer.json', '/package.json'
+            ]
         
         print("🔍 Probing for common endpoints...")
         
@@ -622,7 +449,7 @@ class WebsiteExplorer:
         for path in common_paths:
             url = self.base_url + path
             try:
-                response = self.session.get(url)
+                response = self.session.get(url, timeout=2)  # Fast timeout
                 if response.status_code == 200:
                     print(f"  ✅ Found: {path}")
                     self.discovered_urls.add(url)
@@ -646,11 +473,9 @@ class SecurityAuditor:
     The main controller. It coordinates the Explorer and the AI Agent.
     """
     
-    def __init__(self, base_url: str, model_path: str = "dqn_web_sec_model.pth", 
-                 use_proxies: bool = False, proxy_list: List[str] = None,
-                 stealth_level: str = "medium"):
+    def __init__(self, base_url: str, model_path: str = "dqn_web_sec_model.pth"):
         self.base_url = base_url
-        self.explorer = WebsiteExplorer(base_url, use_proxies=use_proxies, proxy_list=proxy_list, stealth_level=stealth_level)
+        self.explorer = WebsiteExplorer(base_url)
         
         # Initialize the AI Brain
         # State Dim 15: The agent sees 15 different features about the page (as per WebSecEnv)
@@ -660,8 +485,6 @@ class SecurityAuditor:
         self._load_ai_brain(model_path)
         
         # Initialize environment once to get the action book
-        # Initialize environment once to get the action book
-        # FIX: Ensure mode="mock_targets" to match training
         temp_env = WebSecEnv(target_url=base_url, mode="mock_targets")
         
         # CORRECT MAPPING: Use mock_action_map to resolve the TRUE action name
@@ -673,10 +496,6 @@ class SecurityAuditor:
         else:
              self.action_map = {k: v.__name__ for k, v in temp_env.action_book.items()}
         
-        # Store config for logging
-        self.use_proxies = use_proxies
-        self.proxy_count = len(proxy_list) if proxy_list else 0
-        self.stealth_level = stealth_level
         self.stop_requested = False
 
     def stop(self):
@@ -701,85 +520,92 @@ class SecurityAuditor:
             
             self.ai_agent.epsilon = 0.0    # Stop exploring randomly, use learned skills
             if episode > 0:
-                print(f"📍 Resumed from Episode: {episode}\n")
+                print(f" (Resumed from Episode: {episode}\n")
         except Exception as e:
-            print(f"⚠️  Could not load model: {e}")
+            print(f" (!) Could not load model: {e}")
             import traceback
             traceback.print_exc()
-            print(f"   Error details: {str(e)}")
+            print(f"   Detailed error: {str(e)}")
             print("   The agent will act randomly (Untrained Mode)\n")
 
-    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3, epsilon: float = 0.1, scan_mode: str = "auto", specific_attack: str = None, persist: bool = False) -> List[Finding]:
-        """
-        Runs the full security audit process.
-        
-        Scan Modes:
-        - "auto": Use AI Agent to decide actions (Default)
-        Scan Modes:
-        - "auto": Use AI Agent to decide actions (Default)
-        - "aggressive": High intensity, deeper crawl, more noise
-        - "osint": Only perform OSINT actions
-        - "specific": Only perform a specific type of attack
-        - "deep_skill": Systematically test all learned skills (High Intensity)
-        """
+    def start_audit(self, crawl_depth: int = 30, test_intensity: int = 3, epsilon: float = 0.1, persist: bool = False, ai_mode: bool = False, pentester: bool = False, render_callback: callable = None) -> List[Finding]:
+        """Runs the full vulnerability scanning process."""
         print("=" * 70)
-        print(f"🤖 AUTONOMOUS AI SECURITY AUDITOR | MODE: {scan_mode.upper()}")
-        if specific_attack:
-            print(f"🎯 TARGETING: {specific_attack}")
-        if self.use_proxies:
-            print(f"🔒 STEALTH MODE: IP Rotation Enabled ({self.proxy_count} proxies)")
-        else:
-            print(f"⚠️  WARNING: No proxy rotation - Your IP is exposed!")
-        print(f"🥷 STEALTH LEVEL: {self.stealth_level.upper()}")
+        mode_name = "FULL AI MODE" if ai_mode else "CLASSIC MODE"
+        print(f"[AI] AI VULNERABILITY SCANNER - {mode_name}")
+        print(f"[TARGET] Target: {self.base_url}")
         print("=" * 70)
-        
-        if scan_mode == "aggressive":
-            print(f"🔥 AGGRESSIVE MODE ENGAGED: MAXIMIZING INTENSITY!")
-            crawl_depth = int(crawl_depth * 2.0)  # Double depth
-            test_intensity = int(test_intensity * 3) # Triple intensity
-            crawl_depth = int(crawl_depth * 2.0)  # Double depth
-            test_intensity = int(test_intensity * 3) # Triple intensity
-            epsilon = 0.4 # High random exploration for novel attacks
-            
-        elif scan_mode == "deep_skill":
-            print(f"🧠 DEEP SKILL CHECK ENGAGED: SYSTEMATICALLY TESTING ALL CAPABILITIES")
-            test_intensity = max(test_intensity, 10) # Ensure at least 10 attempts per page
-            epsilon = 0.05 # Low random exploration, rely on learned skills
-
         print()
         
         # --- Phase 1: Reconnaissance ---
-        print("📍 PHASE 1: MAPPING THE TARGET")
+        print("[*] PHASE 1: MAPPING THE TARGET")
         print("-" * 70)
-        discovered_urls = self.explorer.explore(max_pages=crawl_depth)
-        # self.explorer.probe_common_endpoints()
+        
+        if pentester:
+            print(" [X] CHAIN ATTACK MODE: ENABLED (Pentester Mode)")
+            print("   - Using extended episodes (50+ steps) for multi-step exploitation")
+            test_intensity = max(test_intensity, 50)
+            ai_mode = True # Pentester implies AI mode for deep logic
+            
+        if ai_mode:
+            print(" [!] AI-Driven Reconnaissance Engaged...")
+            print(" [!] ONLINE LEARNING ACTIVE: Model will update in real-time based on findings.")
+            # Enable training mode
+            if hasattr(self.ai_agent, 'brain'):
+                self.ai_agent.brain.train()
+            elif hasattr(self.ai_agent, 'q_network'):
+                self.ai_agent.q_network.train()
+            
+            # Enable exploration for learning
+            epsilon = max(epsilon, 0.1) 
+            self.ai_agent.epsilon = epsilon
+            
+            discovered_urls = self.explorer.explore(max_pages=crawl_depth // 2)
+            print("\n[RECON] AI Agent taking control for Deep Exploration...")
+            ai_urls = self._explore_with_ai(steps=30, render_callback=render_callback)
+            if isinstance(discovered_urls, list):
+                for url in ai_urls:
+                    if url not in discovered_urls:
+                        discovered_urls.append(url)
+            else:
+                discovered_urls.update(ai_urls)
+            print(f"[STATS] AI discovered {len(ai_urls)} unique paths via interaction.")
+        else:
+            discovered_urls = self.explorer.explore(max_pages=crawl_depth)
+            
+        self.explorer.probe_common_endpoints()
         
         # --- Phase 2: Attack ---
-        print("\n🔴 PHASE 2: VULNERABILITY TESTING")
+        print("\n[ATTACK] PHASE 2: VULNERABILITY TESTING")
         print("-" * 70)
         
         all_findings: List[Finding] = []
         
         for url in discovered_urls:
             if self.stop_requested:
-                print("\n🛑 Scan aborted by user.")
+                print("\n[STOP] Scan aborted by user.")
                 break
-            print(f"\n🎯 Auditing: {url}")
-            findings = self._audit_page(url, attempts=test_intensity, epsilon=epsilon, scan_mode=scan_mode, specific_attack=specific_attack)
+            print(f"\n[TARGET] Auditing: {url}")
+            # Pass ai_mode and render_callback to _audit_page
+            findings = self._audit_page(url, attempts=test_intensity, epsilon=epsilon, ai_mode=ai_mode, render_callback=render_callback)
             
             if findings:
                 all_findings.extend(findings)
-                print(f"  🚨 Found {len(findings)} vulnerability(ies)!")
+                print(f"  [VULN] Found {len(findings)} vulnerability(ies)!")
             else:
-                print(f"  ✅ Page appears secure.")
+                print(f"  [OK] Page appears secure.")
         
         # --- Phase 3: Filter False Positives ---
-        print("\n🔍 PHASE 3: FILTERING FALSE POSITIVES")
+        print("\n[FILTER] PHASE 3: FILTERING FALSE POSITIVES")
         print("-" * 70)
         
         from utils.false_positive_filter import apply_false_positive_filter
+        
         original_count = len(all_findings)
-        all_findings = apply_false_positive_filter(all_findings, self.base_url)
+        if ai_mode:
+             pass
+        else:
+            all_findings = apply_false_positive_filter(all_findings, self.base_url)
         filtered_count = original_count - len(all_findings)
         
         if filtered_count > 0:
@@ -788,13 +614,33 @@ class SecurityAuditor:
         
         if len(all_findings) == 0:
              print("  ⚠️ WARNING: Findings list is empty after filtering. Report will be empty.")
+        
+        # Save Online Session Model
+        if ai_mode:
+            try:
+                timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+                session_model_path = f"checkpoints/online_session_{timestamp}.pth"
+                # Create checkpoint directory if it doesn't exist
+                os.makedirs("checkpoints", exist_ok=True)
+                
+                # Save the model state
+                import torch
+                if hasattr(self.ai_agent, 'brain'):
+                     torch.save(self.ai_agent.brain.state_dict(), session_model_path)
+                elif hasattr(self.ai_agent, 'q_network'):
+                     torch.save(self.ai_agent.q_network.state_dict(), session_model_path)
+                     
+                print(f"\n💾 Online Learning Session Saved: {session_model_path}")
+            except Exception as e:
+                print(f"❌ Failed to save online session model: {e}")
+
         else:
              print(f"  📝 Generating report with {len(all_findings)} findings.")
         
         # --- PERSISTENCE MODE CHECK ---
-        if persist and not all_findings and scan_mode == "auto":
-            print(f"\n🔄 PERSISTENCE MODE: No findings yet. Escalating...")
-            max_retries = 10
+        if persist and not all_findings:
+            print(f"\n[!] PERSISTENCE MODE ENGAGED: SCANNING UNTIL VULNERABILITIES FOUND...")
+            max_retries = 50  # Virtually infinite
             current_retry = 0
             
             # Progressive Epsilon Increase
@@ -802,95 +648,126 @@ class SecurityAuditor:
             
             while not all_findings and current_retry < max_retries:
                 current_retry += 1
-                current_epsilon = min(current_epsilon + 0.15, 1.0)
-                print(f"\n🔁 RETRY {current_retry}/{max_retries} | Epsilon: {current_epsilon:.2f} (Randomness)")
+                current_epsilon = min(current_epsilon + 0.10, 1.0)
+                
+                # Progressively increase intensity: Start adding +5, then +10, etc.
+                extra_intensity = 5 + (current_retry * 2) 
+                current_attempts = test_intensity + extra_intensity
+                
+                print(f"\n[+] RETRY {current_retry} | Intensity: {current_attempts} (+{extra_intensity}) | Epsilon: {current_epsilon:.2f}")
                 
                 # Re-scan all discovered URLs
                 for url in discovered_urls:
                     if self.stop_requested: break
-                    print(f"  🎯 Re-Auditing: {url}")
-                    # Increase intensity on retries
-                    findings = self._audit_page(url, attempts=test_intensity + 5, epsilon=current_epsilon, scan_mode=scan_mode)
+                    print(f"  [>] Re-Auditing: {url}")
+                    
+                    # More aggressive auditing
+                    findings = self._audit_page(url, attempts=current_attempts, epsilon=current_epsilon)
                     if findings:
                         all_findings.extend(findings)
                 
                 if all_findings:
-                    print(f"  ✨ SUCCESS! Found {len(all_findings)} vulnerabilities after {current_retry} retries.")
+                    print(f"  [!] SUCCESS! Found {len(all_findings)} vulnerabilities after {current_retry} retries.")
                     break
         
         # --- Phase 4: Reporting ---
-        self._generate_final_report(discovered_urls, all_findings)
-        
+        self._generate_final_report(list(discovered_urls), all_findings)
         return all_findings
-    
-    def _audit_page(self, url: str, attempts: int = 3, epsilon: float = 0.1, scan_mode: str = "auto", specific_attack: str = None) -> List[Finding]:
+
+    def _explore_with_ai(self, steps: int, render_callback: callable = None) -> List[str]:
+        """
+        Uses the AI agent to navigate and discover URLs intelligently.
+        """
+        discovered = []
+        try:
+            from env.web_sec_env import WebSecEnv
+            # Use a slightly longer episode for exploration
+            env = WebSecEnv(self.base_url)
+            env.max_steps_per_episode = steps
+            
+            state, _ = env.reset()
+            discovered.append(self.base_url)
+            
+            print(" [AI-RECON] Starting 30-step exploration sequence...")
+            
+            for step in range(steps):
+                action = self.ai_agent.act(state)
+                next_state, reward, terminated, truncated, info = env.step(action)
+                
+                # RENDER LIVE VIEW
+                if render_callback:
+                    try:
+                         content = ""
+                         if hasattr(env, 'driver') and env.driver:
+                             content = env.driver.page_source
+                         elif hasattr(env, 'last_response') and env.last_response:
+                             content = env.last_response.text
+                         if content:
+                             render_callback(content)
+                    except:
+                        pass
+                
+                # ONLINE LEARNING (Exploration Phase)
+                if self.ai_agent.epsilon > 0: # If epsilon > 0, we imply we are learning/exploring
+                     done = terminated or truncated
+                     self.ai_agent.remember(state, action, reward, next_state, done)
+                     self.ai_agent.replay() # No batch size arg
+
+                url = info.get('url')
+                if url and url not in discovered:
+                    discovered.append(url)
+                    print(f"    [+] Agent Found: {url}")
+                
+                state = next_state
+                if terminated or truncated:
+                    state, _ = env.reset()
+            
+            env.close()
+            
+        except ImportError:
+            print("  [!] Could not import WebSecEnv for exploration.")
+        except Exception as e:
+            print(f"  [!] AI Exploration failed: {e}")
+            
+        return discovered
+
+    def _audit_page(self, url: str, attempts: int = 3, epsilon: float = 0.1, ai_mode: bool = False, render_callback: callable = None) -> List[Finding]:
         """
         Deploys the AI Agent to test a specific page.
         """
         from utils.validator import VulnerabilityValidator
         validator = VulnerabilityValidator()
-        findings: List[Finding] = []
+        findings = []
         
         try:
-            # Enable exploration for research variants
+            # Enable exploration
             self.ai_agent.epsilon = epsilon
             
             # Pass discovered endpoints AND SESSION to the environment
-            # This fixes the "Not Logged In" issue
-            # We access the session from the explorer's session object (OptimizedSession.session)
-            # FIX: Ensure mode="mock_targets" to allow correct action mapping
+            from env.web_sec_env import WebSecEnv
             env = WebSecEnv(
-                target_url=self.base_url, 
-                discovered_endpoints=list(self.explorer.discovered_urls),
+                target_url=url, 
+                discovered_endpoints=list(self.explorer.discovered_urls) if hasattr(self.explorer, 'discovered_urls') else [],
                 session=self.explorer.session.session,
                 mode="mock_targets" 
             )
+            env.max_steps_per_episode = attempts 
             
-            # Identify allowed actions based on mode
-            allowed_actions = []
-            if scan_mode == "osint":
-                allowed_actions = [k for k, v in self.action_map.items() if "osint" in v.lower() or "recon" in v.lower()]
-                print(f"  🕵️ Running OSINT Scan ({len(allowed_actions)} actions)...")
-            elif scan_mode == "specific" and specific_attack:
-                allowed_actions = [k for k, v in self.action_map.items() if specific_attack.lower() in v.lower()]
-                print(f"  🎯 Running Specific Attack: {specific_attack} ({len(allowed_actions)} actions)...")
-            
-            # If specific mode, we iterate through allowed actions instead of using the agent loop
-            if scan_mode in ["osint", "specific"] and allowed_actions:
-                state, _ = env.reset()
-                for action in allowed_actions:
-                    print(f"    👉 Executing: {self.action_map.get(action)}")
-                    next_state, reward, terminated, truncated, info = env.step(action)
-                    
-                    if reward > 0: 
-                        vuln_name = self._map_action_to_vuln(action)
-                        # VALIDATOR CHECK
-                        if validator.validate(vuln_name, env.last_response, info.get('payload')):
-                            finding = Finding(
-                                url=info.get('url', url),
-                                vuln_type=vuln_name,
-                                confidence='High',
-                                reward=reward,
-                                payload=info.get('payload', ''),
-                                method=info.get('method', 'GET')
-                            )
-                            findings.append(finding)
-                            self.log_finding(finding)
-                return findings
-
-            # Zero-Day Hunter Mode
-            if scan_mode == "zeroday":
-                # ... (Keep existing code) ...
-                pass 
-
-            # Deep Skill Check Mode
-            if scan_mode == "deep_skill":
-                # ... (Keep existing code) ...
-                pass
-
-            # --- AUTO MODE (MAIN AI LOOP) ---
+            # --- MAIN AI LOOP ---
             # Reset environment for new page
+            # Backup cookies to persist authentication across resets
+            try:
+                cookies_backup = self.explorer.session.session.cookies.copy()
+            except:
+                cookies_backup = None
+
             state, _ = env.reset()
+            
+            # RESTORE COOKIES: Maintain the session established by the Explorer
+            if cookies_backup:
+                env.session.cookies.update(cookies_backup)
+                env.auth_token = "EXISTING_SESSION"
+
             env.current_page_id = 0 # Force focus on current page (simplified)
             
             for step in range(attempts):
@@ -900,11 +777,33 @@ class SecurityAuditor:
                 # 2. Execute Action
                 next_state, reward, terminated, truncated, info = env.step(action)
                 
-                # 3. Learn (Optional - we are in Audit mode, but we can store experiences)
-                # self.ai_agent.store_experience(...) 
+                # RENDER LIVE VIEW
+                if render_callback:
+                    try:
+                        # Try to get HTML content (Selenium or Requests)
+                        content = ""
+                        if hasattr(env, 'driver') and env.driver:
+                            content = env.driver.page_source
+                        elif hasattr(env, 'last_response') and env.last_response:
+                            content = env.last_response.text
+                        
+                        if content:
+                            render_callback(content)
+                    except Exception:
+                        pass
+
+                # 3. Learn (ONLINE LEARNING)
+                if ai_mode:
+                    # Remember experience
+                    done = terminated or truncated
+                    self.ai_agent.remember(state, action, reward, next_state, done)
+                    # Train on this new experience
+                    self.ai_agent.replay()
+                    
+                    if step % 5 == 0:
+                        print(f"    🧠 [Online Learning] Updated brain weights (Reward: {reward:.2f})")
                 
-                # 4. Check for Findings
-                print(f"DEBUG: Step {step} | Action {action} | Reward {reward:.2f} | Info: {info}") 
+                # 4. Check for Findings 
                 
                 if reward > 0:
                     vuln_name = self._map_action_to_vuln(action)
@@ -912,13 +811,29 @@ class SecurityAuditor:
                     # PRIORITY 1: Explicit flag from Environment
                     env_confirmed = info.get('vuln_found', False)
                     
-                    if env_confirmed or reward >= 1.0:
+                    if env_confirmed or reward >= 0.1:
+                        # FILTERING LOGIC
+                        if not ai_mode:
+                            # Classic Mode: Filter out navigation/probing actions
+                            if "navigate_" in vuln_name or "probe_" in vuln_name:
+                                continue
+                        else:
+                            # AI Mode: Report EVERYTHING the agent thinks is valuable
+                             if "navigate_" in vuln_name or "probe_" in vuln_name:
+                                 pass # Keep them
+
                         print(f"  ✨ POTENTIAL VULN: {vuln_name} (Reward: {reward})")
                         
                         # --- ROBUST VALIDATION ---
-                        validation_result = validator.validate(vuln_name, env.last_response, info.get('payload'))
+                        validation_result = False
+                        if env.last_response:
+                            validation_result = validator.validate(vuln_name, env.last_response, info.get('payload'))
+                        else:
+                            # Action failed or returned no response, skipping validation
+                            pass
                         
                         if validation_result:
+                            # HIGH CONFIDENCE (Validator Confirmed)
                             confidence = 'High' if env_confirmed else 'Medium'
                             finding = Finding(
                                 url=info.get('url', url),
@@ -933,25 +848,40 @@ class SecurityAuditor:
                                 findings.append(finding)
                                 self.log_finding(finding)
                                 print(f"    🚨 CONFIRMED: {vuln_name}")
+
+                        elif env_confirmed:
+                             # MEDIUM CONFIDENCE (Env Confirmed, Validator Rejected/Missed)
+                             print(f"    ⚠️ VALIDATOR REJECTED (Env Confirmed!): {vuln_name}")
+                             finding = Finding(
+                                 url=info.get('url', url),
+                                 vuln_type=vuln_name,
+                                 confidence='Medium', 
+                                 reward=reward,
+                                 payload=info.get('payload', ''),
+                                 method=info.get('method', 'GET')
+                             )
+                             if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
+                                 findings.append(finding)
+                                 self.log_finding(finding)
+                                 print(f"    🚨 KEPT (Env Confirmed): {vuln_name}")
+
                         else:
-                            # If env confirmed but validator rejected, it's a conflict - log it!
-                            if env_confirmed:
-                                print(f"    ⚠️ VALIDATOR REJECTED (Env Confirmed!): {vuln_name}")
-                                # In audit mode, we might want to keep it if env confirmed it
-                                finding = Finding(
-                                    url=info.get('url', url),
-                                    vuln_type=vuln_name,
-                                    confidence='Medium', 
-                                    reward=reward,
-                                    payload=info.get('payload', ''),
-                                    method=info.get('method', 'GET')
-                                )
-                                if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
-                                    findings.append(finding)
-                                    self.log_finding(finding)
-                                    print(f"    🚨 KEPT (Fallback): {vuln_name}")
-                            else:
-                                print(f"    ⚠️ VALIDATOR REJECTED: {vuln_name}")
+                            # LOW CONFIDENCE (Agent thinks so, but Env/Validator disagree)
+                            # User Request: "even 2600 pth find with that vuln is found in training session check phyase 2 and fix phase 3 issue"
+                            # We keep it as Low Confidence instead of rejecting.
+                            print(f"    ⚠️ VALIDATOR REJECTED: {vuln_name}")
+                            finding = Finding(
+                                 url=info.get('url', url),
+                                 vuln_type=vuln_name,
+                                 confidence='Low (Validator Rejected)', 
+                                 reward=reward,
+                                 payload=info.get('payload', ''),
+                                 method=info.get('method', 'GET')
+                             )
+                            if not any(f.vuln_type == finding.vuln_type and f.url == finding.url for f in findings):
+                                 findings.append(finding)
+                                 # Don't log to file/console as CONFIRMED, but keep in list for report
+                                 print(f"    ⚠️ KEPT (Low Confidence): {vuln_name}")
                 
                 state = next_state
                 
@@ -987,118 +917,35 @@ class SecurityAuditor:
 if __name__ == "__main__":
     def main():
         # Parse command line arguments
-        parser = argparse.ArgumentParser(description='AI-Powered Autonomous Security Scanner')
-        parser.add_argument('url', nargs='?', help='Target URL to scan (e.g., http://localhost:5000)')
-        parser.add_argument('--depth', type=int, default=30, help='How many pages to crawl (Rec: 30 for new sites, 100+ for deep scan)')
-        parser.add_argument('--intensity', type=int, default=10, help='Attack intensity 1-5 (Rec: 2 for new sites, 3 standard, 5 aggressive, 10+ for deep training)')
+        parser = argparse.ArgumentParser(description='AI Vulnerability Scanner for Mock Targets')
+        parser.add_argument('url', help='Target URL to scan (e.g., http://localhost:5002)')
+        parser.add_argument('--depth', type=int, default=20, help='How many pages to crawl (default: 20)')
+        parser.add_argument('--intensity', type=int, default=5, help='Attack intensity 1-10 (default: 5)')
         parser.add_argument('--model', default='dqn_web_sec_model.pth', help='Path to the trained AI model')
-        parser.add_argument("--mode", type=str, default="auto", choices=["auto", "aggressive", "osint", "specific", "zeroday", "targetless", "deep_skill"], help="Scan mode")
-        parser.add_argument("--attack", type=str, help="Specific attack type (e.g., SQL, XSS)")
-        parser.add_argument("--proxy-file", type=str, help="Path to proxy list file")
-        parser.add_argument("--stealth", type=str, default="low", choices=["low", "medium", "high", "paranoid"], help="Stealth level")
-        parser.add_argument("--persist", action="store_true", default=True, help="Keep trying until a vulnerability is found (Persistence Mode)")
-        
-        # Hunting Arguments
-        parser.add_argument("--dork", type=str, help="Google Dork query to find targets")
-        parser.add_argument("--shodan-query", type=str, help="Shodan query to find targets")
-        parser.add_argument("--shodan-key", type=str, default=os.getenv("SHODAN_API_KEY"), help="Shodan API Key")
-        parser.add_argument("--crtsh", type=str, help="Domain to search in CRT.sh")
-        parser.add_argument("--duckduckgo", type=str, help="DuckDuckGo query")
-        parser.add_argument("--censys-query", type=str, help="Censys query")
-        parser.add_argument("--censys-id", type=str, default=os.getenv("CENSYS_API_ID"), help="Censys API ID")
-        parser.add_argument("--censys-secret", type=str, default=os.getenv("CENSYS_API_SECRET"), help="Censys API Secret")
-        parser.add_argument("--limit", type=int, default=5, help="Max targets to hunt per source")
-        
-        # AUTO-GENERATE MODE
-        parser.add_argument("--auto-generate", action="store_true", help="AUTO-GENERATE MODE: Automatically generate queries for target hunting")
-        parser.add_argument("--auto-source", type=str, default="all", choices=["all", "google", "shodan", "crtsh", "duckduckgo", "censys"], help="Source for auto-generation")
-        parser.add_argument("--auto-max", type=int, default=3, help="Max queries per source in auto-generate mode")
+        parser.add_argument("--persist", action="store_true", default=False, help="Keep trying until a vulnerability is found")
+        parser.add_argument("--ai-mode", action="store_true", default=False, help="Enable Full AI Capabilities (Recon + Unfiltered Attacks)")
+        parser.add_argument("--pentester", action="store_true", default=False, help="Enable Chain Attacks (Deep Exploration, 50+ steps)")
 
         args = parser.parse_args()
         
-        # --- TARGET HUNTING LOGIC ---
-        targets = []
-        if args.url:
-            targets.append(args.url)
-        
-        # AUTO-GENERATE MODE
-        if args.auto_generate or args.mode == "targetless":
-            print(f"\n🤖 AUTO-GENERATE MODE ACTIVATED!")
-            hunter = TargetHunter(shodan_api_key=args.shodan_key)
-            auto_targets = hunter.auto_generate_targets(source=args.auto_source, max_per_source=args.auto_max)
-            targets.extend(auto_targets)
-        
-        # MANUAL QUERY MODE
-        elif args.dork or args.shodan_query or args.crtsh or args.duckduckgo or args.censys_query:
-            print(f"\n🌍 STARTING TARGET HUNTING...")
-            hunter = TargetHunter(shodan_api_key=args.shodan_key)
+        try:
+            auditor = SecurityAuditor(
+                base_url=args.url,
+                model_path=args.model
+            )
             
-            if args.dork:
-                found = hunter.dork_google(args.dork, num_results=args.limit)
-                print(f"  🔍 Google Dork found {len(found)} targets")
-                targets.extend(found)
-                
-            if args.shodan_query:
-                found = hunter.search_shodan(args.shodan_query, limit=args.limit)
-                print(f"  🌐 Shodan found {len(found)} targets")
-                targets.extend(found)
-            
-            if args.crtsh:
-                found = hunter.search_crtsh(args.crtsh)
-                print(f"  📜 CRT.sh found {len(found)} subdomains")
-                targets.extend(found)
-                
-            if args.duckduckgo:
-                found = hunter.search_duckduckgo(args.duckduckgo, num_results=args.limit)
-                print(f"  🦆 DuckDuckGo found {len(found)} targets")
-                targets.extend(found)
-                
-            if args.censys_query:
-                found = hunter.search_censys(args.censys_query, args.censys_id, args.censys_secret, limit=args.limit)
-                print(f"  👁️ Censys found {len(found)} targets")
-                targets.extend(found)
-                
-            targets = list(set(targets)) # Remove duplicates
-            print(f"✅ Total unique targets found: {len(targets)}\n")
-            
-        if not targets:
-            print("❌ No targets specified. Use --url, hunting arguments (--dork, --shodan-query, etc.), or --auto-generate")
-            return
-
-        # Load proxies if provided
-        proxies = []
-        if args.proxy_file:
-            try:
-                with open(args.proxy_file, 'r') as f:
-                    proxies = [line.strip() for line in f if line.strip()]
-                print(f"✅ Loaded {len(proxies)} proxies from {args.proxy_file}")
-            except Exception as e:
-                print(f"❌ Error loading proxies: {e}")
-
-        # --- SCANNING LOOP ---
-        for i, target in enumerate(targets):
-            print(f"\n{'='*60}")
-            print(f"🚀 TARGET {i+1}/{len(targets)}: {target}")
-            print(f"{'='*60}")
-            
-            try:
-                auditor = SecurityAuditor(
-                    base_url=target,
-                    model_path=args.model,
-                    use_proxies=bool(proxies),
-                    proxy_list=proxies,
-                    stealth_level=args.stealth
-                )
-                
-                auditor.start_audit(
-                    crawl_depth=args.depth,
-                    test_intensity=args.intensity, # Changed from args.episodes to args.intensity
-                    scan_mode=args.mode,
-                    specific_attack=args.attack,
-                    persist=args.persist
-                )
-            except Exception as e:
-                print(f"❌ Error scanning {target}: {e}")
-                continue
+            auditor.start_audit(
+                crawl_depth=args.depth,
+                test_intensity=args.intensity,
+                persist=args.persist,
+                ai_mode=args.ai_mode,
+                pentester=args.pentester
+            )
+        except Exception as e:
+            print(f"(!) Error scanning {args.url}: {e}")
+            import traceback
+            traceback.print_exc()
+            import traceback
+            traceback.print_exc()
 
     main()

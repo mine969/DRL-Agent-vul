@@ -108,7 +108,7 @@ class WebSecurityGym(gym.Env):
         self.observation_space = spaces.Box(low=0, high=10, shape=(15,), dtype=np.float32)
         
         # Setup the "Browser" (HTTP Session)
-        self.timeout = 3 # Default timeout for actions (seconds)
+        self.timeout = 0.5 # Optimized timeout for fast local training
         self._setup_browser_session(session)
         
         # Game State Variables

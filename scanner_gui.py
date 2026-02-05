@@ -25,10 +25,9 @@ from datetime import datetime
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from autonomous_scan import SecurityAuditor, Finding
-from utils.proxy_fetcher import ProxyFetcher
-from utils.target_hunter import TargetHunter
 from utils.vulnerability_database import VULNERABILITY_DATABASE
 from utils.model_loader import find_latest_checkpoint
+import webbrowser
 
 class ToolTip(object):
     """
@@ -417,10 +416,6 @@ class SecurityScannerGUI:
         default_model = latest_model_path if latest_model_path else "checkpoints/improved_mock_ep500.pth"
         
         self.model_path = tk.StringVar(value=default_model)
-        self.scan_mode = tk.StringVar(value="auto")
-        self.specific_attack_type = tk.StringVar()
-        self.stealth_level = tk.StringVar(value="low")
-        self.proxy_file = tk.StringVar()
         self.persist_mode = tk.BooleanVar(value=True) # Default to Persistence Mode
         
         self.setup_ui()
@@ -516,29 +511,27 @@ class SecurityScannerGUI:
                       bg=self.colors["bg_panel"], fg=self.colors["accent"], selectcolor=self.colors["bg_dark"], 
                       activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
         
-        # SCAN MODES
-        self.add_section_header(self.scrollable_frame, "SCAN MODIFICATIONS")
+        # Pentester Mode Checkbox (Chain Attacks)
+        self.pentester_mode = tk.BooleanVar(value=False)
+        tk.Checkbutton(persist_frame, text="ENABLE CHAIN ATTACKS (Pentester Mode)", variable=self.pentester_mode, 
+                      bg=self.colors["bg_panel"], fg="#FF00FF", selectcolor=self.colors["bg_dark"], 
+                      activebackground=self.colors["bg_panel"], activeforeground="#FF00FF", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
         
-        modes_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
-        modes_frame.pack(fill=tk.X, padx=15, pady=5)
-        
-        tk.Radiobutton(modes_frame, text="FULL AUTO (AI AGENT)", variable=self.scan_mode, value="auto", bg=self.colors["bg_panel"], fg=self.colors["text"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9)).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="DEEP SKILL CHECK", variable=self.scan_mode, value="deep_skill", bg=self.colors["bg_panel"], fg="#d400ff", selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground="#d400ff", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
-        tk.Radiobutton(modes_frame, text="AGGRESSIVE MODE", variable=self.scan_mode, value="aggressive", bg=self.colors["bg_panel"], fg=self.colors["danger"], selectcolor=self.colors["bg_dark"], activebackground=self.colors["bg_panel"], activeforeground=self.colors["danger"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
-
-        # Target Discovery removed - model doesn't support targetless scanning
-
-        # Stealth/Proxy controls removed - not used in mock target training
         tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"], height=20).pack() # Spacer
         
         # ONE CLICK BUTTONS
-        self.flash_btn = tk.Button(self.scrollable_frame, text="⚡ FLASH ATTACK (ONE-CLICK)", font=("Segoe UI", 12, "bold"), bg=self.colors["accent"], fg="#000000", activebackground="#FFFFFF", activeforeground="#000000", relief=tk.FLAT, cursor="hand2", command=self.flash_attack, height=2)
+        self.flash_btn = tk.Button(self.scrollable_frame, text="FLASH ATTACK (ONE-CLICK)", font=("Segoe UI", 12, "bold"), bg=self.colors["accent"], fg="#000000", activebackground="#FFFFFF", activeforeground="#000000", relief=tk.FLAT, cursor="hand2", command=self.flash_attack, height=2)
         self.flash_btn.pack(pady=5, padx=15, fill=tk.X)
         
-        self.scan_button = tk.Button(self.scrollable_frame, text="🚀 LAUNCH SCAN", font=("Segoe UI", 11, "bold"), bg=self.colors["highlight"], fg=self.colors["accent"], relief=tk.FLAT, cursor="hand2", command=self.start_scan, height=2)
+        self.scan_button = tk.Button(self.scrollable_frame, text="HYBRID SCAN (Standard)", font=("Segoe UI", 11, "bold"), bg=self.colors["highlight"], fg=self.colors["accent"], relief=tk.FLAT, cursor="hand2", command=self.start_scan, height=2)
+        ToolTip(self.scan_button, "Hybrid Mode: Fast Script Recon + AI Verification (Balanced)")
         self.scan_button.pack(pady=5, padx=15, fill=tk.X)
         
-        self.stop_button = tk.Button(self.scrollable_frame, text="⏹️ ABORT MISSION", font=("Segoe UI", 11, "bold"), bg=self.colors["danger"], fg="white", relief=tk.FLAT, cursor="hand2", command=self.stop_scan, height=2, state=tk.DISABLED)
+        self.scan_ai_button = tk.Button(self.scrollable_frame, text="FULL AI SCAN (Unleashed)", font=("Segoe UI", 11, "bold"), bg="#6200ea", fg="white", relief=tk.FLAT, cursor="hand2", command=lambda: self.start_scan(ai_mode=True, pentester=True), height=2)
+        ToolTip(self.scan_ai_button, "Full AI Mode: AI Recon + Chain Attacks + Online Learning (Maximum Power)")
+        self.scan_ai_button.pack(pady=5, padx=15, fill=tk.X)
+        
+        self.stop_button = tk.Button(self.scrollable_frame, text="ABORT MISSION", font=("Segoe UI", 11, "bold"), bg=self.colors["danger"], fg="white", relief=tk.FLAT, cursor="hand2", command=self.stop_scan, height=2, state=tk.DISABLED)
         self.stop_button.pack(pady=(5, 15), padx=15, fill=tk.X)
         
         # === MIDDLE: TERMINAL & INTEL ===
@@ -549,9 +542,13 @@ class SecurityScannerGUI:
         middle_pane_vertical = tk.PanedWindow(middle_panel, bg=self.colors["bg_panel"], orient=tk.VERTICAL, sashwidth=4, sashrelief=tk.FLAT)
         middle_pane_vertical.pack(fill=tk.BOTH, expand=True)
         
-        # Terminal Section
-        terminal_frame = tk.Frame(middle_pane_vertical, bg=self.colors["bg_panel"])
-        middle_pane_vertical.add(terminal_frame, minsize=200, height=300)
+        # Terminal Section (Now wrapped in a Notebook)
+        terminal_notebook = ttk.Notebook(middle_pane_vertical)
+        middle_pane_vertical.add(terminal_notebook, minsize=200, height=300)
+
+        # Tab 1: Terminal
+        terminal_frame = tk.Frame(terminal_notebook, bg=self.colors["bg_panel"])
+        terminal_notebook.add(terminal_frame, text="LOGS & TERMINAL")
         
         self.add_section_header(terminal_frame, "LIVE ACTION TERMINAL")
         self.progress = ttk.Progressbar(terminal_frame, mode='indeterminate', style="Horizontal.TProgressbar")
@@ -559,6 +556,16 @@ class SecurityScannerGUI:
         
         self.output_text = scrolledtext.ScrolledText(terminal_frame, wrap=tk.WORD, font=("Consolas", 9), bg="black", fg=self.colors["text"], relief=tk.FLAT, insertbackground=self.colors["accent"])
         self.output_text.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
+
+        # Tab 2: Live View (AI Vision)
+        live_view_frame = tk.Frame(terminal_notebook, bg=self.colors["bg_panel"])
+        terminal_notebook.add(live_view_frame, text="LIVE VIEW (AI VISION)")
+        
+        self.add_section_header(live_view_frame, "REAL-TIME AGENT PERCEPTION")
+        
+        self.live_view_text = scrolledtext.ScrolledText(live_view_frame, wrap=tk.NONE, font=("Consolas", 8), bg="#1e1e1e", fg="#00ff00", relief=tk.FLAT, insertbackground="white")
+        self.live_view_text.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
+        self.live_view_text.insert(tk.END, "Waiting for agent visual input...\n")
         
         # Findings Section
         findings_frame_container = tk.Frame(middle_pane_vertical, bg=self.colors["bg_panel"])
@@ -640,34 +647,6 @@ class SecurityScannerGUI:
         filename = filedialog.askopenfilename(initialdir="checkpoints", title="Select Model File", filetypes=(("PyTorch Models", "*.pth"), ("All Files", "*.*")))
         if filename:
             self.model_path.set(filename)
-    
-    def browse_proxy_file(self):
-        filename = filedialog.askopenfilename(title="Select Proxy List File", filetypes=(("Text Files", "*.txt"), ("All Files", "*.*")))
-        if filename:
-            self.proxy_file.set(filename)
-    
-    def fetch_proxies(self):
-        """Auto-fetch free proxies from the internet"""
-        self.log("Fetching free proxies from the internet...", "INFO")
-        
-        def fetch_in_background():
-            try:
-                fetcher = ProxyFetcher()
-                proxies = fetcher.fetch_all()
-                
-                if proxies:
-                    filename = fetcher.save_to_file(proxies, "proxies.txt")
-                    if filename:
-                        self.root.after(0, lambda: self.proxy_file.set(filename))
-                        self.root.after(0, lambda: self.log(f"✅ Fetched {len(proxies)} proxies and saved to {filename}", "SUCCESS"))
-                    else:
-                        self.root.after(0, lambda: self.log("❌ Failed to save proxies", "ERROR"))
-                else:
-                    self.root.after(0, lambda: self.log("❌ No proxies fetched", "ERROR"))
-            except Exception as e:
-                self.root.after(0, lambda: self.log(f"❌ Error fetching proxies: {e}", "ERROR"))
-        
-        threading.Thread(target=fetch_in_background, daemon=True).start()
 
     def load_available_models(self):
         models = []
@@ -958,11 +937,9 @@ Payload: {finding.get('payload')}
         """One-Click Attack Mode"""
         self.crawl_depth.set(10)
         self.test_episodes.set(1)
-        self.scan_mode.set("auto")
         self.start_scan()
 
-    def start_scan(self):
-        mode = self.scan_mode.get()
+    def start_scan(self, ai_mode=False, pentester=False):
         target = self.target_url.get().strip()
         
         # Validation
@@ -987,6 +964,7 @@ Payload: {finding.get('payload')}
             model = model_selection
         
         self.scan_button.config(state=tk.DISABLED)
+        self.scan_ai_button.config(state=tk.DISABLED) # Disable AI button too
         self.flash_btn.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.is_scanning = True
@@ -995,11 +973,11 @@ Payload: {finding.get('payload')}
         self.findings_list.delete(0, tk.END)
         self.findings = []
         self.exploit_text.delete(1.0, tk.END)
-        self.exploit_text.insert(tk.END, "// Scanning target... Awaiting findings...")
+        self.exploit_text.insert(tk.END, f"// Scanning target... Mode: {'FULL AI (Unfiltered)' if ai_mode else 'Classic'}... Awaiting findings...")
         
-        threading.Thread(target=self.run_scan, args=(target, model, mode), daemon=True).start()
+        threading.Thread(target=self.run_scan, args=(target, model, ai_mode), daemon=True).start()
 
-    def run_scan(self, target, model, mode):
+    def run_scan(self, target, model, ai_mode=False):
         # Redirect stdout to GUI
         class StdoutRedirector:
             def __init__(self, text_widget):
@@ -1017,7 +995,7 @@ Payload: {finding.get('payload')}
             targets = [target]  # Model only scans single specified target
 
             self.log(f"INITIATING ATTACK SEQUENCE ON {len(targets)} TARGET(S)", "INFO")
-            self.log(f"MODE: {mode.upper()} | MODEL: {os.path.basename(model)}", "INFO")
+            self.log(f"MODEL: {os.path.basename(model)}", "INFO")
             
             # Proxy/Stealth removed - not used in mock target training
             self.log("ℹ️ Scanning local mock targets (no proxy needed)", "INFO")
@@ -1034,6 +1012,10 @@ Payload: {finding.get('payload')}
                     model
                 )
                 
+                # Create a callback for rendering
+                def render_callback(html_content):
+                     self.root.after(0, lambda: self.update_live_view(html_content))
+
                 # Hook the log_finding callback
                 original_log_finding = self.auditor.log_finding
                 def gui_log_finding(finding):
@@ -1049,15 +1031,13 @@ Payload: {finding.get('payload')}
                 
                 self.auditor.log_finding = gui_log_finding
                 
-                # For targetless, we force zeroday mode for the actual scan part if it was targetless
-                actual_mode = "zeroday" if mode == "targetless" else mode
-                
                 findings = self.auditor.start_audit(
                     crawl_depth=self.crawl_depth.get(), 
                     test_intensity=self.test_episodes.get(),
-                    scan_mode=actual_mode,
-                    specific_attack=None,
-                    persist=self.persist_mode.get()
+                    persist=self.persist_mode.get(),
+                    ai_mode=ai_mode,
+                    pentester=pentester, # Pass explicit value or checkbox?
+                    render_callback=render_callback  # Pass the callback
                 )
                 total_findings += len(findings)
                 
@@ -1083,6 +1063,7 @@ Payload: {finding.get('payload')}
         self.log(f"MISSION COMPLETE. {count} TARGETS COMPROMISED.", "SUCCESS")
         self.progress.stop()
         self.scan_button.config(state=tk.NORMAL)
+        self.scan_ai_button.config(state=tk.NORMAL)
         self.flash_btn.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.view_report_btn.config(state=tk.NORMAL)
@@ -1103,163 +1084,21 @@ Payload: {finding.get('payload')}
         # Reset UI state
         self.progress.stop()
         self.scan_button.config(state=tk.NORMAL)
+        self.scan_ai_button.config(state=tk.NORMAL)
         self.flash_btn.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
         self.log("❌ MISSION ABORTED BY USER", "WARNING")
 
-    def preview_queries(self):
-        """Show preview of auto-generated queries in a popup window"""
-        from utils.target_hunter import TargetHunter
-        import random
-        
-        # Create popup window
-        preview_window = tk.Toplevel(self.root)
-        preview_window.title("🔍 Auto-Generated Query Preview")
-        preview_window.geometry("800x600")
-        preview_window.configure(bg=self.colors["bg_dark"])
-        
-        # Header
-        header = tk.Label(
-            preview_window,
-            text="🤖 AUTO-GENERATED QUERIES PREVIEW",
-            font=("Courier New", 14, "bold"),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["accent"]
-        )
-        header.pack(pady=10)
-        
-        # Info label
-        info = tk.Label(
-            preview_window,
-            text="These queries will be randomly selected when you start the scan",
-            font=("Consolas", 9),
-            bg=self.colors["bg_dark"],
-            fg=self.colors["text_dim"]
-        )
-        info.pack(pady=5)
-        
-        # Text area with scrollbar
-        text_frame = tk.Frame(preview_window, bg=self.colors["bg_dark"])
-        text_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
-        scrollbar = tk.Scrollbar(text_frame)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        text_area = tk.Text(
-            text_frame,
-            wrap=tk.WORD,
-            font=("Consolas", 9),
-            bg="black",
-            fg=self.colors["text"],
-            yscrollcommand=scrollbar.set
-        )
-        text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.config(command=text_area.yview)
-        
-        # Get queries from TargetHunter
-        hunter = TargetHunter()
-        
-        # Google Dorks
-        text_area.insert(tk.END, "🔍 GOOGLE DORKS (60+ available)\n", "header")
-        text_area.insert(tk.END, "=" * 70 + "\n\n")
-        dorks = hunter.get_common_dorks()
-        sample_dorks = random.sample(dorks, min(10, len(dorks)))
-        for i, dork in enumerate(sample_dorks, 1):
-            text_area.insert(tk.END, f"{i}. {dork}\n")
-        text_area.insert(tk.END, f"\n... and {len(dorks) - 10} more dorks\n\n")
-        
-        # Shodan Queries
-        text_area.insert(tk.END, "🌐 SHODAN QUERIES (30+ available)\n", "header")
-        text_area.insert(tk.END, "=" * 70 + "\n\n")
-        shodan_queries = hunter.get_shodan_queries()
-        sample_shodan = random.sample(shodan_queries, min(10, len(shodan_queries)))
-        for i, query in enumerate(sample_shodan, 1):
-            text_area.insert(tk.END, f"{i}. {query}\n")
-        text_area.insert(tk.END, f"\n... and {len(shodan_queries) - 10} more queries\n\n")
-        
-        # CRT.sh Domains
-        text_area.insert(tk.END, "📜 CRT.SH DOMAINS (10+ available)\n", "header")
-        text_area.insert(tk.END, "=" * 70 + "\n\n")
-        domains = hunter.get_target_domains()
-        for i, domain in enumerate(domains, 1):
-            text_area.insert(tk.END, f"{i}. {domain}\n")
-        text_area.insert(tk.END, "\n")
-        
-        # DuckDuckGo Queries
-        text_area.insert(tk.END, "🦆 DUCKDUCKGO QUERIES (10+ available)\n", "header")
-        text_area.insert(tk.END, "=" * 70 + "\n\n")
-        ddg_queries = hunter.get_duckduckgo_queries()
-        for i, query in enumerate(ddg_queries, 1):
-            text_area.insert(tk.END, f"{i}. {query}\n")
-        text_area.insert(tk.END, "\n")
-        
-        # Censys Queries
-        text_area.insert(tk.END, "👁️ CENSYS QUERIES (10+ available)\n", "header")
-        text_area.insert(tk.END, "=" * 70 + "\n\n")
-        censys_queries = hunter.get_censys_queries()
-        sample_censys = random.sample(censys_queries, min(10, len(censys_queries)))
-        for i, query in enumerate(sample_censys, 1):
-            text_area.insert(tk.END, f"{i}. {query}\n")
-        
-        # Configure tags
-        text_area.tag_config("header", foreground=self.colors["accent"], font=("Courier New", 10, "bold"))
-        
-        # Make read-only
-        text_area.config(state=tk.DISABLED)
-        
-        # Close button
-        close_btn = tk.Button(
-            preview_window,
-            text="✅ GOT IT",
-            font=("Courier New", 11, "bold"),
-            bg=self.colors["accent"],
-            fg="black",
-            relief=tk.FLAT,
-            cursor="hand2",
-            command=preview_window.destroy,
-            width=20
-        )
-        close_btn.pack(pady=10)
-
-    def random_query(self, query_type):
-        """Fill the field with a random query from the database"""
-        from utils.target_hunter import TargetHunter
-        import random
-        
-        hunter = TargetHunter()
-        
-        if query_type == "dork":
-            dorks = hunter.get_common_dorks()
-            self.dork_query.set(random.choice(dorks))
-            self.log(f"Random Google Dork: {self.dork_query.get()}", "INFO")
-            
-        elif query_type == "shodan":
-            queries = hunter.get_shodan_queries()
-            self.shodan_query.set(random.choice(queries))
-            self.log(f"Random Shodan Query: {self.shodan_query.get()}", "INFO")
-            
-        elif query_type == "crtsh":
-            domains = hunter.get_target_domains()
-            self.crtsh_domain.set(random.choice(domains))
-            self.log(f"Random CRT.sh Domain: {self.crtsh_domain.get()}", "INFO")
-            
-        elif query_type == "duckduckgo":
-            queries = hunter.get_duckduckgo_queries()
-            self.duckduckgo_query.set(random.choice(queries))
-            self.log(f"Random DuckDuckGo Query: {self.duckduckgo_query.get()}", "INFO")
-            
-        elif query_type == "censys":
-            queries = hunter.get_censys_queries()
-            self.censys_query.set(random.choice(queries))
-            self.log(f"Random Censys Query: {self.censys_query.get()}", "INFO")
-
-
-
     def view_report(self):
-        reports = glob.glob("reports/vulnerability_report_*.html")
+        reports = glob.glob("reports/vulnerability_report_*.md")
         if reports:
             latest = max(reports, key=os.path.getctime)
-            os.startfile(latest)
+            try:
+                os.startfile(latest)
+            except AttributeError:
+                webbrowser.open(os.path.abspath(latest))
+        else:
+            messagebox.showinfo("No Reports", "No vulnerability reports found.")
 
 if __name__ == "__main__":
     root = tk.Tk()

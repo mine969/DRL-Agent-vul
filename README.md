@@ -5,6 +5,7 @@
 A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulnerabilities using a **Kill Chain** approach. The agent learns optimal attack strategies through reinforcement learning and has been upgraded to support **OWASP Top 10 2025** standards.
 
 **Key Features:**
+
 - 🧠 Deep Q-Network (Double DQN) with experience replay
 - 🎯 100 real-world actions across 4 kill chain phases
 - 🎮 5 mock target applications for training
@@ -24,10 +25,10 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 
 ### GUI Enhancements
 
-- **🔥 Aggressive Scan Mode** - 1.5x deeper crawling, 2x attack intensity
+- **🔥 Hybrid & Full AI Modes** - Two distinct scanning philosophies: Standard (Script+AI) and Full AI (Chain Attacks + Online Learning).
 - **💀 Zero-Day Hunter** - Fuzzing, CVE Intelligence, and Config Scanning
 - **🌍 Targetless Hunter** - Auto-discover targets via Google Dorks, Shodan, CRT.sh, DuckDuckGo, and Censys
-- **📋 Full Exploit URLs** - Ready-to-paste URLs with payloads
+- **🧠 5000-Episode Brain** - Pre-trained model with advanced sequential logic.
 - **🔄 Auto-Fetch Proxies** - Automatically fetch from 6 sources
 
 ### Payload Database
@@ -105,6 +106,7 @@ python train_multi_target.py --episodes 1000 --resume <episode_number>
 ```
 
 **See [IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details on advanced algorithms (Prioritized Replay, Noisy Networks, Multi-step learning) that provide:
+
 - ⚡ **5x faster convergence** (600 vs 3,000 episodes)
 - 📈 **+27% accuracy improvement**
 - 🎯 **4x better sample efficiency**
@@ -115,20 +117,17 @@ The agent trains against 5 mock vulnerable web applications:
 
 1. **E-Commerce Platform** (`env/target_app_ecommerce.py`) - Port 5002
    - SQL Injection, Mass Assignment, Price Manipulation, Race Conditions
-   
 2. **Social Media Platform** (`env/target_app_social.py`) - Port 5003
    - XSS (Stored/Reflected), IDOR, File Upload, CSRF, SQL Injection
-   
 3. **Banking Application** (`env/target_app_banking.py`) - Port 5004
    - CSRF, IDOR, Business Logic Flaws
-   
 4. **Blog Platform** (`env/target_app_blog.py`) - Port 5005
    - Stored XSS (Posts/Comments), SSTI
-   
 5. **File Sharing Platform** (`env/target_app_fileshare.py`) - Port 5006
    - Unrestricted File Upload, Path Traversal, IDOR
 
 **Start all targets:**
+
 ```bash
 python start_services.py
 ```
@@ -143,9 +142,9 @@ python autonomous_scan.py --target http://example.com --crawl-depth 30 --intensi
 
 **Scan Modes:**
 
-- `--mode auto` - AI agent decides actions (default)
+- `--mode auto` - Standard script+AI hybrid (default)
 - `--mode aggressive` - 1.5x depth, 2x intensity, more noise
-- `--mode osint` - Only reconnaissance, no attacks
+- `--pentester` - Enable Chain Attacks (50+ steps) and Online Learning
 - `--mode specific --attack "SQL Injection"` - Single attack type
 
 **Interactive GUI:**
@@ -157,10 +156,11 @@ python scanner_gui.py
 **GUI Features:**
 
 - 🎯 Mission Parameters (URL, depth, intensity)
-- ⚙️ Scan Modes (Auto, Aggressive, OSINT, Specific)
+- ⚙️ Scan Modes (Hybrid, Full AI, Flash Attack)
 - 🥷 Stealth Configuration (Low/Medium/High/Paranoid)
 - 🔄 Auto-Fetch Proxies (6 sources)
 - ⚡ Flash Attack (One-click quick scan)
+- 🧠 Full AI Scan (Chain Attacks + Online Learning)
 - 💣 Exploit Factory (Auto-generate payloads)
 - 📄 Report Generation (HTML/Markdown/Text)
 
@@ -277,6 +277,7 @@ See **[REAL_WORLD_TRANSFER.md](docs/REAL_WORLD_TRANSFER.md)** for transfer learn
 - **Rainbow DQN** - Combination of all improvements
 
 **Performance Improvements:**
+
 - ⚡ **5x faster convergence** (600 vs 3,000 episodes)
 - 📈 **+27% accuracy improvement**
 - 🎯 **4x better sample efficiency**
@@ -286,6 +287,7 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ## Key Features
 
 ### Agent Capabilities
+
 ✅ **100 Real-World Actions** (4 kill chain phases)  
 ✅ **Double DQN Architecture** with experience replay  
 ✅ **Phase-Based Learning** (Progressive unlock system)  
@@ -294,6 +296,7 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ✅ **Auto-Resume Training** (Checkpoint system)
 
 ### Scanning Features
+
 ✅ **Autonomous Vulnerability Discovery**  
 ✅ **200+ Attack Payloads** (SQLi, XSS, SSRF, LFI, etc.)  
 ✅ **Multi-Target Support** (5 enhanced mock applications)  
@@ -306,6 +309,7 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ✅ **Enhanced Mockup Sites** (Real-world security controls for training)
 
 ### Reporting & Output
+
 ✅ **Comprehensive Reports** (HTML, Markdown, Text)  
 ✅ **OWASP 2025 Mapping** (Latest vulnerability categories)  
 ✅ **CVSS Scoring** (Risk assessment)  
@@ -313,6 +317,7 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ✅ **Real-World Impact** (Business consequences)
 
 ### Code Quality
+
 ✅ **Clean Architecture** (Modular, maintainable)  
 ✅ **Type Hints** (Better IDE support, type safety)  
 ✅ **Comprehensive Documentation** (25+ guides)  
@@ -330,12 +335,12 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 
 ## Scan Modes Comparison
 
-| Mode           | Speed  | Noise Level | Use Case                  |
-| -------------- | ------ | ----------- | ------------------------- |
-| **OSINT**      | Fast   | Silent      | Reconnaissance only       |
-| **Auto**       | Medium | Low         | Balanced AI-driven scan   |
-| **Aggressive** | Slow   | High        | Deep penetration testing  |
-| **Specific**   | Fast   | Low         | Test single vulnerability |
+| Mode             | Speed   | Noise Level | Use Case                                   |
+| ---------------- | ------- | ----------- | ------------------------------------------ |
+| **Hybrid Scan**  | Fast    | Low         | General auditing (Script + Basic AI)       |
+| **Full AI Scan** | Slow    | High        | Deep pentesting (Chain Attacks + Learning) |
+| **Flash Attack** | Instant | Medium      | Single page verification                   |
+| **Specific**     | Fast    | Low         | Test single vulnerability                  |
 
 ## License
 
