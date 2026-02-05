@@ -97,7 +97,7 @@ See [TARGETS_README.md](TARGETS_README.md) for comprehensive documentation inclu
 
 ## 🔗 Related Files
 
-- `../train_multi_target.py` - Train on all 5 targets
+- `../train_mock_targets.py` - Train on all 5 targets
 - `../init_targets.py` - Initialize databases
 - `../deploy_agent.py` - Deploy trained agent
 

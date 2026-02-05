@@ -35,15 +35,16 @@
 
 **Core Scripts:**
 
-- ✅ `scan.py` - **Main scanner** (easiest to use)
+- ✅ `easy_scanner.py` - **Main scanner** (easiest to use)
+- ✅ `scanner_gui.py` - GUI scanner
 - ✅ `autonomous_scan.py` - Advanced scanner
-- ✅ `train.py` - Training script
-- ✅ `deploy_agent.py` - Quick testing tool
+- ✅ `train_mock_targets.py` - Training script
+- ✅ `quick_train_5000.py` - Long-run training
 
 **Documentation:**
 
 - ✅ `BEGINNER_GUIDE.md` - Complete beginner's guide
-- ✅ `QUICK_START.md` - Quick start for scan.py
+- ✅ `QUICK_START.md` - Quick start for easy_scanner.py
 - ✅ `AUTONOMOUS_SCAN_GUIDE.md` - Advanced usage
 - ✅ `DEPLOYMENT_GUIDE.md` - Deployment guide
 
@@ -83,7 +84,7 @@ del AUTONOMOUS_SCAN_GUIDE.md
 
 **Keep only:**
 
-- `scan.py` (main tool)
+- `easy_scanner.py` (main tool)
 - `BEGINNER_GUIDE.md` (instructions)
 - `QUICK_START.md` (quick reference)
 - Core folders (agent, env, checkpoints)
@@ -105,7 +106,7 @@ del AUTONOMOUS_SCAN_GUIDE.md
 
 **Keep:**
 
-- `scan.py`
+- `easy_scanner.py`
 - `autonomous_scan.py`
 - `agent/` and `env/` folders
 - `checkpoints/` folder
@@ -147,8 +148,8 @@ del TRANSFER_LEARNING.md
 - ❌ `checkpoints/` - Contains your training progress!
 - ❌ `agent/` - Core AI code
 - ❌ `env/` - Environment code
-- ❌ `train.py` - Needed for training
-- ❌ `scan.py` - Main scanning tool
+- ❌ `train_mock_targets.py` - Needed for training
+- ❌ `easy_scanner.py` - Main scanning tool
 - ❌ `requirements.txt` - Dependencies
 
 ## After Cleanup
@@ -156,12 +157,12 @@ del TRANSFER_LEARNING.md
 Your minimal project structure:
 
 ```
-d:/github/RL/
+DQN web vul/
 ├── agent/              ✅ Keep
 ├── env/                ✅ Keep
 ├── checkpoints/        ✅ Keep
-├── scan.py             ✅ Keep
-├── train.py            ✅ Keep
+├── easy_scanner.py     ✅ Keep
+├── train_mock_targets.py ✅ Keep
 ├── BEGINNER_GUIDE.md   ✅ Keep
 ├── QUICK_START.md      ✅ Keep
 └── requirements.txt    ✅ Keep

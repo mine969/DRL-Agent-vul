@@ -8,7 +8,16 @@ Focus: CSRF, IDOR, Logic Flaws, XSS
  DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, session, redirect, url_for, render_template_string, make_response, jsonify
+from flask import (
+    Flask,
+    request,
+    session,
+    redirect,
+    url_for,
+    render_template_string,
+    make_response,
+    jsonify,
+)
 import sqlite3
 import hashlib
 import random
@@ -16,11 +25,12 @@ import secrets
 import time
 
 app = Flask(__name__)
-app.secret_key = 'banking_secret_2025'
-DB_NAME = 'env/banking.db'
+app.secret_key = "banking_secret_2025"
+DB_NAME = "env/banking.db"
 
 # Fix: Ensure env directory exists before DB operations
 import os
+
 os.makedirs("env", exist_ok=True)
 
 # ============================================================================
@@ -30,40 +40,43 @@ os.makedirs("env", exist_ok=True)
 # Rate limiting (stricter for banking)
 request_counts = {}
 RATE_LIMIT_WINDOW = 60  # seconds
-RATE_LIMIT_MAX = 3000     # requests per window (stricter for banking)
+RATE_LIMIT_MAX = 3000  # requests per window (stricter for banking)
 
 # CSRF protection
 csrf_tokens = {}
 
 # Security headers for financial applications
 SECURITY_HEADERS = {
-    'X-Frame-Options': 'DENY',  # Clickjacking protection
-    'X-Content-Type-Options': 'nosniff',  # MIME sniffing protection
-    'X-XSS-Protection': '1; mode=block',  # XSS protection
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains; preload',  # HSTS
-    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",  # CSP
-    'Referrer-Policy': 'strict-origin-when-cross-origin',
-    'Permissions-Policy': 'geolocation=(), microphone=(), camera=(), payment=()',
-    'Cross-Origin-Embedder-Policy': 'require-corp',
-    'Cross-Origin-Opener-Policy': 'same-origin'
+    "X-Frame-Options": "DENY",  # Clickjacking protection
+    "X-Content-Type-Options": "nosniff",  # MIME sniffing protection
+    "X-XSS-Protection": "1; mode=block",  # XSS protection
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains; preload",  # HSTS
+    "Content-Security-Policy": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'",  # CSP
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "geolocation=(), microphone=(), camera=(), payment=()",
+    "Cross-Origin-Embedder-Policy": "require-corp",
+    "Cross-Origin-Opener-Policy": "same-origin",
 }
+
 
 def generate_csrf_token():
     """Generate CSRF token for forms."""
     token = secrets.token_urlsafe(32)
-    session_id = session.get('session_id', 'anonymous')
+    session_id = session.get("session_id", "anonymous")
     csrf_tokens[session_id] = token
     return token
 
+
 def validate_csrf_token(token):
     """Validate CSRF token."""
-    session_id = session.get('session_id', 'anonymous')
+    session_id = session.get("session_id", "anonymous")
     stored_token = csrf_tokens.get(session_id)
     return stored_token and stored_token == token
 
+
 def rate_limit_check():
     """Stricter rate limiting for banking application."""
-    client_ip = request.remote_addr or '127.0.0.1'
+    client_ip = request.remote_addr or "127.0.0.1"
     current_time = time.time()
 
     if client_ip not in request_counts:
@@ -71,7 +84,8 @@ def rate_limit_check():
 
     # Clean old requests
     request_counts[client_ip] = [
-        req_time for req_time in request_counts[client_ip]
+        req_time
+        for req_time in request_counts[client_ip]
         if current_time - req_time < RATE_LIMIT_WINDOW
     ]
 
@@ -81,20 +95,23 @@ def rate_limit_check():
     request_counts[client_ip].append(current_time)
     return True
 
+
 def add_security_headers(response):
     """Add financial-grade security headers to response."""
     for header, value in SECURITY_HEADERS.items():
         response.headers[header] = value
     return response
 
+
 def cors_preflight_response():
     """Handle CORS preflight with strict banking policy."""
     response = make_response()
     # Banking apps typically don't allow CORS
-    response.headers['Access-Control-Allow-Origin'] = 'null'
-    response.headers['Access-Control-Allow-Methods'] = 'GET, POST'
-    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    response.headers["Access-Control-Allow-Origin"] = "null"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
     return response
+
 
 # ============================================================================
 # MODERN UI TEMPLATES
@@ -261,131 +278,135 @@ HTML_TEMPLATE = """
 """
 
 
-
 # DATABASE SETUP
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT,
         balance REAL,
         account_number TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS transactions (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS transactions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         amount REAL,
         description TEXT,
         date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
+    )""")
+
     # Seed
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         users = [
-            ('admin', hashlib.md5(b'admin123').hexdigest(), 100000.0, '1001'),
-            ('john_smith', hashlib.md5(b'password').hexdigest(), 5420.50, '1002'),
-            ('sarah_johnson', hashlib.md5(b'password').hexdigest(), 12350.75, '1003'),
-            ('mike_williams', hashlib.md5(b'password').hexdigest(), 3200.00, '1004'),
-            ('emily_brown', hashlib.md5(b'password').hexdigest(), 8750.25, '1005'),
-            ('david_jones', hashlib.md5(b'password').hexdigest(), 25000.00, '1006'),
-            ('lisa_garcia', hashlib.md5(b'password').hexdigest(), 1850.50, '1007'),
-            ('tech_corp', hashlib.md5(b'password').hexdigest(), 150000.00, '2001'),
-            ('retail_store', hashlib.md5(b'password').hexdigest(), 45000.00, '2002'),
-            ('freelancer_alex', hashlib.md5(b'password').hexdigest(), 6200.00, '1008'),
-            ('CTF{banking_idor_target_flag}', hashlib.md5(b'unknown').hexdigest(), 0.00, '9999')
+            ("admin", hashlib.md5(b"admin123").hexdigest(), 100000.0, "1001"),
+            ("john_smith", hashlib.md5(b"password").hexdigest(), 5420.50, "1002"),
+            ("sarah_johnson", hashlib.md5(b"password").hexdigest(), 12350.75, "1003"),
+            ("mike_williams", hashlib.md5(b"password").hexdigest(), 3200.00, "1004"),
+            ("emily_brown", hashlib.md5(b"password").hexdigest(), 8750.25, "1005"),
+            ("david_jones", hashlib.md5(b"password").hexdigest(), 25000.00, "1006"),
+            ("lisa_garcia", hashlib.md5(b"password").hexdigest(), 1850.50, "1007"),
+            ("tech_corp", hashlib.md5(b"password").hexdigest(), 150000.00, "2001"),
+            ("retail_store", hashlib.md5(b"password").hexdigest(), 45000.00, "2002"),
+            ("freelancer_alex", hashlib.md5(b"password").hexdigest(), 6200.00, "1008"),
+            (
+                "CTF{banking_idor_target_flag}",
+                hashlib.md5(b"unknown").hexdigest(),
+                0.00,
+                "9999",
+            ),
         ]
-        c.executemany('INSERT INTO users (username, password, balance, account_number) VALUES (?, ?, ?, ?)', users)
-        
+        c.executemany(
+            "INSERT INTO users (username, password, balance, account_number) VALUES (?, ?, ?, ?)",
+            users,
+        )
+
         # Create realistic transaction history
         transactions = [
             # john_smith transactions
-            (2, 2500.00, 'Salary Deposit - TechCorp Inc'),
-            (2, -1200.00, 'Rent Payment - Landlord'),
-            (2, -85.50, 'Grocery Store - Whole Foods'),
-            (2, -45.00, 'Gas Station - Shell'),
-            (2, -120.00, 'Electric Bill - City Power'),
-            (2, -500.00, 'Transfer to Savings'),
-            (2, 0.00, 'CTF{banking_sql_injection_master_42}'),
-            
+            (2, 2500.00, "Salary Deposit - TechCorp Inc"),
+            (2, -1200.00, "Rent Payment - Landlord"),
+            (2, -85.50, "Grocery Store - Whole Foods"),
+            (2, -45.00, "Gas Station - Shell"),
+            (2, -120.00, "Electric Bill - City Power"),
+            (2, -500.00, "Transfer to Savings"),
+            (2, 0.00, "CTF{banking_sql_injection_master_42}"),
             # sarah_johnson transactions
-            (3, 4500.00, 'Salary Deposit - Design Studio'),
-            (3, -1500.00, 'Mortgage Payment'),
-            (3, -250.00, 'Car Payment - Auto Finance'),
-            (3, -95.75, 'Restaurant - Italian Bistro'),
-            (3, -180.00, 'Internet & Cable'),
-            (3, -420.00, 'Insurance Premium'),
-            
+            (3, 4500.00, "Salary Deposit - Design Studio"),
+            (3, -1500.00, "Mortgage Payment"),
+            (3, -250.00, "Car Payment - Auto Finance"),
+            (3, -95.75, "Restaurant - Italian Bistro"),
+            (3, -180.00, "Internet & Cable"),
+            (3, -420.00, "Insurance Premium"),
             # mike_williams transactions
-            (4, 3000.00, 'Salary Deposit'),
-            (4, -950.00, 'Rent Payment'),
-            (4, -150.00, 'Phone Bill'),
-            (4, -75.00, 'Gym Membership'),
-            (4, -200.00, 'Student Loan Payment'),
-            
+            (4, 3000.00, "Salary Deposit"),
+            (4, -950.00, "Rent Payment"),
+            (4, -150.00, "Phone Bill"),
+            (4, -75.00, "Gym Membership"),
+            (4, -200.00, "Student Loan Payment"),
             # emily_brown transactions
-            (5, 3800.00, 'Salary Deposit - Marketing Co'),
-            (5, -1100.00, 'Rent Payment'),
-            (5, -320.00, 'Shopping - Fashion Outlet'),
-            (5, -65.00, 'Coffee Shop - Starbucks'),
-            (5, -150.00, 'Utilities'),
-            (5, -500.00, 'Investment Transfer'),
-            
+            (5, 3800.00, "Salary Deposit - Marketing Co"),
+            (5, -1100.00, "Rent Payment"),
+            (5, -320.00, "Shopping - Fashion Outlet"),
+            (5, -65.00, "Coffee Shop - Starbucks"),
+            (5, -150.00, "Utilities"),
+            (5, -500.00, "Investment Transfer"),
             # david_jones transactions
-            (6, 8000.00, 'Salary Deposit - Senior Manager'),
-            (6, -2200.00, 'Mortgage Payment'),
-            (6, -450.00, 'Car Lease'),
-            (6, -1200.00, 'Private School Tuition'),
-            (6, -350.00, 'Home Insurance'),
-            (6, -180.00, 'Landscaping Service'),
-            
+            (6, 8000.00, "Salary Deposit - Senior Manager"),
+            (6, -2200.00, "Mortgage Payment"),
+            (6, -450.00, "Car Lease"),
+            (6, -1200.00, "Private School Tuition"),
+            (6, -350.00, "Home Insurance"),
+            (6, -180.00, "Landscaping Service"),
             # lisa_garcia transactions
-            (7, 2200.00, 'Salary Deposit - Retail'),
-            (7, -800.00, 'Rent Payment'),
-            (7, -120.00, 'Grocery Shopping'),
-            (7, -55.00, 'Gas'),
-            (7, -90.00, 'Phone Bill'),
-            
+            (7, 2200.00, "Salary Deposit - Retail"),
+            (7, -800.00, "Rent Payment"),
+            (7, -120.00, "Grocery Shopping"),
+            (7, -55.00, "Gas"),
+            (7, -90.00, "Phone Bill"),
             # tech_corp transactions
-            (8, 50000.00, 'Client Payment - Project Alpha'),
-            (8, -15000.00, 'Payroll - Monthly'),
-            (8, -3500.00, 'Office Rent'),
-            (8, -2200.00, 'Software Licenses'),
-            (8, -1800.00, 'Marketing Campaign'),
-            (8, 25000.00, 'Investment Round'),
-            
+            (8, 50000.00, "Client Payment - Project Alpha"),
+            (8, -15000.00, "Payroll - Monthly"),
+            (8, -3500.00, "Office Rent"),
+            (8, -2200.00, "Software Licenses"),
+            (8, -1800.00, "Marketing Campaign"),
+            (8, 25000.00, "Investment Round"),
             # retail_store transactions
-            (9, 12000.00, 'Sales Revenue - Week 1'),
-            (9, -4500.00, 'Inventory Purchase'),
-            (9, -2000.00, 'Employee Wages'),
-            (9, -850.00, 'Store Rent'),
-            (9, -320.00, 'Utilities'),
-            (9, 8500.00, 'Sales Revenue - Week 2'),
-            
+            (9, 12000.00, "Sales Revenue - Week 1"),
+            (9, -4500.00, "Inventory Purchase"),
+            (9, -2000.00, "Employee Wages"),
+            (9, -850.00, "Store Rent"),
+            (9, -320.00, "Utilities"),
+            (9, 8500.00, "Sales Revenue - Week 2"),
             # freelancer_alex transactions
-            (10, 1500.00, 'Client Payment - Web Design'),
-            (10, 2200.00, 'Client Payment - Logo Design'),
-            (10, -650.00, 'Rent Payment'),
-            (10, -120.00, 'Software Subscription'),
-            (10, -85.00, 'Coworking Space'),
-            (10, 1800.00, 'Client Payment - Branding')
+            (10, 1500.00, "Client Payment - Web Design"),
+            (10, 2200.00, "Client Payment - Logo Design"),
+            (10, -650.00, "Rent Payment"),
+            (10, -120.00, "Software Subscription"),
+            (10, -85.00, "Coworking Space"),
+            (10, 1800.00, "Client Payment - Branding"),
         ]
-        c.executemany('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', transactions)
+        c.executemany(
+            "INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)",
+            transactions,
+        )
     conn.commit()
     conn.close()
+
 
 def get_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
-@app.route('/', methods=['GET'])
+
+@app.route("/", methods=["GET"])
 def index():
-    if 'user_id' in session:
-        return redirect('/dashboard')
-    
+    if "user_id" in session:
+        return redirect("/dashboard")
+
     page_content = """
     <div style="display: flex; justify-content: center; margin-top: 4rem;">
         <div class="card" style="width: 100%; max-width: 400px; text-align: center;">
@@ -405,35 +426,46 @@ def index():
         </div>
     </div>
     """
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content))
+    return render_template_string(
+        HTML_TEMPLATE.replace("{{ content | safe }}", page_content)
+    )
 
-@app.route('/login', methods=['POST'])
-@app.route('/api/login', methods=['POST'])
+
+@app.route("/login", methods=["POST"])
+@app.route("/api/login", methods=["POST"])
 def login():
-    username = request.form.get('username')
-    password = request.form.get('password')
-    
+    username = request.form.get("username")
+    password = request.form.get("password")
+
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?',
-                       (username, hashlib.md5(password.encode()).hexdigest())).fetchone()
+    user = conn.execute(
+        "SELECT * FROM users WHERE username = ? AND password = ?",
+        (username, hashlib.md5(password.encode()).hexdigest()),
+    ).fetchone()
     conn.close()
-    
+
     if user:
-        session['user_id'] = user['id']
-        session['username'] = user['username']
-        return redirect('/dashboard')
+        session["user_id"] = user["id"]
+        session["username"] = user["username"]
+        return redirect("/dashboard")
     return "Invalid credentials", 401
 
-@app.route('/dashboard')
+
+@app.route("/dashboard")
 def dashboard():
-    if 'user_id' not in session:
-        return redirect('/')
-    
+    if "user_id" not in session:
+        return redirect("/")
+
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC', (session['user_id'],)).fetchall()
+    user = conn.execute(
+        "SELECT * FROM users WHERE id = ?", (session["user_id"],)
+    ).fetchone()
+    transactions = conn.execute(
+        "SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC",
+        (session["user_id"],),
+    ).fetchall()
     conn.close()
-    
+
     page_content = """
     <div class="balance-hero">
         <p class="balance-label">Total Balance</p>
@@ -491,24 +523,32 @@ def dashboard():
         </div>
     </div>
     """
-    
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=user, transactions=transactions)
 
-@app.route('/account/<int:user_id>')
-@app.route('/api/account/<int:user_id>', methods=['GET'])
+    return render_template_string(
+        HTML_TEMPLATE.replace("{{ content | safe }}", page_content),
+        user=user,
+        transactions=transactions,
+    )
+
+
+@app.route("/account/<int:user_id>")
+@app.route("/api/account/<int:user_id>", methods=["GET"])
 def account(user_id):
     """View account details - VULN: IDOR (no authorization check)"""
     # VULNERABILITY: No check if logged-in user owns this account
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-    
+    user = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+
     if not user:
         conn.close()
         return "Account not found", 404
-    
-    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 50', (user_id,)).fetchall()
+
+    transactions = conn.execute(
+        "SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 50",
+        (user_id,),
+    ).fetchall()
     conn.close()
-    
+
     page_content = f"""
     <div class="card">
         <h2 style="color: var(--primary); margin-bottom: 1.5rem;">Account Details</h2>
@@ -526,98 +566,150 @@ def account(user_id):
         </div>
     </div>
     """
-    
-    response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
-    
+
+    response = make_response(
+        render_template_string(
+            HTML_TEMPLATE.replace("{{ content | safe }}", page_content)
+        )
+    )
+
     # Check for IDOR
-    if 'user_id' in session and session['user_id'] != user_id:
-        response.headers['X-Vuln-Confirmed'] = 'IDOR_ACCOUNT_VIEW'
-        
+    if "user_id" in session and session["user_id"] != user_id:
+        response.headers["X-Vuln-Confirmed"] = "IDOR_ACCOUNT_VIEW"
+
     return response
 
-@app.route('/transfer', methods=['POST', 'OPTIONS'])
+
+@app.route("/transfer", methods=["POST", "OPTIONS"])
 def transfer():
     """Money transfer with modern security controls - VULN: CSRF bypass possible"""
 
     # Handle CORS preflight (strict policy)
-    if request.method == 'OPTIONS':
+    if request.method == "OPTIONS":
         return cors_preflight_response()
 
     # Rate limiting (stricter for financial operations)
     if not rate_limit_check():
-        response = make_response(render_template_string(
-            HTML_TEMPLATE.replace('{{ content | safe }}',
-            '<div class="alert alert-danger">Too many requests. Please try again later.</div>')
-        ), 429)
+        response = make_response(
+            render_template_string(
+                HTML_TEMPLATE.replace(
+                    "{{ content | safe }}",
+                    '<div class="alert alert-danger">Too many requests. Please try again later.</div>',
+                )
+            ),
+            429,
+        )
         return add_security_headers(response)
 
     # VULNERABILITY: CSRF protection with bypass opportunities
     # The form includes CSRF tokens, but we intentionally allow requests without them
-    csrf_token = request.form.get('csrf_token')
+    csrf_token = request.form.get("csrf_token")
     # if not csrf_token or not validate_csrf_token(csrf_token):
     #    response = make_response(render_template_string(
     #        HTML_TEMPLATE.replace('{{ content | safe }}',
     #        '<div class="alert alert-danger">Missing or invalid security token.</div>')
     #    ), 403)
     #    return add_security_headers(response)
-    
+
     # CSRF Bypass Flag logic
     csrf_flag = ""
     if not csrf_token or not validate_csrf_token(csrf_token):
         # Request succeeded despite invalid token -> Vulnerablity Exploited
         csrf_flag = " CTF{banking_csrf_protection_bypassed_22}"
 
-    if 'user_id' not in session:
-        response = make_response(redirect('/'))
+    if "user_id" not in session:
+        response = make_response(redirect("/"))
         return add_security_headers(response)
-    
-    to_account = request.form.get('to_account', '').strip()
+
+    to_account = request.form.get("to_account", "").strip()
     try:
-        amount = float(request.form.get('amount', 0))
+        amount = float(request.form.get("amount", 0))
     except (ValueError, TypeError):
-        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', 
-            '<div class="alert alert-danger">Invalid amount. Please try again.</div>'))
-    
+        return render_template_string(
+            HTML_TEMPLATE.replace(
+                "{{ content | safe }}",
+                '<div class="alert alert-danger">Invalid amount. Please try again.</div>',
+            )
+        )
+
     if amount <= 0:
-        return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', 
-            '<div class="alert alert-danger">Amount must be greater than zero.</div>'))
-    
+        return render_template_string(
+            HTML_TEMPLATE.replace(
+                "{{ content | safe }}",
+                '<div class="alert alert-danger">Amount must be greater than zero.</div>',
+            )
+        )
+
     conn = get_db()
-    sender = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    recipient = conn.execute('SELECT * FROM users WHERE account_number = ?', (to_account,)).fetchone()
-    
+    sender = conn.execute(
+        "SELECT * FROM users WHERE id = ?", (session["user_id"],)
+    ).fetchone()
+    recipient = conn.execute(
+        "SELECT * FROM users WHERE account_number = ?", (to_account,)
+    ).fetchone()
+
     msg = ""
     status = "error"
-    
+
     if not to_account:
         msg = "Transfer failed: Please provide a recipient account number"
-    elif sender['balance'] < amount:
+    elif sender["balance"] < amount:
         msg = f"Transfer failed: Insufficient funds. You have ${sender['balance']:.2f} but tried to transfer ${amount:.2f}"
     elif not recipient:
         msg = f"Transfer failed: Account number {to_account} not found"
-    elif recipient['id'] == sender['id']:
+    elif recipient["id"] == sender["id"]:
         msg = "Transfer failed: Cannot transfer to your own account"
     else:
         # VULN: Can transfer to any account (IDOR)
-        conn.execute('UPDATE users SET balance = balance - ? WHERE id = ?', (amount, sender['id']))
-        conn.execute('UPDATE users SET balance = balance + ? WHERE id = ?', (amount, recipient['id']))
-        conn.execute('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', 
-                    (sender['id'], -amount, f"Transfer to {to_account} - {recipient['username']}"))
-        conn.execute('INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)', 
-                    (recipient['id'], amount, f"Transfer from {sender['account_number']} - {sender['username']}"))
-        
+        conn.execute(
+            "UPDATE users SET balance = balance - ? WHERE id = ?",
+            (amount, sender["id"]),
+        )
+        conn.execute(
+            "UPDATE users SET balance = balance + ? WHERE id = ?",
+            (amount, recipient["id"]),
+        )
+        conn.execute(
+            "INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)",
+            (
+                sender["id"],
+                -amount,
+                f"Transfer to {to_account} - {recipient['username']}",
+            ),
+        )
+        conn.execute(
+            "INSERT INTO transactions (user_id, amount, description) VALUES (?, ?, ?)",
+            (
+                recipient["id"],
+                amount,
+                f"Transfer from {sender['account_number']} - {sender['username']}",
+            ),
+        )
+
         # XSS Detection in description
-        description = request.form.get('description', '')
-        xss_patterns = ['<script', 'javascript:', 'onerror=', 'onload=', '<svg', '<img', 'alert(', 'confirm(']
+        description = request.form.get("description", "")
+        xss_patterns = [
+            "<script",
+            "javascript:",
+            "onerror=",
+            "onload=",
+            "<svg",
+            "<img",
+            "alert(",
+            "confirm(",
+        ]
         if any(pattern in description.lower() for pattern in xss_patterns):
-            csrf_flag += " [XSS Detected]" # Local for msg
-            
+            csrf_flag += " [XSS Detected]"  # Local for msg
+
         conn.commit()
-        msg = f"Transfer successful! ${amount:.2f} sent to account {to_account}" + csrf_flag
+        msg = (
+            f"Transfer successful! ${amount:.2f} sent to account {to_account}"
+            + csrf_flag
+        )
         status = "success"
-    
+
     conn.close()
-    
+
     # Return HTML status page
     page_content = f"""
     <div style="text-align: center; margin-top: 4rem;">
@@ -633,37 +725,44 @@ def transfer():
         </div>
     </div>
     """
-    response = make_response(render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content)))
-    
+    response = make_response(
+        render_template_string(
+            HTML_TEMPLATE.replace("{{ content | safe }}", page_content)
+        )
+    )
+
     # Set headers for vulnerabilities
     if csrf_flag and "CSRF" in csrf_flag:
-        response.headers['X-Vuln-Confirmed'] = 'CSRF_BYPASS'
-    
-    description = request.form.get('description', '')
+        response.headers["X-Vuln-Confirmed"] = "CSRF_BYPASS"
+
+    description = request.form.get("description", "")
     if any(pattern in description.lower() for pattern in xss_patterns):
-        response.headers['X-Vuln-Confirmed'] = 'STORED_XSS_TRANSFER'
-        
+        response.headers["X-Vuln-Confirmed"] = "STORED_XSS_TRANSFER"
+
     return response
 
-@app.route('/transfer-form', methods=['GET', 'OPTIONS'])
+
+@app.route("/transfer-form", methods=["GET", "OPTIONS"])
 def transfer_form():
     """Standalone transfer form with CSRF protection"""
 
     # Handle CORS preflight
-    if request.method == 'OPTIONS':
+    if request.method == "OPTIONS":
         return cors_preflight_response()
 
-    if 'user_id' not in session:
-        response = make_response(redirect('/'))
+    if "user_id" not in session:
+        response = make_response(redirect("/"))
         return add_security_headers(response)
 
     # Generate CSRF token for the form
     csrf_token = generate_csrf_token()
-    
+
     conn = get_db()
-    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    user = conn.execute(
+        "SELECT * FROM users WHERE id = ?", (session["user_id"],)
+    ).fetchone()
     conn.close()
-    
+
     page_content = """
     <div style="max-width: 600px; margin: 0 auto; margin-top: 2rem;">
         <h1 style="color: var(--primary); margin-bottom: 2rem;">Money Transfer</h1>
@@ -701,18 +800,25 @@ def transfer_form():
         </div>
     </div>
     """
-    return render_template_string(HTML_TEMPLATE.replace('{{ content | safe }}', page_content), user=dict(user), csrf_token=csrf_token)
+    return render_template_string(
+        HTML_TEMPLATE.replace("{{ content | safe }}", page_content),
+        user=dict(user),
+        csrf_token=csrf_token,
+    )
 
-@app.route('/logout')
+
+@app.route("/logout")
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect("/")
+
 
 # ============================================================================
 # RESET ENDPOINT
 # ============================================================================
 
-@app.route('/api/reset', methods=['POST'])
+
+@app.route("/api/reset", methods=["POST"])
 def reset_env():
     """Reset environment state for training"""
     try:
@@ -723,15 +829,19 @@ def reset_env():
     except:
         pass
     init_db()
-    
+
     # Clear session
     session.clear()
-    
-    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
+
+    return jsonify(
+        {"status": "reset_complete", "message": "Environment reset successfully"}
+    )
+
 
 # ============================================================================
 # ENHANCED SECURITY HEADERS
 # ============================================================================
+
 
 # Add security headers to all responses
 @app.after_request
@@ -739,7 +849,8 @@ def apply_security_headers(response):
     """Apply financial-grade security headers to all responses."""
     return add_security_headers(response)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print("=" * 70)
     print("VULNERABLE BANKING APP - Research Variant 3")
     print("=" * 70)

@@ -69,7 +69,7 @@ action = agent.act(state, training=False)
 - `../autonomous_scan.py` - Main security auditor
 - `../scanner_gui.py` - GUI interface
 - `../deploy_agent.py` - Deployment script
-- `../train_multi_target.py` - Training script
+- `../train_mock_targets.py` - Mock target training script
 
 ## 🔗 See Also
 

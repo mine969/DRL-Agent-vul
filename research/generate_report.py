@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Dict, List, Any
 from datetime import datetime
 import statistics
+from collections import Counter
+
 
 class ResearchReportGenerator:
     """Generates comprehensive research reports from evaluation results."""
@@ -41,8 +43,16 @@ class ResearchReportGenerator:
         if not self.results_file.exists():
             raise FileNotFoundError(f"Results file not found: {self.results_file}")
 
-        with open(self.results_file, 'r') as f:
+        with open(self.results_file, "r") as f:
             return json.load(f)
+
+    def _iter_app_results(self) -> List[Dict[str, Any]]:
+        """Yield app-level result dictionaries."""
+        return [
+            result
+            for result in self.results.values()
+            if isinstance(result, dict) and "metrics" in result
+        ]
 
     def generate_full_report(self, output_dir: str = "research/reports") -> None:
         """
@@ -66,7 +76,7 @@ class ResearchReportGenerator:
         """Generate the main research report."""
         report_path = output_dir / f"research_report_{self._get_timestamp_suffix()}.md"
 
-        with open(report_path, 'w') as f:
+        with open(report_path, "w") as f:
             f.write(self._get_main_report_content())
 
         print(f"📄 Main report: {report_path}")
@@ -287,7 +297,9 @@ See `research/ground_truth_vulnerabilities.md` for complete vulnerability invent
 
     def _generate_statistics_summary(self, output_dir: Path) -> None:
         """Generate statistical summary."""
-        stats_path = output_dir / f"statistics_summary_{self._get_timestamp_suffix()}.json"
+        stats_path = (
+            output_dir / f"statistics_summary_{self._get_timestamp_suffix()}.json"
+        )
 
         stats = {
             "timestamp": self.timestamp,
@@ -297,51 +309,73 @@ See `research/ground_truth_vulnerabilities.md` for complete vulnerability invent
                 "recall": self._calculate_overall_recall(),
                 "f1_score": self._calculate_overall_f1(),
                 "accuracy": self._calculate_overall_accuracy(),
-                "false_positive_rate": self._calculate_false_positive_rate()
+                "false_positive_rate": self._calculate_false_positive_rate(),
             },
             "application_breakdown": self._get_application_breakdown(),
             "vulnerability_type_analysis": self._get_vulnerability_type_stats(),
             "training_efficiency": {
                 "convergence_episodes": 600,
                 "improvement_factor": 5.0,
-                "sample_efficiency": 4.2
-            }
+                "sample_efficiency": 4.2,
+            },
         }
 
-        with open(stats_path, 'w') as f:
+        with open(stats_path, "w") as f:
             json.dump(stats, f, indent=2)
 
         print(f"📊 Statistics summary: {stats_path}")
 
     def _generate_visualization_data(self, output_dir: Path) -> None:
         """Generate data for visualizations."""
-        viz_path = output_dir / f"visualization_data_{self._get_timestamp_suffix()}.json"
+        viz_path = (
+            output_dir / f"visualization_data_{self._get_timestamp_suffix()}.json"
+        )
 
         viz_data = {
             "timestamp": self.timestamp,
             "charts": {
                 "algorithm_comparison": {
-                    "algorithms": ["Baseline DQN", "Double+Dueling", "+PER", "+Noisy", "Rainbow"],
+                    "algorithms": [
+                        "Baseline DQN",
+                        "Double+Dueling",
+                        "+PER",
+                        "+Noisy",
+                        "Rainbow",
+                    ],
                     "f1_scores": [0.72, 0.81, 0.89, 0.94, self._calculate_overall_f1()],
-                    "convergence_episodes": [3000, 2000, 1200, 800, 600]
+                    "convergence_episodes": [3000, 2000, 1200, 800, 600],
                 },
                 "application_performance": self._get_application_performance_data(),
                 "vulnerability_type_success": self._get_vulnerability_success_data(),
                 "training_progress": {
                     "episodes": list(range(0, 10001, 1000)),
-                    "f1_scores": [0.15, 0.42, 0.68, 0.82, 0.89, 0.94, self._calculate_overall_f1(), self._calculate_overall_f1(), self._calculate_overall_f1(), self._calculate_overall_f1(), self._calculate_overall_f1()]
-                }
-            }
+                    "f1_scores": [
+                        0.15,
+                        0.42,
+                        0.68,
+                        0.82,
+                        0.89,
+                        0.94,
+                        self._calculate_overall_f1(),
+                        self._calculate_overall_f1(),
+                        self._calculate_overall_f1(),
+                        self._calculate_overall_f1(),
+                        self._calculate_overall_f1(),
+                    ],
+                },
+            },
         }
 
-        with open(viz_path, 'w') as f:
+        with open(viz_path, "w") as f:
             json.dump(viz_data, f, indent=2)
 
         print(f"📈 Visualization data: {viz_path}")
 
     def _generate_methodology_summary(self, output_dir: Path) -> None:
         """Generate methodology documentation."""
-        method_path = output_dir / f"methodology_summary_{self._get_timestamp_suffix()}.md"
+        method_path = (
+            output_dir / f"methodology_summary_{self._get_timestamp_suffix()}.md"
+        )
 
         methodology = f"""# Research Methodology Summary
 
@@ -414,7 +448,7 @@ See `research/ground_truth_vulnerabilities.md` for complete vulnerability invent
 **Compliance Status:** ✅ Ethical Research Standards Met
 """
 
-        with open(method_path, 'w') as f:
+        with open(method_path, "w") as f:
             f.write(methodology)
 
         print(f"🔬 Methodology summary: {method_path}")
@@ -427,72 +461,229 @@ See `research/ground_truth_vulnerabilities.md` for complete vulnerability invent
 
     def _calculate_overall_f1(self) -> float:
         """Calculate overall F1 score across all applications."""
-        total_tp = sum(app["metrics"]["true_positives"] for app in self.results.values())
-        total_fp = sum(app["metrics"]["false_positives"] for app in self.results.values())
-        total_fn = sum(app["metrics"]["false_negatives"] for app in self.results.values())
+        apps = self._iter_app_results()
+        total_tp = sum(app["metrics"]["true_positives"] for app in apps)
+        total_fp = sum(app["metrics"]["false_positives"] for app in apps)
+        total_fn = sum(app["metrics"]["false_negatives"] for app in apps)
 
         precision = total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0
         recall = total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0
-        f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+        f1 = (
+            2 * (precision * recall) / (precision + recall)
+            if (precision + recall) > 0
+            else 0
+        )
 
         return round(f1, 3)
 
     def _calculate_overall_accuracy(self) -> float:
         """Calculate overall accuracy."""
-        total_tp = sum(app["metrics"]["true_positives"] for app in self.results.values())
-        total_tn = sum(app["metrics"]["true_negatives"] for app in self.results.values())
-        total = sum(app["metrics"]["true_positives"] + app["metrics"]["false_positives"] +
-                   app["metrics"]["false_negatives"] + app["metrics"]["true_negatives"]
-                   for app in self.results.values())
+        apps = self._iter_app_results()
+        total_tp = sum(app["metrics"]["true_positives"] for app in apps)
+        total_tn = sum(app["metrics"]["true_negatives"] for app in apps)
+        total = sum(
+            app["metrics"]["true_positives"]
+            + app["metrics"]["false_positives"]
+            + app["metrics"]["false_negatives"]
+            + app["metrics"]["true_negatives"]
+            for app in apps
+        )
 
         return (total_tp + total_tn) / total if total > 0 else 0
 
     def _calculate_false_positive_rate(self) -> float:
         """Calculate false positive rate."""
-        total_fp = sum(app["metrics"]["false_positives"] for app in self.results.values())
-        total_negatives = sum(app["metrics"]["false_positives"] + app["metrics"]["true_negatives"]
-                            for app in self.results.values())
+        apps = self._iter_app_results()
+        total_fp = sum(app["metrics"]["false_positives"] for app in apps)
+        total_negatives = sum(
+            app["metrics"]["false_positives"] + app["metrics"]["true_negatives"]
+            for app in apps
+        )
 
         return total_fp / total_negatives if total_negatives > 0 else 0
 
     def _count_true_positives(self) -> int:
         """Count total true positives."""
-        return sum(app["metrics"]["true_positives"] for app in self.results.values())
+        return sum(app["metrics"]["true_positives"] for app in self._iter_app_results())
 
     def _count_total_vulnerabilities(self) -> int:
         """Count total ground truth vulnerabilities."""
-        return sum(app["ground_truth_count"] for app in self.results.values())
+        return sum(app["ground_truth_count"] for app in self._iter_app_results())
 
     def _get_timestamp_suffix(self) -> str:
         """Get timestamp suffix for filenames."""
         return datetime.now().strftime("%Y%m%d_%H%M%S")
 
     # Additional helper methods would be implemented here
-    def _calculate_overall_precision(self) -> float: return 0.0
-    def _calculate_overall_recall(self) -> float: return 0.0
-    def _get_vulnerability_breakdown(self) -> str: return ""
-    def _get_application_results(self) -> str: return ""
-    def _get_vulnerability_type_analysis(self) -> str: return ""
-    def _get_confidence_distribution(self) -> str: return ""
-    def _get_detailed_vulnerability_results(self) -> str: return ""
-    def _get_application_breakdown(self) -> Dict: return {}
-    def _get_vulnerability_type_stats(self) -> Dict: return {}
-    def _get_application_performance_data(self) -> Dict: return {}
-    def _get_vulnerability_success_data(self) -> Dict: return {}
+    def _calculate_overall_precision(self) -> float:
+        apps = self._iter_app_results()
+        total_tp = sum(app["metrics"]["true_positives"] for app in apps)
+        total_fp = sum(app["metrics"]["false_positives"] for app in apps)
+        return total_tp / (total_tp + total_fp) if (total_tp + total_fp) > 0 else 0.0
+
+    def _calculate_overall_recall(self) -> float:
+        apps = self._iter_app_results()
+        total_tp = sum(app["metrics"]["true_positives"] for app in apps)
+        total_fn = sum(app["metrics"]["false_negatives"] for app in apps)
+        return total_tp / (total_tp + total_fn) if (total_tp + total_fn) > 0 else 0.0
+
+    def _get_vulnerability_breakdown(self) -> str:
+        lines = []
+        for app in self._iter_app_results():
+            name = app.get("application", "Unknown")
+            count = app.get("ground_truth_count", len(app.get("ground_truth", [])))
+            lines.append(f"- **{name}**: {count} vulnerabilities")
+        return "\n".join(lines) if lines else "No ground truth data available."
+
+    def _get_application_results(self) -> str:
+        header = (
+            "| Application | Precision | Recall | F1-Score | Findings | Ground Truth |"
+        )
+        divider = "| --- | ---: | ---: | ---: | ---: | ---: |"
+        rows = [header, divider]
+        for app in self._iter_app_results():
+            metrics = app["metrics"]
+            rows.append(
+                f"| {app.get('application', 'Unknown')} | {metrics['precision']:.3f} | "
+                f"{metrics['recall']:.3f} | {metrics['f1_score']:.3f} | "
+                f"{app.get('findings_count', 0)} | {app.get('ground_truth_count', 0)} |"
+            )
+        return "\n".join(rows) if rows else "No results available."
+
+    def _get_vulnerability_type_analysis(self) -> str:
+        ground_truth_counts = Counter()
+        detected_counts = Counter()
+
+        for app in self._iter_app_results():
+            for vuln in app.get("ground_truth", []):
+                ground_truth_counts[vuln.get("type", "Unknown")] += 1
+            for finding in app.get("findings", []):
+                detected_counts[finding.get("type", "Unknown")] += 1
+
+        types = sorted(set(ground_truth_counts.keys()) | set(detected_counts.keys()))
+        if not types:
+            return "No vulnerability type data available."
+
+        header = "| Vulnerability Type | Ground Truth | Detected |"
+        divider = "| --- | ---: | ---: |"
+        rows = [header, divider]
+        for vuln_type in types:
+            rows.append(
+                f"| {vuln_type} | {ground_truth_counts.get(vuln_type, 0)} | "
+                f"{detected_counts.get(vuln_type, 0)} |"
+            )
+        return "\n".join(rows)
+
+    def _get_confidence_distribution(self) -> str:
+        confidences = []
+        for app in self._iter_app_results():
+            for finding in app.get("findings", []):
+                confidence = finding.get("confidence")
+                if isinstance(confidence, (int, float)):
+                    confidences.append(float(confidence))
+
+        if not confidences:
+            return "No confidence data available."
+
+        high = sum(1 for c in confidences if c >= 0.85)
+        medium = sum(1 for c in confidences if 0.6 <= c < 0.85)
+        low = sum(1 for c in confidences if c < 0.6)
+        return f"High: {high}\nMedium: {medium}\nLow: {low}"
+
+    def _get_detailed_vulnerability_results(self) -> str:
+        sections = []
+        for app in self._iter_app_results():
+            sections.append(f"### {app.get('application', 'Unknown')}")
+            findings = app.get("findings", [])
+            if not findings:
+                sections.append("- No findings recorded")
+                sections.append("")
+                continue
+            for finding in findings:
+                vuln_type = finding.get("type", "Unknown")
+                endpoint = finding.get("endpoint", "Unknown")
+                method = finding.get("method", "GET")
+                confidence = finding.get("confidence", "N/A")
+                sections.append(
+                    f"- {vuln_type} at `{endpoint}` ({method}, confidence={confidence})"
+                )
+            sections.append("")
+        return "\n".join(sections) if sections else "No findings available."
+
+    def _get_application_breakdown(self) -> Dict:
+        breakdown = {}
+        for app in self._iter_app_results():
+            breakdown[app.get("application", "Unknown")] = {
+                "ground_truth_count": app.get("ground_truth_count", 0),
+                "findings_count": app.get("findings_count", 0),
+                "metrics": app.get("metrics", {}),
+            }
+        return breakdown
+
+    def _get_vulnerability_type_stats(self) -> Dict:
+        ground_truth_counts = Counter()
+        detected_counts = Counter()
+
+        for app in self._iter_app_results():
+            for vuln in app.get("ground_truth", []):
+                ground_truth_counts[vuln.get("type", "Unknown")] += 1
+            for finding in app.get("findings", []):
+                detected_counts[finding.get("type", "Unknown")] += 1
+
+        stats = {}
+        for vuln_type in sorted(
+            set(ground_truth_counts.keys()) | set(detected_counts.keys())
+        ):
+            stats[vuln_type] = {
+                "ground_truth": ground_truth_counts.get(vuln_type, 0),
+                "detected": detected_counts.get(vuln_type, 0),
+            }
+        return stats
+
+    def _get_application_performance_data(self) -> Dict:
+        apps = self._iter_app_results()
+        return {
+            "applications": [app.get("application", "Unknown") for app in apps],
+            "precision": [app["metrics"]["precision"] for app in apps],
+            "recall": [app["metrics"]["recall"] for app in apps],
+            "f1_score": [app["metrics"]["f1_score"] for app in apps],
+        }
+
+    def _get_vulnerability_success_data(self) -> Dict:
+        ground_truth_counts = Counter()
+        detected_counts = Counter()
+
+        for app in self._iter_app_results():
+            for vuln in app.get("ground_truth", []):
+                ground_truth_counts[vuln.get("type", "Unknown")] += 1
+            for finding in app.get("findings", []):
+                detected_counts[finding.get("type", "Unknown")] += 1
+
+        vuln_types = sorted(
+            set(ground_truth_counts.keys()) | set(detected_counts.keys())
+        )
+        success_rates = []
+        for vuln_type in vuln_types:
+            total = ground_truth_counts.get(vuln_type, 0)
+            detected = detected_counts.get(vuln_type, 0)
+            success_rates.append(detected / total if total > 0 else 0.0)
+
+        return {
+            "types": vuln_types,
+            "ground_truth": [ground_truth_counts.get(vt, 0) for vt in vuln_types],
+            "detected": [detected_counts.get(vt, 0) for vt in vuln_types],
+            "success_rate": success_rates,
+        }
 
 
 def main():
     """Main report generation function."""
     parser = argparse.ArgumentParser(description="Generate Research Reports")
     parser.add_argument(
-        "--results",
-        required=True,
-        help="Path to evaluation results JSON file"
+        "--results", required=True, help="Path to evaluation results JSON file"
     )
     parser.add_argument(
-        "--output",
-        default="research/reports",
-        help="Output directory for reports"
+        "--output", default="research/reports", help="Output directory for reports"
     )
 
     args = parser.parse_args()

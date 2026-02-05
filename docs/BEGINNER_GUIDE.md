@@ -26,12 +26,12 @@ pip install -r requirements.txt
 **What this does**: Teaches the AI how to find security problems
 
 ```bash
-python train.py
+python train_mock_targets.py --episodes 1000
 ```
 
 **What you'll see**:
 
-- Episode numbers counting up (1/500, 2/500, etc.)
+- Episode numbers counting up (1/1000, 2/1000, etc.)
 - Scores showing how well the AI is learning
 - This takes 2-4 hours - let it run!
 
@@ -40,7 +40,7 @@ python train.py
 - Wait for at least 100 episodes
 - Or press `Ctrl+C` to stop early (it auto-saves progress)
 
-**Result**: You'll get a file called `dqn_web_sec_model.pth` (the trained AI brain)
+**Result**: You'll get checkpoints in `checkpoints/` (e.g., `improved_mock_ep1000.pth`)
 
 ---
 
@@ -104,36 +104,28 @@ Checks up to 100 pages - finds more vulnerabilities
 ### Use a Checkpoint (Partially Trained Model)
 
 ```bash
-python autonomous_scan.py http://your-site.com --model checkpoints/dqn_checkpoint_ep100.pth
+python autonomous_scan.py http://your-site.com --model checkpoints/improved_mock_ep100.pth
 ```
 
 Uses a model saved after 100 training episodes
 
-### Zero-Day Hunter Mode (Find Unknown Vulnerabilities)
+### Full AI Mode (Deeper Exploration)
 
 ```bash
-python autonomous_scan.py http://your-site.com --mode zeroday
+python autonomous_scan.py http://your-site.com --depth 50 --intensity 8 --ai-mode --pentester
 ```
 
-**What this does**: Uses fuzzing and CVE intelligence to find unknown vulnerabilities
+**What this does**: Enables chain attacks and online learning for deeper exploration
 
-**When to use**: When you want to discover new, undocumented security issues
+**When to use**: When you want a thorough scan on authorized targets
 
-### Targetless Mode (Auto-Find Targets)
+### GUI-Only Modes
+
+Targetless hunting, OSINT-only recon, and stealth profiles are available in the GUI:
 
 ```bash
-# Find targets using Google
-python autonomous_scan.py --mode targetless --google-dork "inurl:admin.php"
-
-# Find targets using Shodan (requires API key)
-python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key YOUR_KEY
+python scanner_gui.py
 ```
-
-**What this does**: Automatically discovers vulnerable websites to test
-
-**When to use**: Bug bounty hunting, security research
-
-**Note**: Only use on targets you have permission to test!
 
 ---
 
@@ -256,8 +248,8 @@ python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key
 **Solution**:
 
 - This is normal! Training takes hours
-- You can use checkpoints (saved every 20 episodes)
-- Or reduce episodes: edit `train.py` and change `episodes = 500` to `episodes = 100`
+- You can use checkpoints (saved every 50 episodes by default)
+- Or reduce episodes: run `python train_mock_targets.py --episodes 100`
 
 ### No vulnerabilities found
 
@@ -273,9 +265,9 @@ python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key
 
 | File                          | What It Does                                  |
 | ----------------------------- | --------------------------------------------- |
-| `train.py`                    | Trains the AI agent                           |
+| `train_mock_targets.py`       | Trains the AI agent on mock targets           |
 | `autonomous_scan.py`          | Scans websites automatically                  |
-| `dqn_web_sec_model.pth`       | The trained AI brain (created after training) |
+| `checkpoints/improved_mock_ep*.pth` | Training checkpoints                     |
 | `checkpoints/`                | Saved progress during training                |
 | `vulnerability_report_*.html` | Scan results (open in browser)                |
 
@@ -305,7 +297,7 @@ python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key
 │         QUICK COMMAND REFERENCE             │
 ├─────────────────────────────────────────────┤
 │ Train AI:                                   │
-│   python train.py                           │
+│   python train_mock_targets.py --episodes 1000 │
 │                                             │
 │ Scan Website:                               │
 │   python autonomous_scan.py http://site.com │

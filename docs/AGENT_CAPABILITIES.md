@@ -15,9 +15,9 @@ This document outlines what the DRL Web Vulnerability Scanner agent can currentl
 - **Phase-Based Learning**: Progressive unlock system for kill chain phases
 
 ### 2. Neural Network Architecture
-- **Input**: 11-dimensional state space
+- **Input**: 15-dimensional state space
 - **Hidden Layers**: Configurable (default: 256 → 128 neurons)
-- **Output**: 100 Q-values (one per action)
+- **Output**: 50 Q-values (mock) or 150 Q-values (full action book)
 - **GPU Acceleration**: Automatic CUDA support with TF32 math
 - **Optimization**: Adam optimizer with gradient clipping
 
@@ -27,7 +27,9 @@ This document outlines what the DRL Web Vulnerability Scanner agent can currentl
 - **Environment Variables**: Override defaults via env vars
 - **Modular Design**: Separate configs for agent, training, environment, scan, reports
 
-## 🎯 Action Space (100 Actions)
+## 🎯 Action Space (50 Mock / 150 Full)
+
+Mock targets use a tuned 50-action subset mapped into the full 150-action book.
 
 ### Phase 1: Reconnaissance (Actions 0-29)
 **Passive OSINT (0-19):**

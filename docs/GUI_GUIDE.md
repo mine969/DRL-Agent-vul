@@ -290,7 +290,7 @@ Dropdown shows:
 
 ```bash
 # Train a model first
-python train_multi_target.py --episodes 100
+python train_mock_targets.py --episodes 100
 # Then restart GUI
 python scanner_gui.py
 ```

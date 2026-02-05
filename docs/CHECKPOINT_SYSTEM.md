@@ -45,7 +45,7 @@ checkpoint = {
 
 Checkpoints are saved automatically:
 
-- Every 10 episodes during training
+- Every 50 episodes during training (default mock training)
 - On Ctrl+C (keyboard interrupt)
 - On training completion
 
@@ -54,7 +54,7 @@ Checkpoints are saved automatically:
 ```python
 from agent.dqn_agent import DQNAgent
 
-agent = DQNAgent(state_dim=11, action_dim=100)
+agent = DQNAgent(state_dim=15, action_dim=50)
 torch.save(agent.brain.state_dict(), 'checkpoints/manual_save.pth')
 ```
 
@@ -63,10 +63,10 @@ torch.save(agent.brain.state_dict(), 'checkpoints/manual_save.pth')
 ### Resume Training
 
 ```bash
-python train_multi_target.py --episodes 2000 --resume 1000
+python train_mock_targets.py --episodes 2000
 ```
 
-This loads `checkpoints/multi_target_8k_ep1000.pth` and continues from episode 1001.
+This loads the latest `checkpoints/improved_mock_ep*.pth` and continues automatically.
 
 ### Load for Deployment
 
@@ -74,9 +74,9 @@ This loads `checkpoints/multi_target_8k_ep1000.pth` and continues from episode 1
 from agent.dqn_agent import DQNAgent
 import torch
 
-agent = DQNAgent(state_dim=11, action_dim=100)
+agent = DQNAgent(state_dim=15, action_dim=50)
 agent.brain.load_state_dict(
-    torch.load('checkpoints/multi_target_8k_ep2000.pth')
+    torch.load('checkpoints/improved_mock_ep2000.pth')
 )
 agent.brain.eval()  # Set to evaluation mode
 ```
@@ -114,14 +114,14 @@ done
 
 ## Transfer Learning
 
-### From Old Architecture (52 actions)
+### From Mock (50 actions) to Full (150 actions)
 
 ```python
 # Load old checkpoint
 old_state = torch.load('dqn_checkpoint_ep1000.pth')
 
-# Create new agent (100 actions)
-new_agent = DQNAgent(state_dim=11, action_dim=100)
+# Create new agent (150 actions)
+new_agent = DQNAgent(state_dim=15, action_dim=150)
 new_state = new_agent.brain.state_dict()
 
 # Transfer compatible layers
@@ -130,9 +130,9 @@ for key in old_state.keys():
         new_state[key] = old_state[key]
     else:  # Output layer (partial transfer)
         if 'weight' in key:
-            new_state[key][:52, :] = old_state[key]
+        new_state[key][:50, :] = old_state[key]
         elif 'bias' in key:
-            new_state[key][:52] = old_state[key]
+            new_state[key][:50] = old_state[key]
 
 # Load transferred weights
 new_agent.brain.load_state_dict(new_state)

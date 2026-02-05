@@ -46,11 +46,8 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 
 3. **Train the Agent**
    ```bash
-   # Train with advanced algorithms (Rainbow DQN)
-   python train_multi_target.py --episodes 1000 --improved
-
-   # Or use baseline DQN for comparison
-   python train_multi_target.py --episodes 1000 --baseline
+   # Train with improved algorithms (Rainbow DQN, default)
+   python train_mock_targets.py --episodes 1000
    ```
 
 4. **Evaluate Performance**
@@ -118,10 +115,7 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 2. **Train Agent**
    ```bash
    # Train with Rainbow DQN (recommended)
-   python train_multi_target.py --episodes 1000 --improved
-
-   # Or train baseline for comparison
-   python train_multi_target.py --episodes 1000 --baseline
+   python train_mock_targets.py --episodes 1000
    ```
 
 3. **Evaluate Performance**
@@ -328,7 +322,7 @@ Path Traversal (2 total): ████████░░ 80% (1.6/2 detected)
 3. **Low Performance**
    ```bash
    # Try with more episodes
-   python train_multi_target.py --episodes 5000 --improved
+   python train_mock_targets.py --episodes 5000
 
    # Check evaluation results
    python research/evaluate_agent.py --agent improved

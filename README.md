@@ -7,7 +7,7 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 **Key Features:**
 
 - 🧠 Deep Q-Network (Double DQN) with experience replay
-- 🎯 100 real-world actions across 4 kill chain phases
+- 🎯 50 tuned actions for mock targets, 150 actions in full mode across 4 kill chain phases
 - 🎮 5 mock target applications for training
 - 🔍 Autonomous vulnerability scanning
 - 📊 Comprehensive reporting with CVSS scoring
@@ -48,7 +48,9 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 
 ## Architecture
 
-### Kill Chain Phases (100 Actions)
+### Kill Chain Phases (Action Space)
+
+Mock targets use a tuned 50-action subset mapped into the full 150-action book.
 
 **Phase 1: Reconnaissance (Actions 0-29)**
 
@@ -80,30 +82,22 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 - TF32 Math: Enabled
 - Expected Speedup: 35-40%
 
-**Training Command (Baseline DQN):**
+**Training Command (Mock Targets, Improved DQN):**
 
 ```bash
-python train_multi_target.py --episodes 1000
+python train_mock_targets.py --episodes 1000
 ```
 
-**Training with Improved Algorithms (Rainbow DQN):**
+**Quick Long-Run Training (Auto-Resume):**
 
 ```bash
-# Significantly faster convergence (5x) and better performance (+27%)
-python train_multi_target.py --episodes 1000 --improved
+python quick_train_5000.py
 ```
 
-**Auto-Resume from Latest Checkpoint:**
+**Resume Behavior:**
 
-```bash
-python train_multi_target.py --latest --episodes 1000
-```
-
-**Resume from Specific Episode:**
-
-```bash
-python train_multi_target.py --episodes 1000 --resume <episode_number>
-```
+- `train_mock_targets.py` auto-resumes from the latest checkpoint in `checkpoints/`
+- `quick_train_5000.py --fresh` forces a clean start
 
 **See [IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details on advanced algorithms (Prioritized Replay, Noisy Networks, Multi-step learning) that provide:
 
@@ -134,18 +128,17 @@ python start_services.py
 
 ## Deployment
 
-**Autonomous Scanning:**
+**Autonomous Scanning (CLI):**
 
 ```bash
-python autonomous_scan.py --target http://example.com --crawl-depth 30 --intensity 3
+python autonomous_scan.py http://example.com --depth 30 --intensity 3
 ```
 
-**Scan Modes:**
+**CLI Flags:**
 
-- `--mode auto` - Standard script+AI hybrid (default)
-- `--mode aggressive` - 1.5x depth, 2x intensity, more noise
-- `--pentester` - Enable Chain Attacks (50+ steps) and Online Learning
-- `--mode specific --attack "SQL Injection"` - Single attack type
+- `--ai-mode` - Full AI reconnaissance + learning
+- `--pentester` - Chain attacks with deeper exploration
+- `--persist` - Keep trying until a vulnerability is found
 
 **Interactive GUI:**
 
@@ -169,12 +162,12 @@ python scanner_gui.py
 ```
 DQN web vul/
 ├── agent/                           # DQN Agent implementation
-│   ├── dqn_agent.py                # Baseline DQN (100 actions)
-│   ├── improved_dqn_agent.py       # Rainbow DQN (150 actions + WAF bypass)
+│   ├── dqn_agent.py                # Baseline DQN (action_dim configurable)
+│   ├── improved_dqn_agent.py       # Rainbow DQN (50 mock / 150 full actions)
 │   └── payload_manager.py          # 200+ attack payloads
 │
 ├── env/                             # Training environment & target apps
-│   ├── web_sec_env.py              # Enhanced Gymnasium environment (150 actions)
+│   ├── web_sec_env.py              # Gymnasium environment (50 mock / 150 full actions)
 │   ├── target_app_ecommerce.py     # E-commerce (port 5002)
 │   ├── target_app_social.py        # Social media (port 5003)
 │   ├── target_app_banking.py       # Banking (port 5004)
@@ -207,7 +200,9 @@ DQN web vul/
 │
 ├── config.py                        # Centralized configuration
 ├── start_services.py                # Start all target applications
-├── train_multi_target.py            # Multi-target training script
+├── train_mock_targets.py            # Mock target training script
+├── quick_train_5000.py              # Long-run training with auto-resume
+├── easy_scanner.py                  # Interactive CLI scanner
 ├── autonomous_scan.py               # CLI vulnerability scanner
 └── scanner_gui.py                   # GUI application
 
@@ -227,7 +222,7 @@ The agent is capable of:
 1. **Autonomous Vulnerability Discovery**
    - Automatically discovers web application endpoints
    - Tests for 200+ vulnerability types using **tuned action space**
-   - Progresses through 4 kill chain phases (100 optimized actions)
+   - Progresses through 4 kill chain phases (50 tuned actions on mock targets, 150 full action book)
    - Validates findings to reduce false positives
 
 2. **Deep Learning-Based Testing**
@@ -302,7 +297,7 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ✅ **Multi-Target Support** (5 enhanced mock applications)  
 ✅ **OSINT Integration** (5 sources: Google, Shodan, etc.)  
 ✅ **Proxy Support** (Auto-fetch from 6 sources)  
-✅ **Multiple Scan Modes** (Auto, Aggressive, OSINT, Specific)  
+✅ **Multiple Scan Modes** (Hybrid, Full AI, Flash Attack)  
 ✅ **Advanced WAF Bypass** (15 techniques for firewall evasion)  
 ✅ **Modern Auth Bypass** (JWT, OAuth, MFA, session hijacking)  
 ✅ **CSRF Protection Bypass** (Token extraction, reuse, SameSite bypass)  
@@ -327,9 +322,9 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ## Performance
 
 - **Training Speed:** ~35-40% faster with MAX GPU settings
-- **Action Space:** 100 actions (optimized for real-world)
-- **Episode Length:** 100 steps
-- **Checkpoint Frequency:** Every 10 episodes
+- **Action Space:** 50 actions (mock targets) / 150 actions (full)
+- **Episode Length:** 50-100 steps (configurable)
+- **Checkpoint Frequency:** Every 50 episodes (default mock training)
 - **Proxy Sources:** 6 (auto-fetch 200+ proxies)
 - **Payload Database:** 200+ attack vectors
 

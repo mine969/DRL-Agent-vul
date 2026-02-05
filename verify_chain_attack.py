@@ -16,11 +16,14 @@ print("-" * 60)
 # 2. High Intensity (50+ steps)
 # 3. Online Learning
 cmd = [
-    sys.executable, "autonomous_scan.py", 
-    url, 
-    "--model", model,
+    sys.executable,
+    "autonomous_scan.py",
+    url,
+    "--model",
+    model,
     "--pentester",  # <--- THE KEY FLAG
-    "--depth", "10" # Keep Recon short to get to attacks faster
+    "--depth",
+    "10",  # Keep Recon short to get to attacks faster
 ]
 
 try:

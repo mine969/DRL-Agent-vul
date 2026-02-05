@@ -4,6 +4,8 @@
 
 The action space has been optimized from a generic 100-action OWASP-focused approach to a **targeted 100-action space specifically designed for the mockup site vulnerabilities**.
 
+> **Note:** Current mock-target training uses a tuned 50-action subset mapped into the full 150-action book via `mock_action_map` in `env/web_sec_env.py`. The taxonomy below captures the broader action design.
+
 ## Action Space Optimization
 
 ### Before: Generic OWASP Actions (60 actions)
@@ -145,7 +147,7 @@ Path Traversal:          ████████░░ 80% (High - 3 traversal 
 ### Training Command
 ```bash
 # Train with tuned action space (100 actions optimized for mockups)
-python train_multi_target.py --episodes 1000 --improved
+python train_mock_targets.py --episodes 1000
 ```
 
 ### Expected Performance
@@ -250,5 +252,5 @@ The tuned action space transforms the agent from a generic security scanner into
 
 **Ready to train with optimized actions:**
 ```bash
-python train_multi_target.py --episodes 1000 --improved
+python train_mock_targets.py --episodes 1000
 ```

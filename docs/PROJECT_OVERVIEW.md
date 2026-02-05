@@ -10,10 +10,10 @@ An **AI-powered web security scanner** that uses Deep Reinforcement Learning to 
 
 ### 🤖 AI-Driven Testing
 
-- **100 real-world actions** (OSINT + attacks)
+- **50 tuned actions for mock targets** (150 full action book)
 - **Self-learning agent** (improves with training)
 - **Kill chain approach** (Recon → Discovery → Exploit → Post-Exploit)
-- **Multi-target training** (6 vulnerable apps)
+- **Multi-target training** (5 vulnerable apps)
 
 ### 🔥 Advanced Scanning
 
@@ -86,13 +86,15 @@ RL/
 │   ├── dqn_agent.py       # Neural network
 │   └── payload_manager.py # 200+ attack payloads
 ├── env/                    # Training environment
-│   ├── web_sec_env.py     # 100 actions
-│   └── target_app*.py     # 6 vulnerable apps
+│   ├── web_sec_env.py     # 50 mock / 150 full actions
+│   └── target_app*.py     # 5 vulnerable apps
 ├── utils/                  # Utilities
 │   ├── proxy_fetcher.py   # Auto-fetch proxies
 │   ├── vulnerability_database.py  # Vuln info
 │   └── report_generator.py  # Report creation
-├── train_multi_target.py   # Training script
+├── train_mock_targets.py   # Mock target training script
+├── quick_train_5000.py     # Long-run training with auto-resume
+├── easy_scanner.py         # Interactive CLI scanner
 ├── autonomous_scan.py      # CLI scanner
 └── scanner_gui.py          # GUI application
 ```
@@ -108,7 +110,7 @@ RL/
 
 ---
 
-## 100 Actions Explained
+## Action Space Overview (50 Mock / 150 Full)
 
 ### Phase 1: Reconnaissance (0-29)
 
@@ -138,44 +140,37 @@ RL/
 
 ## Training Targets
 
-### 1. Core App (target_app.py)
+### 1. E-Commerce (target_app_ecommerce.py)
 
 - SQL Injection
-- XSS (Reflected, Stored, DOM)
+- Mass Assignment
+- Business Logic Flaws
+- IDOR
+
+### 2. Social Media (target_app_social.py)
+
+- Stored/Reflected XSS
+- File Upload
 - IDOR
 - CSRF
 
-### 2. E-Commerce (target_app_ecommerce.py)
+### 3. Banking (target_app_banking.py)
 
-- Price manipulation
-- Coupon abuse
-- Negative quantity
-- Business logic flaws
+- CSRF
+- IDOR
+- Logic Flaws
 
-### 3. Social Media (target_app_social.py)
+### 4. Blog (target_app_blog.py)
 
-- Profile injection
-- Mass assignment
-- API vulnerabilities
-- OAuth bypass
+- Stored XSS
+- SSTI
+- CSRF
 
-### 4. LMS (target_app_lms.py)
+### 5. File Share (target_app_fileshare.py)
 
-- Grade manipulation
-- File upload
-- Authentication bypass
-
-### 5. University Portal (target_app_rsu.py)
-
-- Student data access
-- IDOR on records
-- Session hijacking
-
-### 6. Department Portal (target_app_dit_rsu.py)
-
-- Admin panel bypass
-- File inclusion
-- Command injection
+- File Upload
+- Path Traversal
+- IDOR
 
 ---
 
@@ -405,7 +400,7 @@ RL/
 ## Getting Started
 
 1. **Install**: `pip install -r requirements.txt`
-2. **Train**: `python train_multi_target.py --episodes 5000`
+2. **Train**: `python train_mock_targets.py --episodes 5000`
 3. **Scan**: `python scanner_gui.py`
 4. **Exploit**: Click findings for code
 

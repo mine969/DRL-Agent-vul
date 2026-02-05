@@ -2,4 +2,4 @@
 
 from .report_generator import ReportGenerator, Finding
 
-__all__ = ['ReportGenerator', 'Finding']
+__all__ = ["ReportGenerator", "Finding"]

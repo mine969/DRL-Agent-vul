@@ -18,9 +18,9 @@ import os
 import io
 
 # Fix Windows console encoding for emojis
-if sys.platform == 'win32':
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # Target applications for training
 TARGETS = [
@@ -28,8 +28,9 @@ TARGETS = [
     {"name": "Social Media", "script": "env/target_app_social.py", "port": 5003},
     {"name": "Banking App", "script": "env/target_app_banking.py", "port": 5004},
     {"name": "Blog Platform", "script": "env/target_app_blog.py", "port": 5005},
-    {"name": "File Share", "script": "env/target_app_fileshare.py", "port": 5006}
+    {"name": "File Share", "script": "env/target_app_fileshare.py", "port": 5006},
 ]
+
 
 def main():
     """Start all mock applications for training."""
@@ -54,36 +55,42 @@ def main():
 
         try:
             # Create log file
-            log_name = target['name'].replace(' ', '_').lower()
+            log_name = target["name"].replace(" ", "_").lower()
             log_file = open(f"logs/{log_name}.log", "w")
 
             # Determine correct Python executable
             # If running in venv, use venv python; otherwise use sys.executable
-            if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+            if hasattr(sys, "real_prefix") or (
+                hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+            ):
                 # Running in venv
                 python_exe = sys.executable
             else:
                 # Not in venv, try to find venv python
-                venv_python = os.path.join(os.getcwd(), '.venv', 'Scripts', 'python.exe')
+                venv_python = os.path.join(
+                    os.getcwd(), ".venv", "Scripts", "python.exe"
+                )
                 if os.path.exists(venv_python):
                     python_exe = venv_python
                 else:
                     python_exe = sys.executable
-            
+
             # Start the Flask app
             process = subprocess.Popen(
                 [python_exe, script_path],
                 stdout=log_file,
                 stderr=subprocess.STDOUT,
-                cwd=os.getcwd()
+                cwd=os.getcwd(),
             )
 
-            processes.append({
-                "process": process,
-                "name": target['name'],
-                "port": target['port'],
-                "log_file": log_file
-            })
+            processes.append(
+                {
+                    "process": process,
+                    "name": target["name"],
+                    "port": target["port"],
+                    "log_file": log_file,
+                }
+            )
 
             print(f"   ✅ Started (PID: {process.pid})")
 
@@ -137,6 +144,7 @@ def main():
                 pass
 
     print("✅ All applications stopped. Safe to close window.")
+
 
 if __name__ == "__main__":
     main()

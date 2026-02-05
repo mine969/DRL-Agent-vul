@@ -74,10 +74,10 @@ Real applications still have these exact vulnerabilities:
 ### 1. **Use the Tuned Agent**
 ```bash
 # Train on mockups (fast learning)
-python train_multi_target.py --episodes 1000 --improved
+python train_mock_targets.py --episodes 1000
 
 # Transfer to real targets
-python autonomous_scan.py --target https://example.com --agent improved
+python autonomous_scan.py https://example.com --depth 30 --intensity 5 --ai-mode
 ```
 
 ### 2. **Real-World Optimizations**
@@ -302,10 +302,10 @@ The tuned agent is now optimized for both mockup training and real-world transfe
 **Start with authorized targets:**
 ```bash
 # Test on your own applications first
-python autonomous_scan.py --target https://your-app.com --agent improved --authorized
+python autonomous_scan.py https://your-app.com --depth 30 --intensity 5 --ai-mode
 
-# Then expand to bug bounty programs
-python autonomous_scan.py --target https://bug-bounty-site.com --agent improved --scope bounty_rules
+# Then expand to bug bounty programs (authorized targets only)
+python autonomous_scan.py https://bug-bounty-site.com --depth 30 --intensity 5 --ai-mode --pentester
 ```
 
 **The tuned action space transforms your research agent into a practical real-world vulnerability discovery tool!** 🎯🔓

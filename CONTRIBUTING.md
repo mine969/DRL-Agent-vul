@@ -88,12 +88,12 @@ pytest --cov=agent --cov=env tests/
 
 2. **Run training**
    ```bash
-   python train_multi_target.py --episodes 100
+   python train_mock_targets.py --episodes 100
    ```
 
 3. **Test scanning**
    ```bash
-   python autonomous_scan.py --target http://localhost:5002
+   python autonomous_scan.py http://localhost:5002 --depth 20 --intensity 5
    ```
 
 ## Coding Standards

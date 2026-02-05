@@ -29,7 +29,7 @@ python -c "import torch; print(torch.cuda.is_available())"
 ### Option 1: Quick Training (2000 episodes)
 
 ```bash
-python train_multi_target.py --episodes 2000
+python train_mock_targets.py --episodes 2000
 ```
 
 **Time**: ~32 hours  
@@ -38,7 +38,7 @@ python train_multi_target.py --episodes 2000
 ### Option 2: Production Agent (5000 episodes)
 
 ```bash
-python train_multi_target.py --episodes 5000
+python quick_train_5000.py
 ```
 
 **Time**: ~80 hours  
@@ -48,10 +48,10 @@ python train_multi_target.py --episodes 5000
 
 ```bash
 # Auto-resume from latest checkpoint
-python train_multi_target.py --latest --episodes 5000
+python train_mock_targets.py --episodes 5000
 
-# Resume from specific episode
-python train_multi_target.py --resume 2000 --episodes 5000
+# Force a clean start (ignore checkpoints)
+python quick_train_5000.py --fresh
 ```
 
 ---
@@ -83,286 +83,48 @@ python scanner_gui.py
 
 ```bash
 # Basic scan
-python autonomous_scan.py --target http://example.com
+python autonomous_scan.py http://example.com --depth 20 --intensity 5
 
-# Aggressive scan
-python autonomous_scan.py --target http://example.com --mode aggressive
+# Deep scan with Full AI behavior
+python autonomous_scan.py http://example.com --depth 50 --intensity 8 --ai-mode --pentester
 
-# OSINT only
-python autonomous_scan.py --target http://example.com --mode osint
+# Persist until a vulnerability is found
+python autonomous_scan.py http://example.com --depth 30 --intensity 5 --persist
 
-# Specific attack
-python autonomous_scan.py --target http://example.com --mode specific --attack "SQL Injection"
+# Use a specific model checkpoint
+python autonomous_scan.py http://example.com --model checkpoints/improved_mock_ep1000.pth
 ```
 
 ---
 
-## Scan Modes
+## Scan Modes (Current CLI)
 
-### AUTO Mode (Default)
+The CLI supports depth/intensity plus AI flags for deeper scans:
+
+- `--ai-mode` enables Full AI reconnaissance + learning
+- `--pentester` enables chain attacks (deeper exploration)
+- `--persist` keeps trying until a vulnerability is found
+- `--model` loads a specific checkpoint
+
+### CLI Examples
 
 ```bash
-python autonomous_scan.py --target http://example.com --mode auto
+# Balanced scan
+python autonomous_scan.py http://example.com --depth 20 --intensity 5
+
+# Deep scan with full AI behavior
+python autonomous_scan.py http://example.com --depth 50 --intensity 8 --ai-mode --pentester
+
+# Persist until a vulnerability is found
+python autonomous_scan.py http://example.com --depth 30 --intensity 5 --persist
 ```
 
-- AI agent decides actions
-- Balanced approach
-- Low noise level
+### GUI-Only Features
 
-### AGGRESSIVE Mode
+The GUI includes OSINT-only recon, specific vulnerability targeting, targetless hunting, proxy fetching, and stealth profiles.
 
 ```bash
-python autonomous_scan.py --target http://example.com --mode aggressive
-```
-
-- 1.5x crawl depth
-- 2x test intensity
-- More exploration (epsilon=0.3)
-- Higher noise level
-
-### OSINT Mode
-
-```bash
-python autonomous_scan.py --target http://example.com --mode osint
-```
-
-- Reconnaissance only
-- No attacks performed
-- Silent operation
-
-### SPECIFIC Mode
-
-```bash
-python autonomous_scan.py --target http://example.com --mode specific --attack "XSS"
-```
-
-- Test single vulnerability
-- Faster execution
-- Focused testing
-
-### ZERO-DAY Mode
-
-```bash
-python autonomous_scan.py --target http://example.com --mode zeroday
-```
-
-- Fuzzing and mutation testing
-- CVE intelligence integration
-- Configuration vulnerability scanning
-- Discovers unknown vulnerabilities
-
-### TARGETLESS Mode
-
-```bash
-# AUTO-GENERATE MODE (Recommended) - Automatically creates queries from 100+ database
-python autonomous_scan.py --auto-generate
-
-# Auto-generate from specific source
-python autonomous_scan.py --auto-generate --auto-source google
-python autonomous_scan.py --auto-generate --auto-source shodan --shodan-key YOUR_KEY
-
-# Control query count
-python autonomous_scan.py --auto-generate --auto-max 5
-
-# MANUAL MODE - Provide your own queries
-# Using Google Dorks
-python autonomous_scan.py --mode targetless --google-dork "inurl:admin.php"
-
-# Using Shodan
-python autonomous_scan.py --mode targetless --shodan-query "apache" --shodan-key YOUR_KEY
-
-# Using CRT.sh (Certificate Transparency)
-python autonomous_scan.py --mode targetless --crtsh example.com
-
-# Using DuckDuckGo
-python autonomous_scan.py --mode targetless --duckduckgo "site:example.com login"
-
-# Using Censys
-python autonomous_scan.py --mode targetless --censys-query "services.http.response.body:admin" --censys-id YOUR_ID --censys-secret YOUR_SECRET
-
-# Combine multiple sources
-python autonomous_scan.py --mode targetless --google-dork "inurl:login" --shodan-query "apache" --shodan-key YOUR_KEY
-```
-
-- Auto-discovers targets via OSINT
-- 5 discovery sources available
-- **Auto-generate**: 100+ pre-configured queries (60+ Google dorks, 30+ Shodan queries)
-- **Manual mode**: Provide custom queries
-- Autonomous target hunting
-- Perfect for bug bounty hunting
-
----
-
-## Using Proxies
-
-### Auto-Fetch (GUI)
-
-1. Open GUI
-2. Click 🔄 button next to proxy file
-3. Wait for fetch (200+ proxies)
-4. Proxies auto-loaded
-
-### Manual (CLI)
-
-```bash
-# Create proxy file
-echo "http://proxy1.com:8080" > proxies.txt
-echo "http://proxy2.com:3128" >> proxies.txt
-
-# Use in scan
-python autonomous_scan.py --target http://example.com --proxy-file proxies.txt
-```
-
-### Proxy Sources
-
-The auto-fetch pulls from:
-
-- free-proxy-list.net
-- proxyscrape.com
-- geonode.com
-- proxy-list.download
-- pubproxy.com
-- GitHub proxy lists
-
----
-
-## Stealth Levels
-
-```bash
-# Low stealth (fast)
-python autonomous_scan.py --target http://example.com --stealth low
-
-# Medium stealth (balanced)
-python autonomous_scan.py --target http://example.com --stealth medium
-
-# High stealth (slow, careful)
-python autonomous_scan.py --target http://example.com --stealth high
-
-# Paranoid (very slow, maximum stealth)
-python autonomous_scan.py --target http://example.com --stealth paranoid
-```
-
-**Stealth affects**:
-
-- Request delays
-- User-Agent rotation
-- Proxy usage
-- Request patterns
-
----
-
-## Viewing Reports
-
-### HTML Report (Best)
-
-```bash
-# Auto-opens in browser after scan
-# Or manually:
-start reports/vulnerability_report_TIMESTAMP.html  # Windows
-open reports/vulnerability_report_TIMESTAMP.html   # Mac
-xdg-open reports/vulnerability_report_TIMESTAMP.html  # Linux
-```
-
-### Markdown Report
-
-```bash
-# View in editor
-code reports/vulnerability_report_TIMESTAMP.md
-```
-
-### Text Report
-
-```bash
-# View in terminal
-cat reports/vulnerability_report_TIMESTAMP.txt
-```
-
----
-
-## Common Workflows
-
-### Workflow 1: Quick Bug Bounty Scan
-
-```bash
-# 1. GUI Flash Attack
 python scanner_gui.py
-# Enter target, click ⚡ FLASH ATTACK
-
-# 2. Review findings
-# Click on finding for exploit URLs
-
-# 3. Test manually
-# Copy full URL, paste in browser/Burp
-```
-
-### Workflow 2: Deep Penetration Test
-
-```bash
-# 1. Aggressive scan with proxies
-python autonomous_scan.py \
-  --target http://target.com \
-  --mode aggressive \
-  --crawl-depth 50 \
-  --intensity 5 \
-  --stealth high \
-  --proxy-file proxies.txt
-
-# 2. Review comprehensive report
-start reports/vulnerability_report_*.html
-
-# 3. Exploit findings
-# Use generated CURL/Python scripts
-```
-
-### Workflow 3: OSINT Reconnaissance
-
-```bash
-# 1. Silent information gathering
-python autonomous_scan.py \
-  --target http://target.com \
-  --mode osint \
-  --crawl-depth 100
-
-# 2. Analyze discovered endpoints
-# Check report for sensitive files
-
-# 3. Plan attack strategy
-# Based on discovered attack surface
-```
-
-### Workflow 4: Zero-Day Hunting
-
-```bash
-# 1. Run Zero-Day Hunter mode
-python autonomous_scan.py \
-  --target http://target.com \
-  --mode zeroday \
-  --crawl-depth 30 \
-  --intensity 5
-
-# 2. Review fuzzing results
-# Check for crashes, errors, unusual responses
-
-# 3. Investigate CVE intelligence findings
-# Verify version-specific vulnerabilities
-```
-
-### Workflow 5: Targetless Bug Bounty Hunting
-
-```bash
-# 1. Auto-discover targets using multiple sources
-python autonomous_scan.py \
-  --mode targetless \
-  --google-dork "inurl:admin site:.edu" \
-  --shodan-query "apache 2.4" \
-  --shodan-key YOUR_KEY \
-  --crtsh example.com
-
-# 2. Agent scans all discovered targets
-# Automatically tests each found URL
-
-# 3. Review consolidated report
-# All findings from all targets in one report
 ```
 
 ---
@@ -373,15 +135,15 @@ python autonomous_scan.py \
 
 ```bash
 # Train a model first
-python train_multi_target.py --episodes 1000
+python train_mock_targets.py --episodes 1000
 ```
 
 ### "CUDA out of memory"
 
 ```bash
-# Reduce batch size in train_multi_target.py
-# Change: batch_size = 4096
-# To: batch_size = 2048
+# Reduce batch size in config.py
+# Change: batch_size = 64
+# To: batch_size = 32
 ```
 
 ### "Connection refused"
@@ -395,11 +157,11 @@ python train_multi_target.py --episodes 1000
 ### "No vulnerabilities found"
 
 ```bash
-# Try aggressive mode
-python autonomous_scan.py --target http://target.com --mode aggressive
+# Try a deeper scan
+python autonomous_scan.py http://target.com --depth 50 --intensity 8 --ai-mode --pentester
 
 # Or increase depth/intensity
-python autonomous_scan.py --target http://target.com --crawl-depth 50 --intensity 5
+python autonomous_scan.py http://target.com --depth 50 --intensity 5
 ```
 
 ---

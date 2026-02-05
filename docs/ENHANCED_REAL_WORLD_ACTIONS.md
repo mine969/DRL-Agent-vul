@@ -242,7 +242,7 @@ query Introspect {
 ### Training with Enhanced Actions
 ```bash
 # Train with all 150 actions including advanced bypass techniques
-python train_multi_target.py --episodes 1000 --improved
+python train_mock_targets.py --episodes 1000
 ```
 
 ### Real-World Testing

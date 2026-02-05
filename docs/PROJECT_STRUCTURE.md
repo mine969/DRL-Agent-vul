@@ -9,17 +9,17 @@ All documentation has been moved to the `docs/` folder for better organization.
 ## 🗂️ Current File Structure
 
 ```
-d:/github/RL/
+DQN web vul/
 │
 ├── 📄 README.md                    # Main project documentation
 ├── 📄 requirements.txt             # Python dependencies
 │
 ├── 🎮 **Main Applications**
 │   ├── scanner_gui.py              # GUI application (recommended for beginners)
-│   ├── scan.py                     # Interactive CLI scanner
+│   ├── easy_scanner.py             # Interactive CLI scanner
 │   ├── autonomous_scan.py          # Advanced CLI scanner
-│   ├── train.py                    # Training script (GPU accelerated)
-│   └── deploy_agent.py             # Quick testing tool
+│   ├── train_mock_targets.py       # Mock target training (GPU accelerated)
+│   └── quick_train_5000.py         # Long-run training with auto-resume
 │
 ├── 🧠 **Core Components**
 │   ├── agent/
@@ -29,8 +29,8 @@ d:/github/RL/
 │   │
 │   ├── env/
 │   │   ├── __init__.py
-│   │   ├── web_sec_env.py         # Gymnasium environment (100 actions)
-│   │   ├── target_app.py          # Flask test server
+│   │   ├── web_sec_env.py         # Gymnasium environment (50 mock / 150 full actions)
+│   │   ├── target_app_*.py        # 5 vulnerable apps
 │   │   ├── templates/             # Modern UI templates
 │   │   └── static/                # CSS, JS assets
 │   │
@@ -52,7 +52,7 @@ d:/github/RL/
 │
 └── 📚 **Documentation** (docs/)
     ├── BEGINNER_GUIDE.md          # Complete guide for non-technical users
-    ├── QUICK_START.md             # Quick reference for scan.py
+    ├── QUICK_START.md             # Quick reference for easy_scanner.py
     ├── GUI_GUIDE.md               # GUI application guide
     ├── REAL_WORLD_USAGE.md        # Practical usage examples
     ├── AUTONOMOUS_SCAN_GUIDE.md   # Advanced scanning features
@@ -78,7 +78,7 @@ d:/github/RL/
 ### For CLI Users
 
 1. Quick start: [docs/QUICK_START.md](QUICK_START.md)
-2. Run: `python scan.py`
+2. Run: `python easy_scanner.py`
 
 ### For Advanced Users
 
@@ -100,10 +100,10 @@ d:/github/RL/
 | File                 | Purpose             | Difficulty        |
 | -------------------- | ------------------- | ----------------- |
 | `scanner_gui.py`     | Graphical interface | ⭐ Easiest        |
-| `scan.py`            | Interactive CLI     | ⭐⭐ Easy         |
+| `easy_scanner.py`    | Interactive CLI     | ⭐⭐ Easy         |
 | `autonomous_scan.py` | Advanced CLI        | ⭐⭐⭐ Medium     |
-| `train.py`           | Train the AI        | ⭐⭐⭐⭐ Advanced |
-| `deploy_agent.py`    | Quick testing       | ⭐⭐⭐ Medium     |
+| `train_mock_targets.py` | Train the AI     | ⭐⭐⭐⭐ Advanced |
+| `quick_train_5000.py` | Long-run training  | ⭐⭐⭐ Medium     |
 
 ### 📚 Documentation (10 files)
 
@@ -134,7 +134,7 @@ All located in `docs/` folder:
 python scanner_gui.py
 
 # CLI (simple)
-python scan.py
+python easy_scanner.py
 
 # Advanced
 python autonomous_scan.py http://target.com
@@ -143,7 +143,7 @@ python autonomous_scan.py http://target.com
 ### Train the Agent
 
 ```bash
-python train.py
+python train_mock_targets.py --episodes 1000
 ```
 
 ### View Documentation
@@ -172,10 +172,10 @@ start docs\BEGINNER_GUIDE.md
 ### Before Reorganization
 
 ```
-d:/github/RL/
+DQN web vul/
 ├── scanner_gui.py
-├── scan.py
-├── train.py
+├── easy_scanner.py
+├── train_mock_targets.py
 ├── BEGINNER_GUIDE.md          ❌ Root folder
 ├── QUICK_START.md             ❌ Root folder
 ├── GUI_GUIDE.md               ❌ Root folder
@@ -189,11 +189,11 @@ d:/github/RL/
 ### After Reorganization ✅
 
 ```
-d:/github/RL/
+DQN web vul/
 ├── README.md                   ✅ Clear entry point
 ├── scanner_gui.py
-├── scan.py
-├── train.py
+├── easy_scanner.py
+├── train_mock_targets.py
 ├── docs/                       ✅ All guides organized
 │   ├── BEGINNER_GUIDE.md
 │   ├── QUICK_START.md
@@ -215,7 +215,7 @@ d:/github/RL/
    - Troubleshooting
    - Safety rules
 
-2. **QUICK_START.md** - Quick reference for scan.py
+2. **QUICK_START.md** - Quick reference for easy_scanner.py
 
    - 5-minute setup
    - Simple examples
@@ -305,11 +305,11 @@ d:/github/RL/
 
 | I want to...     | Go to...                                    |
 | ---------------- | ------------------------------------------- |
-| Start scanning   | `python scanner_gui.py` or `python scan.py` |
+| Start scanning   | `python scanner_gui.py` or `python easy_scanner.py` |
 | Learn the basics | `docs/BEGINNER_GUIDE.md`                    |
 | See examples     | `docs/REAL_WORLD_USAGE.md`                  |
 | Use the GUI      | `docs/GUI_GUIDE.md`                         |
-| Train the agent  | `python train.py` + `docs/GPU_SUCCESS.md`   |
+| Train the agent  | `python train_mock_targets.py` + `docs/GPU_SUCCESS.md` |
 | Manage models    | `docs/CHECKPOINT_SYSTEM.md`                 |
 | Clean up files   | `docs/CLEANUP_GUIDE.md`                     |
 

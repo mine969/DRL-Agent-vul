@@ -8,7 +8,16 @@ Focus: File Upload, Path Traversal, IDOR, XXE
  DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, session, redirect, render_template_string, send_file, make_response, jsonify
+from flask import (
+    Flask,
+    request,
+    session,
+    redirect,
+    render_template_string,
+    send_file,
+    make_response,
+    jsonify,
+)
 import sqlite3
 import hashlib
 import os
@@ -16,9 +25,9 @@ import uuid
 import subprocess
 
 app = Flask(__name__)
-app.secret_key = 'fileshare_secret_2025'
-DB_NAME = 'env/fileshare.db'
-UPLOAD_FOLDER = 'uploads'
+app.secret_key = "fileshare_secret_2025"
+DB_NAME = "env/fileshare.db"
+UPLOAD_FOLDER = "uploads"
 
 # Fix: Ensure env directory exists before DB operations
 os.makedirs("env", exist_ok=True)
@@ -30,29 +39,33 @@ RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 3000
 
 SECURITY_HEADERS = {
-    'X-Frame-Options': 'SAMEORIGIN',
-    'X-Content-Type-Options': 'nosniff',
-    'X-XSS-Protection': '1; mode=block',
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-    'Content-Security-Policy': "default-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": "default-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;",
 }
 
 import time
 
+
 def rate_limit_check():
-    client_ip = request.remote_addr or '127.0.0.1'
+    client_ip = request.remote_addr or "127.0.0.1"
     current_time = time.time()
-    
+
     if client_ip not in request_counts:
         request_counts[client_ip] = []
-        
-    request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < RATE_LIMIT_WINDOW]
-    
+
+    request_counts[client_ip] = [
+        t for t in request_counts[client_ip] if current_time - t < RATE_LIMIT_WINDOW
+    ]
+
     if len(request_counts[client_ip]) >= RATE_LIMIT_MAX:
         return False
-        
+
     request_counts[client_ip].append(current_time)
     return True
+
 
 def add_security_headers(response):
     for k, v in SECURITY_HEADERS.items():
@@ -60,14 +73,17 @@ def add_security_headers(response):
             response.headers[k] = v
     return response
 
+
 @app.before_request
 def before_request():
     if not rate_limit_check():
         return "Rate limit exceeded", 429
-        
+
+
 @app.after_request
 def after_request(response):
     return add_security_headers(response)
+
 
 # HTML TEMPLATES
 HOME_PAGE = """
@@ -377,209 +393,269 @@ LOGIN_PAGE = """
 </html>
 """
 
+
 # DATABASE
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS files (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS files (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         filename TEXT,
         filepath TEXT,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
+    )""")
+
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         users = [
-            ('admin', hashlib.md5(b'admin123').hexdigest()),
-            ('user', hashlib.md5(b'password').hexdigest())
+            ("admin", hashlib.md5(b"admin123").hexdigest()),
+            ("user", hashlib.md5(b"password").hexdigest()),
         ]
-        c.executemany('INSERT INTO users (username, password) VALUES (?, ?)', users)
-        
+        c.executemany("INSERT INTO users (username, password) VALUES (?, ?)", users)
+
         # Add hidden file (IDOR Flag) for admin (user_id 1)
-        c.execute('INSERT INTO files (user_id, filename, filepath, description) VALUES (?, ?, ?, ?)',
-                 (1, 'secret_plans.txt', 'uploads/flag.txt', 'CTF{fileshare_idor_description_flag_404}'))
-    
+        c.execute(
+            "INSERT INTO files (user_id, filename, filepath, description) VALUES (?, ?, ?, ?)",
+            (
+                1,
+                "secret_plans.txt",
+                "uploads/flag.txt",
+                "CTF{fileshare_idor_description_flag_404}",
+            ),
+        )
+
     conn.commit()
     conn.close()
+
 
 def get_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
-@app.route('/')
+
+@app.route("/")
 def index():
-    if 'user_id' in session:
+    if "user_id" in session:
         conn = get_db()
-        files = conn.execute('SELECT * FROM files WHERE user_id = ?', (session['user_id'],)).fetchall()
+        files = conn.execute(
+            "SELECT * FROM files WHERE user_id = ?", (session["user_id"],)
+        ).fetchall()
         conn.close()
         return render_template_string(HOME_PAGE, files=files, session=session)
-    
+
     return render_template_string(HOME_PAGE, files=[], session=session)
 
-@app.route('/login', methods=['GET', 'POST'])
-@app.route('/api/login', methods=['POST'])
+
+@app.route("/login", methods=["GET", "POST"])
+@app.route("/api/login", methods=["POST"])
 def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
         conn = get_db()
-        user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?',
-                           (username, hashlib.md5(password.encode()).hexdigest())).fetchone()
+        user = conn.execute(
+            "SELECT * FROM users WHERE username = ? AND password = ?",
+            (username, hashlib.md5(password.encode()).hexdigest()),
+        ).fetchone()
         conn.close()
-        
+
         if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            return redirect('/')
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            return redirect("/")
         return "Invalid credentials", 401
-    
+
     return render_template_string(LOGIN_PAGE)
 
-@app.route('/register', methods=['GET', 'POST'])
+
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
         conn = get_db()
         try:
-            conn.execute('INSERT INTO users (username, password) VALUES (?, ?)',
-                        (username, hashlib.md5(password.encode()).hexdigest()))
+            conn.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, hashlib.md5(password.encode()).hexdigest()),
+            )
             conn.commit()
-            return redirect('/login')
+            return redirect("/login")
         except:
             return "Username already exists", 400
         finally:
             conn.close()
-    
-    return render_template_string(LOGIN_PAGE.replace('Login', 'Register'))
 
-@app.route('/upload', methods=['POST'])
-@app.route('/api/upload', methods=['POST'])
+    return render_template_string(LOGIN_PAGE.replace("Login", "Register"))
+
+
+@app.route("/upload", methods=["POST"])
+@app.route("/api/upload", methods=["POST"])
 def upload():
-    if 'user_id' not in session:
-        return redirect('/login')
-    
-    if 'file' not in request.files:
-        msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
-            '<div class="alert alert-error">No file provided</div>{% if session.get(\'username\') %}')
+    if "user_id" not in session:
+        return redirect("/login")
+
+    if "file" not in request.files:
+        msg_html = HOME_PAGE.replace(
+            "{% if session.get('username') %}",
+            "<div class=\"alert alert-error\">No file provided</div>{% if session.get('username') %}",
+        )
         return render_template_string(msg_html, files=[], session=session)
-    
-    file = request.files['file']
-    description = request.form.get('description', '').strip()
-    
-    if file.filename == '':
-        msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
-            '<div class="alert alert-error">Please select a file</div>{% if session.get(\'username\') %}')
+
+    file = request.files["file"]
+    description = request.form.get("description", "").strip()
+
+    if file.filename == "":
+        msg_html = HOME_PAGE.replace(
+            "{% if session.get('username') %}",
+            "<div class=\"alert alert-error\">Please select a file</div>{% if session.get('username') %}",
+        )
         conn = get_db()
-        files = conn.execute('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', (session['user_id'],)).fetchall()
+        files = conn.execute(
+            "SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC",
+            (session["user_id"],),
+        ).fetchall()
         conn.close()
         return render_template_string(msg_html, files=files, session=session)
-    
+
     # VULN: Unrestricted file upload - no validation
     filename = file.filename
     unique_filename = f"{uuid.uuid4()}_{filename}"
     filepath = os.path.join(UPLOAD_FOLDER, unique_filename)
     file.save(filepath)
-    
+
     # Get file size
     file_size = os.path.getsize(filepath)
-    
+
     conn = get_db()
-    conn.execute('INSERT INTO files (user_id, filename, filepath, description) VALUES (?, ?, ?, ?)',
-                (session['user_id'], filename, filepath, description))
+    conn.execute(
+        "INSERT INTO files (user_id, filename, filepath, description) VALUES (?, ?, ?, ?)",
+        (session["user_id"], filename, filepath, description),
+    )
     conn.commit()
     success_msg = f'File "{filename}" uploaded successfully!'
-    alert_div = '<div class="alert alert-success">' + success_msg + '</div>'
-    msg_html = HOME_PAGE.replace('{% if session.get(\'username\') %}', 
-        alert_div + '{% if session.get(\'username\') %}')
-    files = conn.execute('SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC', (session['user_id'],)).fetchall()
+    alert_div = '<div class="alert alert-success">' + success_msg + "</div>"
+    msg_html = HOME_PAGE.replace(
+        "{% if session.get('username') %}",
+        alert_div + "{% if session.get('username') %}",
+    )
+    files = conn.execute(
+        "SELECT * FROM files WHERE user_id = ? ORDER BY created_at DESC",
+        (session["user_id"],),
+    ).fetchall()
     conn.close()
-    
-    response = make_response(render_template_string(msg_html, files=files, session=session))
-    
+
+    response = make_response(
+        render_template_string(msg_html, files=files, session=session)
+    )
+
     # Check for vulnerability confirmation
-    xss_patterns = ['<script', 'javascript:', 'onerror=', 'onload=', '<svg', '<img', 'alert(', 'confirm(']
+    xss_patterns = [
+        "<script",
+        "javascript:",
+        "onerror=",
+        "onload=",
+        "<svg",
+        "<img",
+        "alert(",
+        "confirm(",
+    ]
     if any(pattern in description.lower() for pattern in xss_patterns):
-        response.headers['X-Vuln-Confirmed'] = 'STORED_XSS_UPLOAD'
-    elif not file.filename.lower().endswith(('.txt', '.pdf', '.png', '.jpg', '.jpeg', '.gif')):
-         response.headers['X-Vuln-Confirmed'] = 'UNRESTRICTED_FILE_UPLOAD'
-         
+        response.headers["X-Vuln-Confirmed"] = "STORED_XSS_UPLOAD"
+    elif not file.filename.lower().endswith(
+        (".txt", ".pdf", ".png", ".jpg", ".jpeg", ".gif")
+    ):
+        response.headers["X-Vuln-Confirmed"] = "UNRESTRICTED_FILE_UPLOAD"
+
     return response
 
-@app.route('/download/<int:file_id>')
-@app.route('/api/download/<int:file_id>', methods=['GET'])
+
+@app.route("/download/<int:file_id>")
+@app.route("/api/download/<int:file_id>", methods=["GET"])
 def download(file_id):
     # VULN: IDOR - no authorization check
     conn = get_db()
-    file_record = conn.execute('SELECT * FROM files WHERE id = ?', (file_id,)).fetchone()
+    file_record = conn.execute(
+        "SELECT * FROM files WHERE id = ?", (file_id,)
+    ).fetchone()
     conn.close()
-    
+
     if not file_record:
         return "File not found", 404
-    
+
     # VULN: Path traversal possible
-    response = make_response(send_file(file_record['filepath'], as_attachment=True, download_name=file_record['filename']))
-    if 'user_id' in session and session['user_id'] != file_record['user_id']:
-        response.headers['X-Vuln-Confirmed'] = 'IDOR_DOWNLOAD'
+    response = make_response(
+        send_file(
+            file_record["filepath"],
+            as_attachment=True,
+            download_name=file_record["filename"],
+        )
+    )
+    if "user_id" in session and session["user_id"] != file_record["user_id"]:
+        response.headers["X-Vuln-Confirmed"] = "IDOR_DOWNLOAD"
     return response
 
-@app.route('/delete/<int:file_id>')
+
+@app.route("/delete/<int:file_id>")
 def delete(file_id):
     # VULN: IDOR - can delete anyone's files
     conn = get_db()
-    file_record = conn.execute('SELECT * FROM files WHERE id = ?', (file_id,)).fetchone()
-    
+    file_record = conn.execute(
+        "SELECT * FROM files WHERE id = ?", (file_id,)
+    ).fetchone()
+
     if file_record:
         try:
-            os.remove(file_record['filepath'])
+            os.remove(file_record["filepath"])
         except:
             pass
-        conn.execute('DELETE FROM files WHERE id = ?', (file_id,))
+        conn.execute("DELETE FROM files WHERE id = ?", (file_id,))
         conn.commit()
-    
-    conn.close()
-    return redirect('/')
 
-@app.route('/check_status')
+    conn.close()
+    return redirect("/")
+
+
+@app.route("/check_status")
 def check_status():
     """VULN: Command Injection via 'host' parameter"""
-    host = request.args.get('host', 'localhost')
-    
+    host = request.args.get("host", "localhost")
+
     # DANGER: Direct shell execution
-    command = f"ping -n 1 {host}" if os.name == 'nt' else f"ping -c 1 {host}"
-    
+    command = f"ping -n 1 {host}" if os.name == "nt" else f"ping -c 1 {host}"
+
     try:
         # Intentionally vulnerable
         output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT)
-        output_str = output.decode('utf-8', errors='replace')
-        
+        output_str = output.decode("utf-8", errors="replace")
+
         # Check if attacker ran 'whoami' or similar to get flag
         # We'll hide the flag in an environment variable or specific file check
-        if 'CTF_CMD_INJECTION' in os.environ:
-             # This part is just simulated context, the real exploit returns the env var or file content
-             pass
+        if "CTF_CMD_INJECTION" in os.environ:
+            # This part is just simulated context, the real exploit returns the env var or file content
+            pass
     except subprocess.CalledProcessError as e:
-        output_str = e.output.decode('utf-8', errors='replace') if e.output else str(e)
+        output_str = e.output.decode("utf-8", errors="replace") if e.output else str(e)
     except Exception as e:
         output_str = str(e)
-        
+
     # Easter egg flag if they cat the right file or run specific echo
-    if 'flag_cmd' in host:
-         output_str += "\n\nCTF{fileshare_cmd_injection_root_99}"
-         
-    page_content = HOME_PAGE.replace('{{ content | safe }}', 
-        f'''
+    if "flag_cmd" in host:
+        output_str += "\n\nCTF{fileshare_cmd_injection_root_99}"
+
+    page_content = HOME_PAGE.replace(
+        "{{ content | safe }}",
+        f"""
         <div class="card">
             <h2>System Status Check</h2>
             <form action="/check_status" method="GET">
@@ -597,18 +673,23 @@ def check_status():
                 <a href="/" class="btn btn-secondary">Back to Files</a>
             </div>
         </div>
-        ''')
-        
-    response = make_response(render_template_string(page_content, files=[], session=session))
-    if 'CTF{' in output_str:
-        response.headers['X-Vuln-Confirmed'] = 'CMD_INJECTION'
+        """,
+    )
+
+    response = make_response(
+        render_template_string(page_content, files=[], session=session)
+    )
+    if "CTF{" in output_str:
+        response.headers["X-Vuln-Confirmed"] = "CMD_INJECTION"
     return response
+
 
 # ============================================================================
 # RESET ENDPOINT
 # ============================================================================
 
-@app.route('/api/reset', methods=['POST'])
+
+@app.route("/api/reset", methods=["POST"])
 def reset_env():
     """Reset environment state for training"""
     try:
@@ -616,28 +697,33 @@ def reset_env():
         conn = sqlite3.connect(DB_NAME)
         conn.close()
         os.remove(DB_NAME)
-        
+
         # Clean uploads (optional, but good for cleanup)
         for f in os.listdir(UPLOAD_FOLDER):
-             if f != 'flag.txt': 
-                 try:
-                     os.remove(os.path.join(UPLOAD_FOLDER, f))
-                 except: pass
+            if f != "flag.txt":
+                try:
+                    os.remove(os.path.join(UPLOAD_FOLDER, f))
+                except:
+                    pass
     except:
         pass
     init_db()
-    
+
     # Clear session
     session.clear()
-    
-    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
 
-@app.route('/logout')
+    return jsonify(
+        {"status": "reset_complete", "message": "Environment reset successfully"}
+    )
+
+
+@app.route("/logout")
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect("/")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print("=" * 70)
     print("VULNERABLE FILE SHARE - Research Variant 5")
     print("=" * 70)

@@ -148,10 +148,10 @@ def calculate_detection_accuracy(agent_findings, ground_truth):
 ### Training Scripts
 ```bash
 # Train with improved algorithms
-python train_multi_target.py --episodes 1000 --improved
+python train_mock_targets.py --episodes 1000
 
 # Train with baseline DQN
-python train_multi_target.py --episodes 1000 --baseline
+python train_mock_targets.py --episodes 1000
 ```
 
 ### Evaluation Scripts
@@ -231,7 +231,7 @@ python research/analyze_training.py
 python start_services.py
 
 # 2. Train agent (improved algorithms)
-python train_multi_target.py --episodes 1000 --improved
+python train_mock_targets.py --episodes 1000
 
 # 3. Run evaluation
 python research/evaluate_agent.py

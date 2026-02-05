@@ -28,8 +28,8 @@ The DRL Web Vulnerability Scanner uses a **Deep Q-Network (DQN)** architecture w
 │                   Environment Layer                          │
 ├─────────────────────────────────────────────────────────────┤
 │  WebSecurityGym (Gymnasium Environment)                    │
-│  ├── State Space (11 dimensions)                           │
-│  ├── Action Space (100 discrete actions)                   │
+│  ├── State Space (15 dimensions)                           │
+│  ├── Action Space (50 mock / 150 full)                     │
 │  ├── Reward Function (Phase-based shaping)                 │
 │  └── Action Execution (HTTP requests, payload injection)  │
 └─────────────────────────────────────────────────────────────┘
@@ -75,12 +75,12 @@ crawl_depth = scan_config.crawl_depth
 ### Training Flow
 
 1. **Initialize** → Environment resets, agent starts
-2. **Observe** → Agent receives state (11-dim vector)
-3. **Act** → Agent selects action (0-99)
+2. **Observe** → Agent receives state (15-dim vector)
+3. **Act** → Agent selects action (0-49 mock / 0-149 full)
 4. **Execute** → Environment performs action (HTTP request)
 5. **Reward** → Environment calculates reward
 6. **Learn** → Agent stores experience and learns
-7. **Repeat** → Until episode ends (100 steps)
+7. **Repeat** → Until episode ends (50-100 steps)
 
 ### Scanning Flow
 
@@ -95,10 +95,10 @@ crawl_depth = scan_config.crawl_depth
 ### Dueling DQN Structure
 
 ```
-Input (11-dim state)
+Input (15-dim state)
     ↓
 Feature Layer
-    ├── Linear(11 → 256) → ReLU
+    ├── Linear(15 → 256) → ReLU
     └── Linear(256 → 128) → ReLU
     ↓
     ├── Value Stream → V(s)    [Scalar: How good is this state?]
@@ -106,7 +106,7 @@ Feature Layer
     ↓
     Combine: Q(s,a) = V(s) + (A(s,a) - mean(A(s)))
     ↓
-Output (100-dim Q-values)
+Output (50/150-dim Q-values)
 ```
 
 ### Hyperparameters
@@ -119,16 +119,18 @@ epsilon_start: 1.0
 epsilon_end: 0.01
 epsilon_decay: 0.995
 batch_size: 64 (configurable)
-memory_size: 10000
+memory_size: 100000
 tau (soft update): 0.01
 
 # Training Configuration
 max_episodes: 10000
-max_steps_per_episode: 100
-checkpoint_frequency: 10
+max_steps_per_episode: 50
+checkpoint_frequency: 50
 ```
 
 ## Action Space
+
+Mock targets use a 50-action tuned subset; the full action book extends to 150 actions with advanced techniques.
 
 ### Phase 1: Reconnaissance (Actions 0-29)
 - **Passive OSINT (0-19):** Whois, DNS, GitHub, Shodan, Wayback Machine
@@ -149,7 +151,7 @@ checkpoint_frequency: 10
 
 ## State Space
 
-11-dimensional observation vector:
+15-dimensional observation vector:
 
 1. **Current Page ID** (0-1000) - Normalized
 2. **HTTP Status Code** (200, 404, 500, etc.) - Normalized
@@ -162,35 +164,39 @@ checkpoint_frequency: 10
 9. **Content Variance** (0-1) - Page similarity
 10. **Input Count** (number of forms/inputs) - Normalized
 11. **Business Context** (0/1) - Admin/payment pages
+12. **Steps Remaining** (0-1) - Episode progress
+13. **Phase ID** (0-1) - Kill chain phase
+14. **Vulnerability Coverage** (0-1) - Unique vulns found
+15. **Endpoint Coverage** (0-1) - Visited/known ratio
 
 ## Reward Function
 
 ```python
 # Base reward (per step)
-reward = -1.0
+reward = -0.01
 
 # Vulnerability discovered
 if vulnerability_found:
-    reward += 100.0
+    reward += 1.0
 
 # Phase-based bonuses
 if action_phase == current_phase:
-    reward += 10.0  # Correct phase
+    reward += 0.1  # Correct phase
     phase_progress[phase] += 1
     
     if phase_completed:
-        reward += 20.0  # Phase completion
+        reward += 0.2  # Phase completion
         unlock_next_phase()
 
 # Penalties
 if wrong_phase:
-    reward -= 5.0  # Phase skip penalty
+    reward -= 0.05  # Phase skip penalty
     
 if waf_triggered:
-    reward -= 10.0  # WAF detection
+    reward -= 0.1  # WAF detection
     
 if rate_limited:
-    reward -= 20.0  # Rate limiting
+    reward -= 0.1  # Rate limiting
 ```
 
 ## Configuration System

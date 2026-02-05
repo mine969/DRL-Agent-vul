@@ -1,7 +1,10 @@
 gymnasium
+gym
 torch
 flask
+werkzeug
 requests
+urllib3
 numpy
 pyjwt
 beautifulsoup4

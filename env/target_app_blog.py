@@ -8,7 +8,16 @@ Focus: XSS, SSTI, CSRF, File Inclusion
 ⚠️ DELIBERATELY VULNERABLE - For Research & Training Only!
 """
 
-from flask import Flask, request, session, redirect, render_template_string, url_for, make_response, jsonify
+from flask import (
+    Flask,
+    request,
+    session,
+    redirect,
+    render_template_string,
+    url_for,
+    make_response,
+    jsonify,
+)
 import sqlite3
 import hashlib
 import os
@@ -16,8 +25,8 @@ import jwt
 import requests  # Fix: Missing import for SSRF functionality
 
 app = Flask(__name__)
-app.secret_key = 'blog_secret_2025'
-DB_NAME = 'env/blog.db'
+app.secret_key = "blog_secret_2025"
+DB_NAME = "env/blog.db"
 
 # Fix: Ensure env directory exists before DB operations
 os.makedirs("env", exist_ok=True)
@@ -28,29 +37,33 @@ RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX = 3000
 
 SECURITY_HEADERS = {
-    'X-Frame-Options': 'SAMEORIGIN',
-    'X-Content-Type-Options': 'nosniff',
-    'X-XSS-Protection': '1; mode=block',
-    'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
-    'Content-Security-Policy': "default-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;",
+    "X-Frame-Options": "SAMEORIGIN",
+    "X-Content-Type-Options": "nosniff",
+    "X-XSS-Protection": "1; mode=block",
+    "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
+    "Content-Security-Policy": "default-src 'self' 'unsafe-inline' https:; img-src 'self' data: https:;",
 }
 
 import time
 
+
 def rate_limit_check():
-    client_ip = request.remote_addr or '127.0.0.1'
+    client_ip = request.remote_addr or "127.0.0.1"
     current_time = time.time()
-    
+
     if client_ip not in request_counts:
         request_counts[client_ip] = []
-        
-    request_counts[client_ip] = [t for t in request_counts[client_ip] if current_time - t < RATE_LIMIT_WINDOW]
-    
+
+    request_counts[client_ip] = [
+        t for t in request_counts[client_ip] if current_time - t < RATE_LIMIT_WINDOW
+    ]
+
     if len(request_counts[client_ip]) >= RATE_LIMIT_MAX:
         return False
-        
+
     request_counts[client_ip].append(current_time)
     return True
+
 
 def add_security_headers(response):
     for k, v in SECURITY_HEADERS.items():
@@ -58,14 +71,17 @@ def add_security_headers(response):
             response.headers[k] = v
     return response
 
+
 @app.before_request
 def before_request():
     if not rate_limit_check():
         return "Rate limit exceeded", 429
-        
+
+
 @app.after_request
 def after_request(response):
     return add_security_headers(response)
+
 
 # HTML TEMPLATES
 HOME_PAGE = """
@@ -492,105 +508,203 @@ NEW_POST_PAGE = """
 </html>
 """
 
+
 # DATABASE
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
+    c.execute("""CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         username TEXT UNIQUE,
         password TEXT
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS posts (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS posts (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         user_id INTEGER,
         title TEXT,
         content TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS comments (
+    )""")
+    c.execute("""CREATE TABLE IF NOT EXISTS comments (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         post_id INTEGER,
         user_id INTEGER,
         content TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    )''')
-    
+    )""")
+
     c.execute("SELECT COUNT(*) FROM users")
     if c.fetchone()[0] == 0:
         users = [
-            ('admin', hashlib.md5(b'admin123').hexdigest()),
-            ('tech_writer', hashlib.md5(b'password').hexdigest()),
-            ('travel_blogger', hashlib.md5(b'password').hexdigest()),
-            ('food_critic', hashlib.md5(b'password').hexdigest()),
-            ('lifestyle_guru', hashlib.md5(b'password').hexdigest()),
-            ('dev_blogger', hashlib.md5(b'password').hexdigest())
+            ("admin", hashlib.md5(b"admin123").hexdigest()),
+            ("tech_writer", hashlib.md5(b"password").hexdigest()),
+            ("travel_blogger", hashlib.md5(b"password").hexdigest()),
+            ("food_critic", hashlib.md5(b"password").hexdigest()),
+            ("lifestyle_guru", hashlib.md5(b"password").hexdigest()),
+            ("dev_blogger", hashlib.md5(b"password").hexdigest()),
         ]
-        c.executemany('INSERT INTO users (username, password) VALUES (?, ?)', users)
-        
+        c.executemany("INSERT INTO users (username, password) VALUES (?, ?)", users)
+
         # Create diverse blog posts
         posts = [
-            (1, 'Welcome to VulnBlog!', 'This is a deliberately vulnerable blog platform for security research. Feel free to explore and test!'),
-            (1, 'Secret Admin Note', 'CTF{blog_stored_xss_champion_99} - Keep this hidden!'),
-            (2, 'Getting Started with Python in 2024', 'Python continues to dominate as one of the most popular programming languages. Here are the essential tools and frameworks you need to know...'),
-            (2, '10 VS Code Extensions Every Developer Needs', 'Boost your productivity with these must-have extensions. From code formatting to Git integration, these tools will transform your workflow...'),
-            (3, 'Hidden Gems of Southeast Asia', 'Beyond the tourist hotspots, Southeast Asia offers incredible hidden destinations. Let me share my favorites from 3 years of travel...'),
-            (3, 'Budget Travel Tips: How I Travel on $30/Day', 'Traveling doesn\'t have to break the bank. Here are my proven strategies for exploring the world on a tight budget...'),
-            (4, 'The Perfect Homemade Pizza Recipe', 'After years of experimentation, I\'ve perfected my pizza dough recipe. The secret? Time and temperature control...'),
-            (4, 'Restaurant Review: La Bella Vita', 'This hidden Italian gem in downtown serves the most authentic carbonara I\'ve had outside of Rome. Here\'s my full review...'),
-            (5, 'Minimalist Living: 6 Months Later', 'Six months ago, I decluttered my entire life. Here\'s what I learned about living with less and why I\'ll never go back...'),
-            (5, 'Morning Routine for Maximum Productivity', 'How you start your day determines how you live your life. Here\'s the morning routine that changed everything for me...'),
-            (6, 'Building a REST API with FastAPI', 'FastAPI is revolutionizing Python web development. This tutorial covers everything from setup to deployment...'),
-            (6, 'Docker Best Practices for 2024', 'Containerization is essential for modern development. Here are the best practices I\'ve learned from deploying hundreds of containers...'),
-            (2, 'Machine Learning Basics: A Practical Guide', 'Demystifying ML for beginners. We\'ll build a simple classifier from scratch using scikit-learn...'),
-            (3, 'Solo Female Travel: Safety Tips', 'As a solo female traveler, safety is paramount. Here are my essential tips for staying safe while exploring the world...'),
-            (4, 'Sourdough Starter: Complete Guide', 'Creating and maintaining a sourdough starter is easier than you think. This comprehensive guide covers everything...'),
-            (5, 'Digital Detox: One Week Without Social Media', 'I spent a week completely offline. The results surprised me. Here\'s what happened and what I learned...'),
-            (6, 'Git Workflows for Teams', 'Effective Git workflows can make or break a development team. Here\'s what works best for distributed teams...'),
-            (2, 'TypeScript vs JavaScript in 2024', 'The debate continues. Here\'s my take after using both in production for 5 years...'),
-            (3, 'Backpacking Through Patagonia', 'The trek through Torres del Paine was the most challenging and rewarding experience of my life. Here\'s my complete guide...'),
-            (4, 'Fermentation 101: Making Kimchi at Home', 'Fermented foods are having a moment, and for good reason. Let\'s start with homemade kimchi...'),
-            (5, 'Work-Life Balance in the Remote Era', 'Working from home blurred all the boundaries. Here\'s how I reclaimed my work-life balance...'),
-            (1, 'Database Configuration (Private)', 'CTF{blog_sqli_hidden_post_flag_55} - DO NOT PUBLISH')
+            (
+                1,
+                "Welcome to VulnBlog!",
+                "This is a deliberately vulnerable blog platform for security research. Feel free to explore and test!",
+            ),
+            (
+                1,
+                "Secret Admin Note",
+                "CTF{blog_stored_xss_champion_99} - Keep this hidden!",
+            ),
+            (
+                2,
+                "Getting Started with Python in 2024",
+                "Python continues to dominate as one of the most popular programming languages. Here are the essential tools and frameworks you need to know...",
+            ),
+            (
+                2,
+                "10 VS Code Extensions Every Developer Needs",
+                "Boost your productivity with these must-have extensions. From code formatting to Git integration, these tools will transform your workflow...",
+            ),
+            (
+                3,
+                "Hidden Gems of Southeast Asia",
+                "Beyond the tourist hotspots, Southeast Asia offers incredible hidden destinations. Let me share my favorites from 3 years of travel...",
+            ),
+            (
+                3,
+                "Budget Travel Tips: How I Travel on $30/Day",
+                "Traveling doesn't have to break the bank. Here are my proven strategies for exploring the world on a tight budget...",
+            ),
+            (
+                4,
+                "The Perfect Homemade Pizza Recipe",
+                "After years of experimentation, I've perfected my pizza dough recipe. The secret? Time and temperature control...",
+            ),
+            (
+                4,
+                "Restaurant Review: La Bella Vita",
+                "This hidden Italian gem in downtown serves the most authentic carbonara I've had outside of Rome. Here's my full review...",
+            ),
+            (
+                5,
+                "Minimalist Living: 6 Months Later",
+                "Six months ago, I decluttered my entire life. Here's what I learned about living with less and why I'll never go back...",
+            ),
+            (
+                5,
+                "Morning Routine for Maximum Productivity",
+                "How you start your day determines how you live your life. Here's the morning routine that changed everything for me...",
+            ),
+            (
+                6,
+                "Building a REST API with FastAPI",
+                "FastAPI is revolutionizing Python web development. This tutorial covers everything from setup to deployment...",
+            ),
+            (
+                6,
+                "Docker Best Practices for 2024",
+                "Containerization is essential for modern development. Here are the best practices I've learned from deploying hundreds of containers...",
+            ),
+            (
+                2,
+                "Machine Learning Basics: A Practical Guide",
+                "Demystifying ML for beginners. We'll build a simple classifier from scratch using scikit-learn...",
+            ),
+            (
+                3,
+                "Solo Female Travel: Safety Tips",
+                "As a solo female traveler, safety is paramount. Here are my essential tips for staying safe while exploring the world...",
+            ),
+            (
+                4,
+                "Sourdough Starter: Complete Guide",
+                "Creating and maintaining a sourdough starter is easier than you think. This comprehensive guide covers everything...",
+            ),
+            (
+                5,
+                "Digital Detox: One Week Without Social Media",
+                "I spent a week completely offline. The results surprised me. Here's what happened and what I learned...",
+            ),
+            (
+                6,
+                "Git Workflows for Teams",
+                "Effective Git workflows can make or break a development team. Here's what works best for distributed teams...",
+            ),
+            (
+                2,
+                "TypeScript vs JavaScript in 2024",
+                "The debate continues. Here's my take after using both in production for 5 years...",
+            ),
+            (
+                3,
+                "Backpacking Through Patagonia",
+                "The trek through Torres del Paine was the most challenging and rewarding experience of my life. Here's my complete guide...",
+            ),
+            (
+                4,
+                "Fermentation 101: Making Kimchi at Home",
+                "Fermented foods are having a moment, and for good reason. Let's start with homemade kimchi...",
+            ),
+            (
+                5,
+                "Work-Life Balance in the Remote Era",
+                "Working from home blurred all the boundaries. Here's how I reclaimed my work-life balance...",
+            ),
+            (
+                1,
+                "Database Configuration (Private)",
+                "CTF{blog_sqli_hidden_post_flag_55} - DO NOT PUBLISH",
+            ),
         ]
-        c.executemany('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)', posts)
-    
+        c.executemany(
+            "INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)", posts
+        )
+
     conn.commit()
     conn.close()
+
 
 def get_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
     return conn
 
-@app.route('/')
-@app.route('/api/posts', methods=['GET'])
+
+@app.route("/")
+@app.route("/api/posts", methods=["GET"])
 def index():
-    search_query = request.args.get('search', '').strip()
-    
+    search_query = request.args.get("search", "").strip()
+
     # REFLECTED XSS FLAG TRIGGER
     # Expanded detection for training
-    if any(p in search_query.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
+    if any(
+        p in search_query.lower()
+        for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]
+    ):
         # Append flag to the reflected output so verification finds it if checking content
         if "CTF" not in search_query:
-             search_query += " CTF{blog_reflected_xss_search_1337}"
-        
+            search_query += " CTF{blog_reflected_xss_search_1337}"
+
     conn = get_db()
-    
+
     if search_query:
         # VULN: Potential SQL injection if not properly handled
-        posts = conn.execute('''SELECT posts.*, users.username as author 
+        posts = conn.execute(
+            """SELECT posts.*, users.username as author 
                                FROM posts JOIN users ON posts.user_id = users.id 
                                WHERE posts.title LIKE ? OR posts.content LIKE ?
-                               ORDER BY created_at DESC''', 
-                             (f'%{search_query}%', f'%{search_query}%')).fetchall()
+                               ORDER BY created_at DESC""",
+            (f"%{search_query}%", f"%{search_query}%"),
+        ).fetchall()
     else:
-        posts = conn.execute('''SELECT posts.*, users.username as author 
+        posts = conn.execute("""SELECT posts.*, users.username as author 
                                FROM posts JOIN users ON posts.user_id = users.id 
-                               ORDER BY created_at DESC LIMIT 20''').fetchall()
-    
+                               ORDER BY created_at DESC LIMIT 20""").fetchall()
+
     conn.close()
-    
+
     # Add search form to home page
     home_with_search = HOME_PAGE.replace(
         '<h2 style="margin-bottom: 30px; font-size: 32px;">Latest Stories</h2>',
@@ -598,198 +712,266 @@ def index():
             <h2 style="font-size: 32px; margin-bottom: 15px;">Latest Stories</h2>
             <form method="GET" action="/" style="display: flex; gap: 10px; max-width: 500px;">
                 <input type="text" name="search" placeholder="Search posts..." 
-                       value="''' + search_query + '''" 
+                       value="'''
+        + search_query
+        + """" 
                        style="flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px;">
                 <input type="submit" value="Search" class="btn">
             </form>
-        </div>'''
+        </div>""",
     )
-    
-    response = make_response(render_template_string(home_with_search, posts=posts, session=session, search_query=search_query))
-    response = make_response(render_template_string(home_with_search, posts=posts, session=session, search_query=search_query))
-    if any(p in search_query.lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
-        response.headers['X-Vuln-Confirmed'] = 'REFLECTED_XSS'
+
+    response = make_response(
+        render_template_string(
+            home_with_search, posts=posts, session=session, search_query=search_query
+        )
+    )
+    response = make_response(
+        render_template_string(
+            home_with_search, posts=posts, session=session, search_query=search_query
+        )
+    )
+    if any(
+        p in search_query.lower()
+        for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]
+    ):
+        response.headers["X-Vuln-Confirmed"] = "REFLECTED_XSS"
     return response
 
-@app.route('/login', methods=['GET', 'POST'])
-@app.route('/api/login', methods=['POST'])
+
+@app.route("/login", methods=["GET", "POST"])
+@app.route("/api/login", methods=["POST"])
 def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
         conn = get_db()
-        user = conn.execute('SELECT * FROM users WHERE username = ? AND password = ?',
-                           (username, hashlib.md5(password.encode()).hexdigest())).fetchone()
+        user = conn.execute(
+            "SELECT * FROM users WHERE username = ? AND password = ?",
+            (username, hashlib.md5(password.encode()).hexdigest()),
+        ).fetchone()
         conn.close()
-        
+
         if user:
-            session['user_id'] = user['id']
-            session['username'] = user['username']
-            return redirect('/')
+            session["user_id"] = user["id"]
+            session["username"] = user["username"]
+            return redirect("/")
         return "Invalid credentials", 401
-    
+
     return render_template_string(LOGIN_PAGE)
 
-@app.route('/register', methods=['GET', 'POST'])
+
+@app.route("/register", methods=["GET", "POST"])
 def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
+    if request.method == "POST":
+        username = request.form.get("username")
+        password = request.form.get("password")
+
         conn = get_db()
         try:
-            conn.execute('INSERT INTO users (username, password) VALUES (?, ?)',
-                        (username, hashlib.md5(password.encode()).hexdigest()))
+            conn.execute(
+                "INSERT INTO users (username, password) VALUES (?, ?)",
+                (username, hashlib.md5(password.encode()).hexdigest()),
+            )
             conn.commit()
-            return redirect('/login')
+            return redirect("/login")
         except:
             return "Username already exists", 400
         finally:
             conn.close()
-    
-    return render_template_string(LOGIN_PAGE.replace('Login', 'Register'))
+
+    return render_template_string(LOGIN_PAGE.replace("Login", "Register"))
+
 
 # ============================================================================
 # JWT / OIDC VULNERABILITY IMPLEMENTATION
 # ============================================================================
 
-@app.route('/oidc/login')
+
+@app.route("/oidc/login")
 def oidc_login():
     """Initiate OIDC flow"""
     # Create an unsigned JWT for demonstration (in real flow this comes from provider)
     # Payload: {"user": "demo", "role": "user"}
     # Vulnerable because we accept "alg": "none" in callback
     token = jwt.encode({"user": "demo", "role": "user"}, key=None, algorithm=None)
-    return redirect(url_for('oidc_callback', token=token))
+    return redirect(url_for("oidc_callback", token=token))
 
-@app.route('/oidc/callback')
+
+@app.route("/oidc/callback")
 def oidc_callback():
     """Handle OIDC callback (VULNERABLE: 'alg': 'none' attack)"""
-    token = request.args.get('token')
-    
+    token = request.args.get("token")
+
     try:
         # VULNERABILITY: Explicitly allowing 'none' algorithm
         # In pyjwt < 2.0 this was default behavior if not properly handled.
         # Here we simulate it by decoding without verification if header says none.
         header = jwt.get_unverified_header(token)
-        
-        if header.get('alg') == 'none' or header.get('alg') == None:
-             payload = jwt.decode(token, options={"verify_signature": False})
-             
-             if payload.get('user') == 'admin':
-                 # Use HOME_PAGE as base but simpler content since HTML_TEMPLATE doesn't exist here
-                 flag_content = '<div class="post-card" style="margin-top: 50px;"><h3>🎉 Authentication Bypass Successful</h3><div style="background: #28a745; color: white; padding: 15px; border-radius: 5px; margin-top: 15px;">CTF{jwt_none_algorithm_bypass_99}</div></div>'
-                 full_html = HOME_PAGE.replace('<h2 style="margin-bottom: 30px; font-size: 32px;">Latest Stories</h2>', flag_content)
-                 # Remove the loop part which might cause render errors if posts not passed
-                 full_html = full_html.split('{% for post in posts %}')[0] + '</div></body></html>'
-                 full_html = full_html.split('{% for post in posts %}')[0] + '</div></body></html>'
-                 
-                 response = make_response(render_template_string(full_html, session=session, posts=[]))
-                 response.headers['X-Vuln-Confirmed'] = 'JWT_NONE_ALG'
-                 return response
-                 
-             session['user_id'] = 999
-             session['username'] = payload.get('user', 'dev_user')
-             return redirect('/?msg=Logged in via DevAuth')
-             
+
+        if header.get("alg") == "none" or header.get("alg") == None:
+            payload = jwt.decode(token, options={"verify_signature": False})
+
+            if payload.get("user") == "admin":
+                # Use HOME_PAGE as base but simpler content since HTML_TEMPLATE doesn't exist here
+                flag_content = '<div class="post-card" style="margin-top: 50px;"><h3>🎉 Authentication Bypass Successful</h3><div style="background: #28a745; color: white; padding: 15px; border-radius: 5px; margin-top: 15px;">CTF{jwt_none_algorithm_bypass_99}</div></div>'
+                full_html = HOME_PAGE.replace(
+                    '<h2 style="margin-bottom: 30px; font-size: 32px;">Latest Stories</h2>',
+                    flag_content,
+                )
+                # Remove the loop part which might cause render errors if posts not passed
+                full_html = (
+                    full_html.split("{% for post in posts %}")[0]
+                    + "</div></body></html>"
+                )
+                full_html = (
+                    full_html.split("{% for post in posts %}")[0]
+                    + "</div></body></html>"
+                )
+
+                response = make_response(
+                    render_template_string(full_html, session=session, posts=[])
+                )
+                response.headers["X-Vuln-Confirmed"] = "JWT_NONE_ALG"
+                return response
+
+            session["user_id"] = 999
+            session["username"] = payload.get("user", "dev_user")
+            return redirect("/?msg=Logged in via DevAuth")
+
     except Exception as e:
         return f"OIDC Error: {str(e)}", 400
-        
+
     return "Invalid Token", 400
 
-@app.route('/new-post', methods=['GET', 'POST'])
+
+@app.route("/new-post", methods=["GET", "POST"])
 def new_post():
-    if 'user_id' not in session:
-        return redirect('/login')
-    
-    if request.method == 'POST':
-        title = request.form.get('title')
-        content = request.form.get('content')
-        
+    if "user_id" not in session:
+        return redirect("/login")
+
+    if request.method == "POST":
+        title = request.form.get("title")
+        content = request.form.get("content")
+
         # VULN: Stored XSS - no sanitization
         conn = get_db()
-        conn.execute('INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)',
-                    (session['user_id'], title, content))
+        conn.execute(
+            "INSERT INTO posts (user_id, title, content) VALUES (?, ?, ?)",
+            (session["user_id"], title, content),
+        )
         conn.commit()
         conn.close()
-        return redirect('/')
-    
+        return redirect("/")
+
     return render_template_string(NEW_POST_PAGE)
 
-@app.route('/post/<int:post_id>')
+
+@app.route("/post/<int:post_id>")
 def view_post(post_id):
     conn = get_db()
-    post = conn.execute('''SELECT posts.*, users.username as author 
+    post = conn.execute(
+        """SELECT posts.*, users.username as author 
                           FROM posts JOIN users ON posts.user_id = users.id 
-                          WHERE posts.id = ?''', (post_id,)).fetchone()
-    
+                          WHERE posts.id = ?""",
+        (post_id,),
+    ).fetchone()
+
     if not post:
         conn.close()
         return "Post not found", 404
-    
-    comments = conn.execute('''SELECT comments.*, users.username as author 
+
+    comments = conn.execute(
+        """SELECT comments.*, users.username as author 
                               FROM comments JOIN users ON comments.user_id = users.id 
-                              WHERE post_id = ? ORDER BY created_at DESC''', (post_id,)).fetchall()
-    
+                              WHERE post_id = ? ORDER BY created_at DESC""",
+        (post_id,),
+    ).fetchall()
+
     # Get related posts
-    related_posts = conn.execute('''SELECT posts.*, users.username as author 
+    related_posts = conn.execute(
+        """SELECT posts.*, users.username as author 
                                    FROM posts JOIN users ON posts.user_id = users.id 
                                    WHERE posts.user_id = ? AND posts.id != ? 
-                                   ORDER BY created_at DESC LIMIT 3''', (post['user_id'], post_id)).fetchall()
-    
+                                   ORDER BY created_at DESC LIMIT 3""",
+        (post["user_id"], post_id),
+    ).fetchall()
+
     conn.close()
-    
-    response = make_response(render_template_string(POST_PAGE, post=post, comments=comments, 
-                                 related_posts=related_posts, session=session))
-    
+
+    response = make_response(
+        render_template_string(
+            POST_PAGE,
+            post=post,
+            comments=comments,
+            related_posts=related_posts,
+            session=session,
+        )
+    )
+
     # XSS detection in comments
     for comment in comments:
-        if any(p in comment['content'].lower() for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]):
-            response.headers['X-Vuln-Confirmed'] = 'stored_xss_viewed'
+        if any(
+            p in comment["content"].lower()
+            for p in ["<script", "javascript:", "onerror=", "onload=", "alert("]
+        ):
+            response.headers["X-Vuln-Confirmed"] = "stored_xss_viewed"
             break
-            
+
     return response
 
-@app.route('/post/<int:post_id>/comment', methods=['POST'])
+
+@app.route("/post/<int:post_id>/comment", methods=["POST"])
 def add_comment(post_id):
-    if 'user_id' not in session:
-        return redirect('/login')
-    
-    content = request.form.get('content')
-    
+    if "user_id" not in session:
+        return redirect("/login")
+
+    content = request.form.get("content")
+
     # VULN: Stored XSS
     conn = get_db()
-    conn.execute('INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)',
-                (post_id, session['user_id'], content))
+    conn.execute(
+        "INSERT INTO comments (post_id, user_id, content) VALUES (?, ?, ?)",
+        (post_id, session["user_id"], content),
+    )
     conn.commit()
     conn.close()
-    
-    return redirect(f'/post/{post_id}')
 
-@app.route('/import_post', methods=['GET', 'POST'])
+    return redirect(f"/post/{post_id}")
+
+
+@app.route("/import_post", methods=["GET", "POST"])
 def import_post():
     """VULN: Server-Side Request Forgery (SSRF)"""
-    if 'user_id' not in session:
-        return redirect('/login')
-    
-    if request.method == 'POST':
-        url = request.form.get('url', '')
+    if "user_id" not in session:
+        return redirect("/login")
+
+    if request.method == "POST":
+        url = request.form.get("url", "")
         try:
             # DANGER: Arbitrary URL fetch
-            if 'flag_ssrf' in url or '127.0.0.1/admin/secrets' in url:
-                 response = make_response("Imported: CTF{blog_ssrf_internal_network_access}")
-                 response.headers['X-Vuln-Confirmed'] = 'ssrf_success'
-                 return response
-                 
+            if "flag_ssrf" in url or "127.0.0.1/admin/secrets" in url:
+                response = make_response(
+                    "Imported: CTF{blog_ssrf_internal_network_access}"
+                )
+                response.headers["X-Vuln-Confirmed"] = "ssrf_success"
+                return response
+
             # Real request (filtered for safety in this mock env)
             r = requests.get(url, timeout=2)
-            content = r.text[:500] # Preview
-            
-            return render_template_string(HOME_PAGE, content=f"<h3>Import Preview</h3><pre>{content}</pre>", session=session)
+            content = r.text[:500]  # Preview
+
+            return render_template_string(
+                HOME_PAGE,
+                content=f"<h3>Import Preview</h3><pre>{content}</pre>",
+                session=session,
+            )
         except Exception as e:
-            return render_template_string(HOME_PAGE, content=f"<h3>Error</h3><p>{str(e)}</p>", session=session)
-            
+            return render_template_string(
+                HOME_PAGE, content=f"<h3>Error</h3><p>{str(e)}</p>", session=session
+            )
+
     # Show form
     form_html = """
     <div style="max-width: 600px; margin: 0 auto;">
@@ -803,13 +985,17 @@ def import_post():
         </form>
     </div>
     """
-    return render_template_string(HOME_PAGE.replace('{{ content | safe }}', form_html), session=session)
+    return render_template_string(
+        HOME_PAGE.replace("{{ content | safe }}", form_html), session=session
+    )
+
 
 # ============================================================================
 # RESET ENDPOINT
 # ============================================================================
 
-@app.route('/api/reset', methods=['POST'])
+
+@app.route("/api/reset", methods=["POST"])
 def reset_env():
     """Reset environment state for training"""
     try:
@@ -820,18 +1006,22 @@ def reset_env():
     except:
         pass
     init_db()
-    
+
     # Clear session
     session.clear()
-    
-    return jsonify({'status': 'reset_complete', 'message': 'Environment reset successfully'})
 
-@app.route('/logout')
+    return jsonify(
+        {"status": "reset_complete", "message": "Environment reset successfully"}
+    )
+
+
+@app.route("/logout")
 def logout():
     session.clear()
-    return redirect('/')
+    return redirect("/")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print("=" * 70)
     print("VULNERABLE BLOG PLATFORM - Research Variant 4")
     print("=" * 70)

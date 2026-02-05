@@ -100,7 +100,7 @@ def _validate_phase_action(action_id):
 - Accelerates convergence
 - Mimics real-world pentesting workflow
 
-### 4. Training Loop (`train_multi_target.py`)
+### 4. Training Loop (`train_mock_targets.py`)
 
 **Curriculum Learning:**
 

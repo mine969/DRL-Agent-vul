@@ -69,7 +69,7 @@ You're at **~800-1000 episodes** (based on checkpoint):
 ### Option 1: Quick & Dirty (2000 episodes)
 
 ```bash
-python train_multi_target.py --latest --episodes 2000
+python train_mock_targets.py --episodes 2000
 ```
 
 **Time**: ~32 hours  
@@ -79,7 +79,7 @@ python train_multi_target.py --latest --episodes 2000
 ### Option 2: Production Ready (5000 episodes)
 
 ```bash
-python train_multi_target.py --latest --episodes 5000
+python train_mock_targets.py --episodes 5000
 ```
 
 **Time**: ~80 hours (3-4 days)  
@@ -89,7 +89,7 @@ python train_multi_target.py --latest --episodes 5000
 ### Option 3: Elite Agent (10000 episodes)
 
 ```bash
-python train_multi_target.py --latest --episodes 10000
+python train_mock_targets.py --episodes 10000
 ```
 
 **Time**: ~160 hours (1 week)  
@@ -100,9 +100,9 @@ python train_multi_target.py --latest --episodes 10000
 
 ```bash
 # Train 500 episodes per night
-python train_multi_target.py --latest --episodes 1500  # Night 1
-python train_multi_target.py --latest --episodes 2000  # Night 2
-python train_multi_target.py --latest --episodes 2500  # Night 3
+python train_mock_targets.py --episodes 1500  # Night 1
+python train_mock_targets.py --episodes 2000  # Night 2
+python train_mock_targets.py --episodes 2500  # Night 3
 # ... continue
 ```
 
@@ -149,29 +149,29 @@ Check if average reward is still increasing:
 ### 2. Use Checkpoints
 
 ```bash
-# Save every 100 episodes
+# Save every 50 episodes (default)
 # Test intermediate models
-python autonomous_scan.py --model checkpoints/multi_target_ep2000.pth
+python autonomous_scan.py http://localhost:5002 --model checkpoints/improved_mock_ep2000.pth
 ```
 
 ### 3. Multi-Session Training
 
 ```bash
 # Session 1: 0 → 2000
-python train_multi_target.py --episodes 2000
+python train_mock_targets.py --episodes 2000
 
 # Session 2: 2000 → 4000
-python train_multi_target.py --latest --episodes 4000
+python train_mock_targets.py --episodes 4000
 
 # Session 3: 4000 → 6000
-python train_multi_target.py --latest --episodes 6000
+python train_mock_targets.py --episodes 6000
 ```
 
 ### 4. Evaluate Periodically
 
 ```bash
 # Test at 1000, 2000, 3000, etc.
-python autonomous_scan.py --target http://testsite.com --model checkpoints/multi_target_ep3000.pth
+python autonomous_scan.py http://testsite.com --model checkpoints/improved_mock_ep3000.pth
 ```
 
 ## Hardware Considerations
@@ -197,7 +197,7 @@ Based on your setup and goals:
 ### For Learning/Testing
 
 ```bash
-python train_multi_target.py --latest --episodes 2000
+python train_mock_targets.py --episodes 2000
 ```
 
 **Why**: Good balance of time vs performance
@@ -205,7 +205,7 @@ python train_multi_target.py --latest --episodes 2000
 ### For Production Use
 
 ```bash
-python train_multi_target.py --latest --episodes 5000
+python train_mock_targets.py --episodes 5000
 ```
 
 **Why**: Professional-grade results
@@ -213,7 +213,7 @@ python train_multi_target.py --latest --episodes 5000
 ### For Research/Competition
 
 ```bash
-python train_multi_target.py --latest --episodes 10000
+python train_mock_targets.py --episodes 10000
 ```
 
 **Why**: State-of-the-art performance

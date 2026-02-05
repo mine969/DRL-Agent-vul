@@ -21,14 +21,15 @@ with open(file_path, "r", encoding="utf-8") as f:
 
 # Extract expected method names from action_book
 import re
+
 # Look for self.method_name
 # Pattern: digits: self.(method_name),
-matches = re.findall(r'\d+:\s*self\.(\w+),', content)
+matches = re.findall(r"\d+:\s*self\.(\w+),", content)
 expected_methods = set(matches)
 
 # Extract defined methods
 # Pattern: def method_name(self
-defined_matches = re.findall(r'def\s+(\w+)\s*\(self', content)
+defined_matches = re.findall(r"def\s+(\w+)\s*\(self", content)
 defined_methods = set(defined_matches)
 
 missing = expected_methods - defined_methods

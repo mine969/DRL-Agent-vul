@@ -196,29 +196,15 @@ env/
 
 ## 🔬 Example Research Workflow
 
-```python
+```bash
 # 1. Start all targets
-# (Use PowerShell script above)
+python start_services.py
 
 # 2. Train your agent
-from train_multi_target import train_on_multiple_targets
-
-targets = [
-    "http://localhost:5002",
-    "http://localhost:5003",
-    "http://localhost:5004",
-    "http://localhost:5005",
-    "http://localhost:5006"
-]
-
-train_on_multiple_targets(targets, episodes=1000)
+python train_mock_targets.py --episodes 1000
 
 # 3. Evaluate and compare
-from deploy_agent import test_agent
-
-for target in targets:
-    results = test_agent(target, episodes=10)
-    print(f"Target {target}: {len(results)} vulnerabilities found")
+python research/evaluate_agent.py --agent improved --checkpoint checkpoints/improved_mock_ep1000.pth
 ```
 
 ## 📈 Expected Results
