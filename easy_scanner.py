@@ -70,8 +70,8 @@ EXPECTED_VULNS = {
 
 SCAN_MODES = {
     "hybrid": {
-        "label": "Hybrid Scan",
-        "description": "Scripted recon + AI testing (balanced).",
+        "label": "Hybrid-Driven Scan",
+        "description": "Scripted recon + AI testing (default depth/intensity matched).",
         "config": {
             "depth": 30,
             "intensity": 3,
@@ -80,15 +80,15 @@ SCAN_MODES = {
             "pentester": False,
         },
     },
-    "full_ai": {
-        "label": "Full AI Scan",
-        "description": "AI recon + chain attacks + online learning.",
+    "ai": {
+        "label": "AI-Driven Scan",
+        "description": "AI recon + online learning (default depth/intensity matched).",
         "config": {
-            "depth": 50,
-            "intensity": 8,
+            "depth": 30,
+            "intensity": 3,
             "persist": True,
             "ai_mode": True,
-            "pentester": True,
+            "pentester": False,
         },
     },
 }
@@ -262,6 +262,21 @@ def get_scan_config(scan_mode):
     return mode["config"]
 
 
+def _prompt_int(prompt, default_value, min_value=1):
+    choice = input(f"{prompt} [Default: {default_value}]: ")
+    if not choice:
+        return default_value
+    try:
+        value = int(choice)
+        if value < min_value:
+            raise ValueError
+        return value
+    except ValueError:
+        print(f"{RED}Invalid input, using default {default_value}.{RESET}")
+        time.sleep(1)
+        return default_value
+
+
 def find_latest_report():
     """Finds the most recently created Markdown report."""
     list_of_files = glob.glob("reports/*.md")
@@ -287,7 +302,7 @@ def select_run_mode():
         f"   {BOLD}1. {SCAN_MODES['hybrid']['label']}{RESET} - {SCAN_MODES['hybrid']['description']}"
     )
     print(
-        f"   {BOLD}2. {SCAN_MODES['full_ai']['label']}{RESET} - {SCAN_MODES['full_ai']['description']}"
+        f"   {BOLD}2. {SCAN_MODES['ai']['label']}{RESET} - {SCAN_MODES['ai']['description']}"
     )
     print(f"   {BOLD}3. Open Latest Report{RESET}")
     print(f"   {BOLD}4. Exit{RESET}")
@@ -296,13 +311,13 @@ def select_run_mode():
     if not choice or choice == "1":
         return "hybrid"
     if choice == "2":
-        return "full_ai"
+        return "ai"
     if choice == "3":
         return "report"
     if choice == "4":
         return "exit"
 
-    print(f"{RED}Invalid selection, defaulting to Hybrid Scan.{RESET}")
+    print(f"{RED}Invalid selection, defaulting to Hybrid-Driven Scan.{RESET}")
     time.sleep(1)
     return "hybrid"
 
@@ -410,7 +425,7 @@ def print_scan_summary(url, report_path):
         print(
             f"{YELLOW}[Summary] No confirmed vulnerabilities detected in the latest report.{RESET}"
         )
-        print("   Tip: Try Full AI mode or a more trained model.")
+        print("   Tip: Try AI-Driven mode or a more trained model.")
 
 
 def build_subprocess_env():
@@ -473,12 +488,21 @@ def run_scan_flow(scan_mode):
     print_expected_vulns(target_urls)
 
     # 3. Apply scan mode config
-    config = get_scan_config(scan_mode)
+    config = get_scan_config(scan_mode).copy()
     mode_label = SCAN_MODES.get(scan_mode, {}).get("label", scan_mode)
     print(
         f"{GREEN}[OK] Mode: {mode_label}{RESET}"
         f"\n{GREEN}[OK] Scan Configured: Depth={config['depth']}, Intensity={config['intensity']}{RESET}"
     )
+
+    customize = input(f"{CYAN}>>> Customize intensity? (y/N): {RESET}")
+    if customize.lower() == "y":
+        config["intensity"] = _prompt_int(
+            f"{CYAN}>>> Enter scan intensity{RESET}", config["intensity"]
+        )
+        print(
+            f"{GREEN}[OK] Custom Intensity Set: {config['intensity']}{RESET}"
+        )
 
     # Confirm
     print(f"\n{YELLOW}Ready to scan {len(target_urls)} target(s)?{RESET}")
@@ -547,7 +571,7 @@ def main():
             input(f"\n{CYAN}Press ENTER to return to menu...{RESET}")
             continue
 
-        if mode in ("hybrid", "full_ai") and not run_scan_flow(mode):
+        if mode in ("hybrid", "ai") and not run_scan_flow(mode):
             continue
 
         choice = input(f"\n{CYAN}>>> Scan another target? (y/n): {RESET}")
