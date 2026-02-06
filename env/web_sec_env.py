@@ -382,7 +382,7 @@ class WebSecurityGym(gym.Env):
                 26: 35,
                 27: 36,
                 28: 40,
-                29: 45,
+                29: 44,
                 # SQLi (60-65) - Mapped to 30-32 range inputs from agent
                 30: 60,
                 31: 61,
@@ -398,11 +398,11 @@ class WebSecurityGym(gym.Env):
                 39: 79,  # Path Traversal
                 40: 149,  # Insecure Deserialization
                 41: 86,  # SSTI
-                42: 83,  # CSRF
+                42: 82,  # CSRF (bank transfer path)
                 # LOGIC
                 43: 91,  # Negative Quantity (E-Commerce)
                 # ADVANCED AUTH
-                44: 40,  # IDOR Orders (Changed from JWT None)
+                44: 45,  # IDOR file/resource access (fileshare/blog)
                 45: 102,  # OAuth State
                 46: 120,  # Header Manip (Generic)
                 47: 125,  # CSRF Token Ex
