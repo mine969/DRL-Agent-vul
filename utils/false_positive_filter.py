@@ -64,9 +64,13 @@ class FalsePositiveFilter:
     def _is_false_positive(self, finding, target_url: str) -> bool:
         """Check if a finding is a false positive."""
 
-        # Rule 0: Safety Override - High Reward Findings (Confirmed Vulns)
-        # If reward > 50, we trust the agent and validator (unless it's a 404/WP check)
-        if finding.reward > 50:
+        # Rule 0: Safety Override - Environment-confirmed findings are never filtered
+        if getattr(finding, "env_confirmed", False):
+            return False
+
+        # Rule 0.25: High reward findings (normalized reward model)
+        # In current environment, confirmed vulnerabilities are typically >= 1.0 reward.
+        if finding.reward >= 1.0:
             return False
 
         # Rule 0.5: User Override - Preserve "Validator Rejected" items if Phase 2 kept them

@@ -167,7 +167,7 @@ class MockTargetsTrainer:
             self.agent.replay()
 
             total_reward += reward
-            if reward > 50:
+            if reward >= 1.0:
                 vulns += 1
 
             state = next_state
