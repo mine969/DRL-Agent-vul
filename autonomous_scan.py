@@ -965,9 +965,21 @@ class SecurityAuditor:
 
             env.current_page_id = 0  # Force focus on current page (simplified)
 
+            app_tag = self._infer_app_tag_for_url(url)
+            focus_actions = self._get_focus_actions(app_tag)
+            warmup_steps = min(len(focus_actions), max(5, attempts // 2)) if ai_mode else 0
+
+            if ai_mode and focus_actions:
+                print(
+                    f"    🎯 [Focused Warmup] {app_tag}: {warmup_steps} targeted steps"
+                )
+
             for step in range(attempts):
                 # 1. AI Decides Action
-                action = self.ai_agent.act(state, training=False)
+                if ai_mode and step < warmup_steps:
+                    action = focus_actions[step]
+                else:
+                    action = self.ai_agent.act(state, training=ai_mode)
 
                 # 2. Execute Action
                 next_state, reward, terminated, truncated, info = env.step(action)
@@ -1008,6 +1020,11 @@ class SecurityAuditor:
                 flag_found = bool(flags)
                 status_code = response.status_code if response else None
                 response_snippet = self._summarize_response(response)
+                confirmed_id = (
+                    response.headers.get("X-Vuln-Confirmed", "").strip()
+                    if response is not None
+                    else ""
+                )
 
                 if reward > 0 or flag_found:
                     vuln_name = self._map_action_to_vuln(action)
@@ -1065,6 +1082,7 @@ class SecurityAuditor:
                             evidence=evidence,
                             response_snippet=response_snippet,
                             env_confirmed=env_confirmed,
+                            confirmed_id=confirmed_id,
                         )
 
                         existing = next(
@@ -1094,6 +1112,8 @@ class SecurityAuditor:
                                 existing.payload = finding.payload
                             if not existing.method and finding.method:
                                 existing.method = finding.method
+                            if not existing.confirmed_id and finding.confirmed_id:
+                                existing.confirmed_id = finding.confirmed_id
                         else:
                             findings.append(finding)
                             self.log_finding(finding)
@@ -1114,6 +1134,47 @@ class SecurityAuditor:
             print(f"  ❌ Error auditing page: {e}")
 
         return findings
+
+    def _infer_app_tag_for_url(self, url: str) -> str:
+        """Infer mock app type from URL/port for focused warmup."""
+        try:
+            parsed = urlparse(url)
+            port_map = {
+                5002: "ecommerce",
+                5003: "social",
+                5004: "banking",
+                5005: "blog",
+                5006: "fileshare",
+            }
+            if parsed.port in port_map:
+                return port_map[parsed.port]
+        except Exception:
+            pass
+        return "mock"
+
+    def _get_focus_actions(self, app_tag: str) -> List[int]:
+        """Return prioritized action IDs (0-49 action space) for online fine-tuning."""
+        # Core exploit anchors reused across targets
+        common = [33, 42, 30, 31, 25]
+
+        app_specific = {
+            # Smart XSS/CSRF first, then IDOR + SQLi probes
+            "banking": [33, 42, 29, 30, 31, 25, 28],
+            "social": [33, 34, 42, 25, 26, 30, 31],
+            "ecommerce": [33, 30, 31, 25, 28],
+            "blog": [33, 34, 30, 31, 25],
+            "fileshare": [25, 29, 33, 30],
+        }
+
+        selected = app_specific.get(app_tag, common)
+        # Keep uniqueness + order
+        deduped = []
+        seen = set()
+        for action in selected:
+            if action not in seen:
+                seen.add(action)
+                deduped.append(action)
+        return deduped
 
     def _map_action_to_vuln(self, action: int) -> str:
         """Translates the Agent's action ID into a human-readable vulnerability name."""
