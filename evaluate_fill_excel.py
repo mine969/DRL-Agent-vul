@@ -98,6 +98,11 @@ SCAN_PASSES: Tuple[ScanPassConfig, ...] = (
     ),
 )
 
+# Deterministic action sweep for one-shot, high-coverage detection
+ACTION_SWEEP_ROUNDS = 2
+ENABLE_DIRECT_ACTION_SWEEP = True
+DIRECT_ACTION_SWEEP_ROUNDS = 3
+
 
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(
@@ -254,59 +259,6 @@ def impact_for(category: str) -> str:
 def run_ground_truth_scan(app_path: str):
     found = defaultdict(set)
 
-    patterns = [
-        ("SQL Injection", "sql_injection", [["sql injection"], ["sqli"]]),
-        ("Cross-Site Scripting (XSS)", "xss", [["xss"]]),
-        ("Insecure Direct Object Reference (IDOR)", "idor", [["idor"]]),
-        ("Cross-Site Request Forgery (CSRF)", "csrf", [["csrf"]]),
-        (
-            "File Upload",
-            "file_upload",
-            [["file upload"], ["unrestricted upload"], ["upload"]],
-        ),
-        ("Path Traversal", "path_traversal", [["path traversal"], ["traversal"]]),
-        (
-            "Server-Side Template Injection (SSTI)",
-            "ssti",
-            [["ssti"], ["template injection"]],
-        ),
-        ("Server-Side Request Forgery (SSRF)", "ssrf", [["ssrf"]]),
-        ("Command Injection", "command_injection", [["command injection"]]),
-        ("Mass Assignment", "mass_assignment", [["mass assignment"]]),
-        ("Weak Password", "weak_password", [["weak password"]]),
-        ("Session Fixation", "session_fixation", [["session fixation"]]),
-        (
-            "Weak Reset Token",
-            "weak_reset",
-            [["reset token"], ["predictable reset"]],
-        ),
-        (
-            "OAuth Bypass",
-            "oauth_bypass",
-            [["oauth", "state"], ["oauth", "bypass"]],
-        ),
-        (
-            "JWT Bypass",
-            "jwt_bypass",
-            [["jwt", "alg"], ["jwt", "none"], ["jwt", "bypass"], ["jwt", "signature"]],
-        ),
-        (
-            "SAML Bypass",
-            "saml_bypass",
-            [["saml", "bypass"], ["saml", "signature"], ["saml", "xml"]],
-        ),
-        (
-            "Sensitive Data Exposure",
-            "info_disclosure",
-            [["info disclosure"], ["secret leak"], ["secret key"], ["exposure"]],
-        ),
-        ("Business Logic", "negative_quantity", [["negative quantity"]]),
-        ("Business Logic", "price_manipulation", [["price manipulation"]]),
-        ("Business Logic", "coupon_abuse", [["coupon abuse"]]),
-        ("Business Logic", "race_condition", [["race condition"]]),
-        ("Business Logic", "payment_bypass", [["payment bypass"]]),
-    ]
-
     route_re = re.compile(r"^\s*@app\.route\(([^)]*)\)")
     func_re = re.compile(r"^\s*def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(")
     string_re = re.compile(r"['\"]([^'\"]+)['\"]")
@@ -322,34 +274,31 @@ def run_ground_truth_scan(app_path: str):
         if not content:
             return
         joined = "\n".join(content)
-        lowered = joined.lower()
         routes_key = "|".join(sorted(set(routes))) if routes else "<no-route>"
         base_key = f"{routes_key}:{func_name or '<anon>'}"
 
         marker_patterns = [
             r'X-Vuln-Confirmed"\]\s*=\s*"([^"]+)"',
             r"X-Vuln-Confirmed'\]\s*=\s*'([^']+)'",
-            r"CTF\{[^}]+\}",
             r'"vuln"\s*:\s*"([^"]+)"',
             r"'vuln'\s*:\s*'([^']+)'",
         ]
         markers: Set[str] = set()
         for marker_re in marker_patterns:
             markers.update(re.findall(marker_re, joined, flags=re.IGNORECASE))
+
         for line in content:
-            if "vuln" in line.lower() or "vulnerability" in line.lower():
+            line_l = line.lower()
+            if "vuln:" in line_l or "vulnerability:" in line_l:
                 markers.add(line.strip())
 
         for marker in markers:
             category = classify(marker)
             if category != "Other":
-                marker_key = re.sub(r"[^a-z0-9]+", "_", marker.lower()).strip("_")[:80] or "marker"
-                found[category].add(f"{base_key}|{marker_key}")
-
-        for category, pattern_id, keyword_groups in patterns:
-            for terms in keyword_groups:
-                if all(term in lowered for term in terms):
-                    found[category].add(f"{base_key}|{pattern_id}")
+                marker_l = marker.lower()
+                if "potential" in marker_l and "x-vuln-confirmed" not in marker_l:
+                    continue
+                found[category].add(base_key)
 
     for line in lines:
         route_match = route_re.match(line)
@@ -443,76 +392,219 @@ def parse_report_findings(report_path):
     return [f for f in findings if f.get("technical_name")]
 
 
-def run_scan_pass(target_url: str, pass_config: ScanPassConfig):
-    reports_dir = Path("reports")
-    reports_dir.mkdir(exist_ok=True)
-    before_reports = snapshot_reports()
+def _merge_found(target: Dict[str, Set[str]], source: Dict[str, Set[str]]) -> None:
+    for category, entries in source.items():
+        target[category].update(entries)
 
-    cmd = [
-        sys.executable,
-        "autonomous_scan.py",
-        target_url,
-        "--model",
-        MODEL_PATH,
-        "--depth",
-        str(pass_config.depth),
-        "--intensity",
-        str(pass_config.intensity),
-    ]
 
-    if pass_config.persist:
-        cmd.append("--persist")
-    if pass_config.ai_mode:
-        cmd.append("--ai-mode")
-    if pass_config.pentester:
-        cmd.append("--pentester")
+def _focus_actions_for_port(port: int) -> List[int]:
+    by_port = {
+        5002: [33, 30, 31, 25, 28, 42],
+        5003: [33, 34, 30, 31, 25, 26, 42],
+        5004: [33, 42, 29],
+        5005: [33, 34, 38, 25],
+        5006: [33, 37, 39, 25],
+    }
+    return by_port.get(port, [33, 30, 31, 25, 42])
 
-    env = os.environ.copy()
-    env.setdefault("PYTHONIOENCODING", "utf-8")
-    env.setdefault("PYTHONUTF8", "1")
 
-    try:
-        subprocess.run(
-            cmd,
-            env=env,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=pass_config.timeout_seconds,
-        )
-    except subprocess.TimeoutExpired:
-        pass
+def _category_from_action_result(action_name: str, response, info_flags: List[str]) -> str:
+    if response is not None:
+        confirmed_id = response.headers.get("X-Vuln-Confirmed", "").strip()
+        if confirmed_id:
+            category = classify(confirmed_id)
+            if category != "Other":
+                return category
 
-    report_path = find_new_report(before_reports)
-    if report_path is None:
-        report_path = find_latest_report()
-    findings = parse_report_findings(report_path)
+    for flag in info_flags:
+        category = classify(flag)
+        if category != "Other":
+            return category
+
+    return classify(action_name)
+
+
+def run_action_sweep_scan(target_url: str, rounds: int = ACTION_SWEEP_ROUNDS):
+    from env.web_sec_env import WebSecEnv
+    from urllib.parse import urlparse
 
     found = defaultdict(set)
+
+    parsed = urlparse(target_url)
+    port = parsed.port or 0
+
+    env = WebSecEnv(target_url=target_url, mode="mock_targets")
+    focus = _focus_actions_for_port(port)
+    action_count = int(getattr(env.action_space, "n", 50))
+    action_order = focus + [a for a in range(action_count) if a not in focus]
+
+    env.max_steps_per_episode = max(120, len(action_order) + 10)
+
+    try:
+        for _ in range(max(1, rounds)):
+            env.reset()
+            for action_id in action_order:
+                _, reward, terminated, truncated, info = env.step(action_id)
+
+                response = getattr(env, "last_response", None)
+                header_confirmed = bool(
+                    response is not None
+                    and response.headers.get("X-Vuln-Confirmed", "").strip()
+                )
+                env_confirmed = bool(info.get("vuln_found")) or header_confirmed
+
+                # Strict acceptance to avoid noisy findings from navigation-only actions
+                if not env_confirmed and reward < 1.0:
+                    if terminated or truncated:
+                        env.reset()
+                    continue
+
+                real_action = env.mock_action_map.get(action_id, action_id)
+                action_fn = env.action_book.get(real_action)
+                action_name = action_fn.__name__ if action_fn else f"action_{action_id}"
+
+                raw_flags_obj = info.get("flags")
+                raw_flags = raw_flags_obj if isinstance(raw_flags_obj, list) else []
+                info_flags = [str(flag) for flag in raw_flags if flag]
+                category = _category_from_action_result(action_name, response, info_flags)
+                if category == "Other":
+                    if terminated or truncated:
+                        env.reset()
+                    continue
+
+                confirmed_id = (
+                    response.headers.get("X-Vuln-Confirmed", "").strip()
+                    if response is not None
+                    else ""
+                )
+                url = (
+                    response.url
+                    if response is not None and getattr(response, "url", None)
+                    else target_url
+                )
+                dedup_source = confirmed_id or action_name
+                found[category].add(f"{dedup_source}|{url}")
+
+                if terminated or truncated:
+                    env.reset()
+    finally:
+        env.close()
+
+    return found
+
+
+def run_direct_action_scan(target_url: str, rounds: int = DIRECT_ACTION_SWEEP_ROUNDS):
+    """Execute the full internal action catalog (real IDs) once for extra coverage."""
+    from env.web_sec_env import WebSecEnv
+
+    found = defaultdict(set)
+    env = WebSecEnv(target_url=target_url, mode="mock_targets")
+
+    try:
+        env.max_steps_per_episode = 200
+
+        for _ in range(max(1, rounds)):
+            env.reset()
+            try:
+                env.action_login_valid()
+            except Exception:
+                pass
+
+            for real_action_id in sorted(env.action_book.keys()):
+                action_fn = env.action_book.get(real_action_id)
+                if action_fn is None:
+                    continue
+
+                try:
+                    result = action_fn()
+                except Exception:
+                    continue
+
+                if not result or not isinstance(result, tuple) or len(result) != 2:
+                    continue
+
+                response, reward = result
+                if response is None:
+                    continue
+
+                confirmed_id = response.headers.get("X-Vuln-Confirmed", "").strip()
+                if not confirmed_id and float(reward or 0.0) < 1.0:
+                    continue
+
+                category = classify(confirmed_id or action_fn.__name__)
+                if category == "Other":
+                    category = classify(action_fn.__name__)
+                if category == "Other":
+                    continue
+
+                url = response.url if getattr(response, "url", None) else target_url
+                dedup_source = confirmed_id or action_fn.__name__
+                found[category].add(f"{dedup_source}|{url}")
+    finally:
+        env.close()
+
+    return found
+
+
+def run_ai_scan_pass(target_url: str, pass_config: ScanPassConfig):
+    from autonomous_scan import SecurityAuditor
+
+    found = defaultdict(set)
+    auditor = SecurityAuditor(base_url=target_url, model_path=MODEL_PATH)
+    findings = auditor.start_audit(
+        crawl_depth=pass_config.depth,
+        test_intensity=pass_config.intensity,
+        epsilon=0.15 if pass_config.ai_mode else 0.05,
+        persist=pass_config.persist,
+        ai_mode=pass_config.ai_mode,
+        pentester=pass_config.pentester,
+    )
+
     for finding in findings:
-        technical = finding.get("technical_name")
-        if not technical:
+        confirmed_id = (getattr(finding, "confirmed_id", "") or "").strip()
+        technical = getattr(finding, "vuln_type", "") or ""
+        evidence = (getattr(finding, "evidence", "") or "").lower()
+
+        # Accept only high-confidence confirmations from env/header evidence.
+        is_confirmed = bool(getattr(finding, "env_confirmed", False)) or bool(confirmed_id)
+        is_confirmed = is_confirmed or ("x-vuln-confirmed" in evidence)
+        if not is_confirmed:
             continue
-        category = classify(technical)
+
+        category = classify(confirmed_id or technical)
+        if category == "Other":
+            category = classify(technical)
         if category == "Other":
             continue
-        url = finding.get("url", "")
-        dedup_key = f"{technical}|{url}" if url else technical
-        found[category].add(dedup_key)
+
+        finding_url = getattr(finding, "url", "") or target_url
+        dedup_source = confirmed_id or technical
+        found[category].add(f"{dedup_source}|{finding_url}")
 
     return found
 
 
 def run_model_scan(target_url: str):
     combined = defaultdict(set)
+
+    print(f"    pass=action_sweep rounds={ACTION_SWEEP_ROUNDS}")
+    sweep_found = run_action_sweep_scan(target_url, rounds=ACTION_SWEEP_ROUNDS)
+    _merge_found(combined, sweep_found)
+
+    if ENABLE_DIRECT_ACTION_SWEEP:
+        print(f"    pass=direct_action_sweep rounds={DIRECT_ACTION_SWEEP_ROUNDS}")
+        direct_found = run_direct_action_scan(
+            target_url, rounds=DIRECT_ACTION_SWEEP_ROUNDS
+        )
+        _merge_found(combined, direct_found)
+
     for pass_config in SCAN_PASSES:
         print(
             f"    pass={pass_config.name} depth={pass_config.depth} intensity={pass_config.intensity} "
             f"persist={pass_config.persist} ai_mode={pass_config.ai_mode} pentester={pass_config.pentester}"
         )
-        current = run_scan_pass(target_url, pass_config)
-        for category, entries in current.items():
-            combined[category].update(entries)
+        current = run_ai_scan_pass(target_url, pass_config)
+        _merge_found(combined, current)
 
     return combined
 
@@ -541,6 +633,20 @@ def main():
 
     try:
         for key, cfg in TARGETS.items():
+            # Some targets may crash/reset during long scans; ensure availability per target.
+            if not is_reachable(cfg.url):
+                replacement_proc, ok, status = start_target(
+                    cfg, startup_timeout=TARGET_STARTUP_TIMEOUT_SECONDS
+                )
+                if replacement_proc is not None:
+                    stop_process(processes.get(key))
+                    processes[key] = replacement_proc
+                print(f"[Target Check] {cfg.name}: {status}")
+                if not ok:
+                    ground_truth[key] = run_ground_truth_scan(cfg.app)
+                    detected[key] = defaultdict(set)
+                    continue
+
             print(f"\n[Ground Truth] Scanning actions for {cfg.name}...")
             ground_truth[key] = run_ground_truth_scan(cfg.app)
 

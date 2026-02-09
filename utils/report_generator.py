@@ -21,6 +21,7 @@ class Finding:
     evidence: str = ""
     response_snippet: str = ""
     env_confirmed: bool = False
+    confirmed_id: str = ""
 
     def get(self, key, default=None):
         """Allow dictionary-like access for GUI compatibility."""

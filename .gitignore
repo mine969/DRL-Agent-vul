@@ -47,6 +47,10 @@ evaluation/
 # OS
 .DS_Store
 Thumbs.db
+nul
+
+# Office temp files
+~$*.xlsx
 
 # Uploads
 uploads/

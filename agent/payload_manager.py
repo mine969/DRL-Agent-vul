@@ -83,6 +83,9 @@ class PayloadManager:
             "rO0ABXNyABFqYXZhLnV0aWwuSGFzaE1hcA==",
         ]
 
+        # Ensure all payload families are initialized even without explicit reseeding.
+        self.seed(seed)
+
     def seed(self, seed: int = None):
         """Reseed the random number generator."""
         self.rng.seed(seed)
