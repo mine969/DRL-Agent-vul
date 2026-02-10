@@ -1,103 +1,49 @@
-# 👨‍💻 Code Learning Guide: Under the Hood
+# Code Learning Guide
 
-    if np.random.rand() <= self.epsilon:
-        return random.randrange(self.action_dim)
+Use this path to understand the codebase quickly and in the right order.
 
-    # 2. Exploit: Use the Brain
-    state_tensor = torch.FloatTensor(state)...
-    predicted_rewards = self.brain(state_tensor)
-    return int(np.argmax(predicted_rewards...)) # Pick the best move
+## Suggested Reading Order
 
-````
+1. `easy_scanner.py`
+2. `scanner_gui.py`
+3. `autonomous_scan.py`
+4. `env/web_sec_env.py`
+5. `agent/improved_dqn_agent.py`
+6. `utils/report_generator.py`
+7. `train_mock_targets.py` and `quick_train_5000.py`
 
----
+## What to Look For in Each File
 
-## 2. `env/web_sec_env.py` (The World)
+## `easy_scanner.py`
 
-This file defines the **Environment**. It simulates the website interaction.
+- Interactive flow and `--auto` argument parsing.
+- Command construction for launching `autonomous_scan.py`.
 
-### Key Class: `WebSecurityGym`
+## `scanner_gui.py`
 
-It follows the standard Gym format: `reset()` and `step()`.
+- UI controls and scan profile handling.
+- `run_automated_mode(...)` for headless `--auto` behavior.
 
-### Key Function: `step(action_id)`
+## `autonomous_scan.py`
 
-This runs one "turn" of the game.
+- `WebsiteExplorer` crawl/probe behavior.
+- `SecurityAuditor.start_audit(...)` phase orchestration.
+- CLI flag handling in `main()`.
 
-```python
-def step(self, action_id):
-    # 1. Perform the Action (e.g., Click link, Inject SQL)
-    response, reward = self.action_book[action_id]()
+## `env/web_sec_env.py`
 
-    # 2. Analyze the Result (What do we see now?)
-    self._analyze_response_content(response)
+- Observation vector definition (15 dimensions).
+- Full action book and mock-target mapping.
+- Reward shaping and environment step loop.
 
-    # 3. Return everything to the Agent
-    return self._get_observation(), reward, done, ...
-````
+## `agent/improved_dqn_agent.py`
 
-### Key Function: `_calculate_reward()`
+- Prioritized replay implementation.
+- Noisy linear layers and dueling network heads.
+- Replay update logic and checkpoint save/load format.
 
-This calculates the score.
+## Fast Learning Exercises
 
-```python
-def _calculate_reward(self, response, ...):
-    if "admin" in response.text:    # Did we hack it?
-        return 100.0                # Big Reward!
-    if "WAF Blocked" in response.text:
-        return -10.0                # Punishment!
-    return 0.0
-```
-
----
-
-## 3. `autonomous_scan.py` (The Body)
-
-This script puts everything together to scan a real website.
-
-### Key Class: `WebsiteExplorer`
-
-It maps out the website before attacking.
-
-```python
-def explore(self):
-    # Uses a Queue (deque) for Breadth-First Search
-    queue = deque([base_url])
-    while queue:
-        url = queue.popleft()
-        # Visit page, find links, add to queue...
-```
-
-### Key Class: `SecurityAuditor`
-
-The main scanner logic.
-
-```python
-def start_audit(self):
-    # Phase 1: Reconnaissance
-    discovered_urls = self.explorer.explore()
-
-    # Phase 2: Attack
-    for url in discovered_urls:
-        # Let the AI Agent play on this page
-        findings = self._audit_page(url)
-
-    # Phase 3: Report
-    self._generate_final_report(...)
-```
-
----
-
-## 4. `agent/payload_manager.py` (The Arsenal)
-
-A simple helper to manage attack strings.
-
-```python
-class PayloadManager:
-    def get_sqli(self, complexity):
-        if complexity == "time":
-            return "WAITFOR DELAY '0:0:5'" # Advanced Attack
-        return "' OR 1=1--"                # Simple Attack
-```
-
-**Why?** Keeping payloads here makes the code cleaner and easier to update.
+1. Run `python easy_scanner.py --help` and map each flag to code.
+2. Trace how `scanner_gui.py --auto` turns into an `autonomous_scan.py` subprocess call.
+3. Follow one finding from environment step output to Markdown report generation.

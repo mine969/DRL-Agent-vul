@@ -10,6 +10,7 @@ Modern, accessible GUI for the security scanner with:
 
 Usage:
     python scanner_gui.py
+    python scanner_gui.py --auto --target http://localhost:5002
 """
 
 import tkinter as tk
@@ -19,7 +20,9 @@ import os
 import sys
 import glob
 import json
+import argparse
 import time
+import subprocess
 from datetime import datetime
 
 # Add parent directory to path
@@ -1590,7 +1593,173 @@ class SecurityScannerGUI:
             messagebox.showinfo("No Reports", "No vulnerability reports found.")
 
 
+
+
+def _get_auto_profile_config(profile_key):
+    normalized = (profile_key or "hybrid").strip().lower()
+    profile_name = "Full AI" if normalized in {"full-ai", "full_ai", "ai", "fullai"} else "Hybrid"
+
+    for name, config in SCAN_PROFILES:
+        if name == profile_name:
+            return profile_name, dict(config)
+
+    fallback_name, fallback_config = SCAN_PROFILES[0]
+    return fallback_name, dict(fallback_config)
+
+
+def _resolve_model_for_auto(model_arg):
+    if model_arg:
+        return model_arg
+
+    latest_ep, latest_model_path = find_latest_checkpoint()
+    if latest_model_path:
+        return latest_model_path
+
+    return "dqn_web_sec_model.pth"
+
+
+def run_automated_mode(args):
+    if not args.target:
+        print("[!] --target is required when using --auto")
+        return 2
+
+    target = args.target.strip()
+    if not target.startswith(("http://", "https://")):
+        target = "http://" + target
+
+    profile_label, profile_config = _get_auto_profile_config(args.profile)
+
+    depth = max(1, args.depth) if args.depth is not None else int(profile_config.get("depth", 30))
+    intensity = (
+        max(1, args.intensity)
+        if args.intensity is not None
+        else int(profile_config.get("intensity", 3))
+    )
+
+    persist = profile_config.get("persist", True)
+    if args.persist is not None:
+        persist = args.persist
+
+    ai_mode = bool(profile_config.get("ai_mode", False))
+    if args.ai_mode:
+        ai_mode = True
+
+    pentester = bool(profile_config.get("pentester", False))
+    if args.pentester:
+        pentester = True
+        ai_mode = True
+
+    model_path = _resolve_model_for_auto(args.model)
+
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    autonomous_scan_path = os.path.join(project_root, "autonomous_scan.py")
+
+    if not os.path.isabs(model_path):
+        local_model = os.path.join(project_root, model_path)
+        if os.path.exists(local_model):
+            model_path = local_model
+
+    cmd = [
+        sys.executable,
+        autonomous_scan_path,
+        target,
+        "--model",
+        model_path,
+        "--depth",
+        str(depth),
+        "--intensity",
+        str(intensity),
+    ]
+
+    if persist:
+        cmd.append("--persist")
+    if ai_mode:
+        cmd.append("--ai-mode")
+    if pentester:
+        cmd.append("--pentester")
+
+    print("=" * 72)
+    print("AI Scanner GUI - Automated Mode")
+    print("=" * 72)
+    print(f"Target    : {target}")
+    print(f"Profile   : {profile_label}")
+    print(f"Model     : {model_path}")
+    print(f"Depth     : {depth}")
+    print(f"Intensity : {intensity}")
+    print(f"Persist   : {persist}")
+    print(f"AI Mode   : {ai_mode}")
+    print(f"Pentester : {pentester}")
+    print("=" * 72)
+
+    env = os.environ.copy()
+    env.setdefault("PYTHONIOENCODING", "utf-8")
+    completed = subprocess.run(cmd, cwd=project_root, env=env)
+    return completed.returncode
+
+
+def parse_cli_args():
+    parser = argparse.ArgumentParser(
+        description="Scanner GUI (interactive) + automation mode (--auto)"
+    )
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Run without launching GUI (headless automation mode).",
+    )
+    parser.add_argument(
+        "--target",
+        help="Target URL to scan (required with --auto).",
+    )
+    parser.add_argument(
+        "--profile",
+        choices=["hybrid", "full-ai"],
+        default="hybrid",
+        help="Preset profile for --auto mode (default: hybrid).",
+    )
+    parser.add_argument("--model", help="Model path for --auto mode.")
+    parser.add_argument("--depth", type=int, help="Override crawl depth in --auto mode.")
+    parser.add_argument(
+        "--episodes",
+        "--intensity",
+        dest="intensity",
+        type=int,
+        help="Override attack intensity in --auto mode.",
+    )
+
+    persist_group = parser.add_mutually_exclusive_group()
+    persist_group.add_argument(
+        "--persist",
+        dest="persist",
+        action="store_true",
+        help="Force persistence mode ON in --auto mode.",
+    )
+    persist_group.add_argument(
+        "--no-persist",
+        dest="persist",
+        action="store_false",
+        help="Force persistence mode OFF in --auto mode.",
+    )
+    parser.set_defaults(persist=None)
+
+    parser.add_argument(
+        "--ai-mode",
+        action="store_true",
+        help="Force AI mode ON in --auto mode.",
+    )
+    parser.add_argument(
+        "--pentester",
+        action="store_true",
+        help="Enable pentester chain mode in --auto mode.",
+    )
+
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
+    args = parse_cli_args()
+    if args.auto:
+        raise SystemExit(run_automated_mode(args))
+
     root = tk.Tk()
     app = SecurityScannerGUI(root)
     root.mainloop()

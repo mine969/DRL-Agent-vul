@@ -1,171 +1,46 @@
-# 🧹 Project Cleanup Guide
+# Cleanup Guide
 
-## Files You Can Safely Delete
+Use this guide to safely reduce workspace clutter without removing core project files.
 
-### ❌ Unnecessary Files
+## Usually Safe to Remove
 
-1. **`CyberBattleSim/`** (folder)
+- Old reports in `reports/`
+- Old logs in `logs/`
+- Python cache folders (`__pycache__/`)
+- Redundant intermediate checkpoints you no longer need
 
-   - This was attempted to install but not used
-   - **Size**: Large (121 files)
-   - **Safe to delete**: YES
+## Keep These
 
-   ```bash
-   rmdir /s CyberBattleSim
-   ```
+- Source code (`agent/`, `env/`, `utils/`, main scripts)
+- At least one known-good model/checkpoint
+- Current docs in `docs/`
 
-2. **`external_env_adapter.py`**
+## Suggested Cleanup Commands
 
-   - Template for external environments
-   - Not needed if you're only scanning websites
-   - **Safe to delete**: YES (unless you plan to use CyberBattleSim)
+### Windows PowerShell
 
-3. **`TRANSFER_LEARNING.md`**
+```powershell
+Remove-Item -Recurse -Force reports\* -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force logs\* -ErrorAction SilentlyContinue
+Get-ChildItem -Recurse -Directory -Filter __pycache__ | Remove-Item -Recurse -Force
+```
 
-   - Research notes about pre-trained models
-   - Not essential for operation
-   - **Safe to delete**: YES (informational only)
+### Optional checkpoint pruning example
 
-4. **`dqn_web_sec_model.pth`** (if training is still running)
-   - Old model from previous training
-   - Will be replaced when current training finishes
-   - **Safe to delete**: YES (will be regenerated)
+Keep milestone checkpoints and latest; remove dense intermediates manually after review.
 
-### ✅ Essential Files (KEEP THESE!)
+## Pre-Cleanup Checklist
 
-**Core Scripts:**
+1. Confirm latest model path you want to keep.
+2. Confirm reports needed for audit history are archived.
+3. Run `git status` before deleting tracked files.
 
-- ✅ `easy_scanner.py` - **Main scanner** (easiest to use)
-- ✅ `scanner_gui.py` - GUI scanner
-- ✅ `autonomous_scan.py` - Advanced scanner
-- ✅ `train_mock_targets.py` - Training script
-- ✅ `quick_train_5000.py` - Long-run training
+## Post-Cleanup Validation
 
-**Documentation:**
-
-- ✅ `BEGINNER_GUIDE.md` - Complete beginner's guide
-- ✅ `QUICK_START.md` - Quick start for easy_scanner.py
-- ✅ `AUTONOMOUS_SCAN_GUIDE.md` - Advanced usage
-- ✅ `DEPLOYMENT_GUIDE.md` - Deployment guide
-
-**Code:**
-
-- ✅ `agent/` - DQN agent code
-- ✅ `env/` - Environment code
-- ✅ `requirements.txt` - Dependencies
-
-**Generated:**
-
-- ✅ `checkpoints/` - Training checkpoints (IMPORTANT!)
-- ✅ `.git/` - Version control
-
-## Recommended Cleanup
-
-### Option 1: Quick Cleanup (Remove Unused)
+Run a quick smoke test:
 
 ```bash
-# Delete CyberBattleSim folder
-rmdir /s CyberBattleSim
-
-# Delete external adapter (if not using)
-del external_env_adapter.py
+python easy_scanner.py --help
+python scanner_gui.py --help
+python autonomous_scan.py --help
 ```
-
-### Option 2: Minimal Setup (Keep Only Essentials)
-
-```bash
-# Delete all optional files
-rmdir /s CyberBattleSim
-del external_env_adapter.py
-del TRANSFER_LEARNING.md
-del DEPLOYMENT_GUIDE.md
-del AUTONOMOUS_SCAN_GUIDE.md
-```
-
-**Keep only:**
-
-- `easy_scanner.py` (main tool)
-- `BEGINNER_GUIDE.md` (instructions)
-- `QUICK_START.md` (quick reference)
-- Core folders (agent, env, checkpoints)
-
-## File Size Summary
-
-| Item                    | Size        | Needed?                            |
-| ----------------------- | ----------- | ---------------------------------- |
-| CyberBattleSim/         | ~50MB+      | ❌ No                              |
-| external_env_adapter.py | 3KB         | ❌ No (unless using external envs) |
-| TRANSFER_LEARNING.md    | 3KB         | ❌ No (just info)                  |
-| dqn_web_sec_model.pth   | 81KB        | ⚠️ Will be replaced                |
-| checkpoints/            | Growing     | ✅ YES - Keep!                     |
-| All .md guides          | ~25KB total | ⚠️ Optional (but helpful)          |
-
-## What to Keep Based on Use Case
-
-### If You Only Want to Scan Websites:
-
-**Keep:**
-
-- `easy_scanner.py`
-- `autonomous_scan.py`
-- `agent/` and `env/` folders
-- `checkpoints/` folder
-- `BEGINNER_GUIDE.md`
-- `QUICK_START.md`
-
-**Delete:**
-
-- `CyberBattleSim/`
-- `external_env_adapter.py`
-- `TRANSFER_LEARNING.md`
-- `DEPLOYMENT_GUIDE.md`
-- `AUTONOMOUS_SCAN_GUIDE.md`
-
-### If You Want Everything (Development):
-
-**Keep everything** except:
-
-- `CyberBattleSim/` (unless you plan to use it)
-
-## Safe Cleanup Command
-
-```bash
-# Navigate to project folder
-cd d:\github\RL
-
-# Remove CyberBattleSim (largest unnecessary folder)
-rmdir /s /q CyberBattleSim
-
-# Remove external adapter if not needed
-del external_env_adapter.py
-
-# Optional: Remove extra documentation
-del TRANSFER_LEARNING.md
-```
-
-## ⚠️ DO NOT DELETE
-
-- ❌ `checkpoints/` - Contains your training progress!
-- ❌ `agent/` - Core AI code
-- ❌ `env/` - Environment code
-- ❌ `train_mock_targets.py` - Needed for training
-- ❌ `easy_scanner.py` - Main scanning tool
-- ❌ `requirements.txt` - Dependencies
-
-## After Cleanup
-
-Your minimal project structure:
-
-```
-DQN web vul/
-├── agent/              ✅ Keep
-├── env/                ✅ Keep
-├── checkpoints/        ✅ Keep
-├── easy_scanner.py     ✅ Keep
-├── train_mock_targets.py ✅ Keep
-├── BEGINNER_GUIDE.md   ✅ Keep
-├── QUICK_START.md      ✅ Keep
-└── requirements.txt    ✅ Keep
-```
-
-**Total size after cleanup**: ~5-10MB (vs current ~50MB+)

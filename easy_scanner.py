@@ -1,6 +1,6 @@
 """
 Easy Scanner - User Friendly Interface for AI Security Auditor
-Does not require any technical knowledge or command line arguments.
+Interactive by default, with optional non-interactive auto mode flags.
 """
 
 import os
@@ -12,6 +12,7 @@ import time
 import webbrowser
 import urllib.request
 import urllib.error
+import argparse
 
 # ANSI Colors
 CYAN = "\033[96m"
@@ -92,6 +93,8 @@ SCAN_MODES = {
         },
     },
 }
+
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 
 
 def clear_screen():
@@ -457,6 +460,185 @@ def build_scan_command(url, model_path, config):
     return cmd
 
 
+
+
+def normalize_target_url(url):
+    value = (url or "").strip()
+    if not value:
+        return ""
+    if not value.startswith(("http://", "https://")):
+        value = "http://" + value
+    return value
+
+
+def resolve_model_path(model_arg=None):
+    if model_arg:
+        if os.path.exists(model_arg):
+            return model_arg
+        print(f"{RED}[!] Model not found: {model_arg}{RESET}")
+        return None
+
+    models = get_available_models()
+    if models:
+        return models[0]["path"]
+
+    print(f"{RED}[!] No model found in checkpoints/ or project root.{RESET}")
+    return None
+
+
+def resolve_auto_targets(target_arg=None, all_targets=False):
+    if all_targets:
+        return list(TARGET_LABELS.keys())
+
+    if not target_arg:
+        return []
+
+    targets = []
+    for raw in target_arg.split(","):
+        target = normalize_target_url(raw)
+        if target:
+            targets.append(target)
+
+    deduped = []
+    seen = set()
+    for target in targets:
+        if target not in seen:
+            deduped.append(target)
+            seen.add(target)
+    return deduped
+
+
+def run_auto_scan(args):
+    scan_mode = args.mode
+    config = get_scan_config(scan_mode).copy()
+
+    if args.depth is not None:
+        config["depth"] = max(1, args.depth)
+    if args.intensity is not None:
+        config["intensity"] = max(1, args.intensity)
+    if args.persist is not None:
+        config["persist"] = args.persist
+
+    model_path = resolve_model_path(args.model)
+    if not model_path:
+        return False
+
+    target_urls = resolve_auto_targets(args.target, args.all_targets)
+    if not target_urls:
+        print(
+            f"{RED}[!] No targets selected. Use --target <url> or --all-targets with --auto.{RESET}"
+        )
+        return False
+
+    print_scan_intro()
+    print_expected_vulns(target_urls)
+
+    mode_label = SCAN_MODES.get(scan_mode, {}).get("label", scan_mode)
+    print()
+    print(f"{GREEN}[OK] Auto Mode Enabled{RESET}")
+    print(f"{GREEN}[OK] Mode: {mode_label}{RESET}")
+    print(f"{GREEN}[OK] Model: {os.path.basename(model_path)}{RESET}")
+    print(
+        f"{GREEN}[OK] Config: Depth={config['depth']}, Intensity={config['intensity']}, Persist={config['persist']}{RESET}"
+    )
+
+    offline = check_targets_reachable(target_urls)
+    if offline:
+        print()
+        print(f"{YELLOW}[Info] Some targets are not reachable:{RESET}")
+        for url in offline:
+            print(f"   - {url}")
+        print("   Continuing because --auto mode is enabled.")
+
+    last_report = None
+    for i, url in enumerate(target_urls, 1):
+        if len(target_urls) > 1:
+            print()
+            print(f"{CYAN}{BOLD}>>> STARTING SCAN {i}/{len(target_urls)}: {url}{RESET}")
+
+        before_reports = snapshot_reports()
+        cmd = build_scan_command(url, model_path, config)
+        print()
+        print(f"{CYAN}Scanning {url}...{RESET}")
+        print()
+
+        try:
+            subprocess.run(cmd, env=build_subprocess_env())
+        except KeyboardInterrupt:
+            print()
+            print(f"{RED}Scan interrupted by user.{RESET}")
+            break
+
+        last_report = find_new_report(before_reports)
+        print_scan_summary(url, last_report)
+
+    latest_report = last_report or find_latest_report()
+    if latest_report:
+        print()
+        print(f"{GREEN}[+] Latest Report: {latest_report}{RESET}")
+        if args.open_report:
+            open_report(latest_report)
+    else:
+        print()
+        print(f"{RED}[!] No report found.{RESET}")
+
+    return True
+
+
+def parse_cli_args():
+    parser = argparse.ArgumentParser(
+        description="Easy Scanner - interactive CLI + optional auto mode"
+    )
+    parser.add_argument(
+        "--auto",
+        action="store_true",
+        help="Run non-interactive scan mode (no prompts).",
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["hybrid", "ai"],
+        default="hybrid",
+        help="Scan mode to use in --auto mode (default: hybrid).",
+    )
+    parser.add_argument(
+        "--target",
+        help="Single target URL or comma-separated target URLs (auto mode).",
+    )
+    parser.add_argument(
+        "--all-targets",
+        action="store_true",
+        help="Scan all built-in localhost mock targets (auto mode).",
+    )
+    parser.add_argument(
+        "--model",
+        help="Path to model file (auto mode). Defaults to best available model.",
+    )
+    parser.add_argument("--depth", type=int, help="Override crawl depth (auto mode).")
+    parser.add_argument(
+        "--intensity", type=int, help="Override attack intensity (auto mode)."
+    )
+    persist_group = parser.add_mutually_exclusive_group()
+    persist_group.add_argument(
+        "--persist",
+        dest="persist",
+        action="store_true",
+        help="Force persistence mode on (auto mode).",
+    )
+    persist_group.add_argument(
+        "--no-persist",
+        dest="persist",
+        action="store_false",
+        help="Force persistence mode off (auto mode).",
+    )
+    parser.set_defaults(persist=None)
+    parser.add_argument(
+        "--open-report",
+        action="store_true",
+        help="Automatically open the latest report after scan (auto mode).",
+    )
+    return parser.parse_args()
+
+
 def run_scan_flow(scan_mode):
     print_scan_intro()
 
@@ -556,7 +738,7 @@ def main():
 
         mode = select_run_mode()
         if mode == "exit":
-            print("Goodbye!")
+            print("\nGoodbye!")
             break
 
         if mode == "report":
@@ -576,12 +758,19 @@ def main():
 
         choice = input(f"\n{CYAN}>>> Scan another target? (y/n): {RESET}")
         if choice.lower() != "y":
-            print("Goodbye!")
+            print("\nGoodbye!")
             break
 
 
 if __name__ == "__main__":
+    os.chdir(PROJECT_ROOT)
+    args = parse_cli_args()
     try:
-        main()
+        if args.auto:
+            success = run_auto_scan(args)
+            if not success:
+                sys.exit(1)
+        else:
+            main()
     except KeyboardInterrupt:
         print("\nGoodbye!")

@@ -1,170 +1,47 @@
-# 📚 Documentation Index
+# Documentation Index
 
-Welcome to the DRL Web Security Agent documentation! This index will help you find the right guide for your needs.
+This documentation set reflects the current code behavior in this repository.
 
-## Quick Links
+## Canonical Scanner Entry Points
 
-- **[Code Style Guide](CODE_STYLE.md)** - Coding standards and best practices
-- **[Architecture Overview](ARCHITECTURE.md)** - System architecture and design
-- **[Improved Algorithms](IMPROVED_ALGORITHMS.md)** - Advanced algorithms for better performance
-- **[Project Overview](PROJECT_OVERVIEW.md)** - High-level overview
-- **[Technical Architecture](TECHNICAL_ARCHITECTURE.md)** - Technical details
+- Interactive CLI: `python easy_scanner.py` or `python easyscan.py`
+- Easy CLI headless mode: `python easy_scanner.py --auto ...`
+- GUI: `python scanner_gui.py`
+- GUI headless automation: `python scanner_gui.py --auto --target http://localhost:5002`
+- Core scanner CLI: `python autonomous_scan.py <url> --depth ... --intensity ... [--persist --ai-mode --pentester]`
 
-## 🚀 Quick Start (New Users)
+## Truth Matrix (Implemented vs Claims)
 
-**Recommended reading order:**
+| Area | Implemented in code | Documentation stance |
+| --- | --- | --- |
+| `easy_scanner.py` | Interactive menu + `--auto` flags (`--mode`, `--target`, `--all-targets`, `--model`, `--depth`, `--intensity`, `--persist`, `--no-persist`, `--open-report`) | Treated as primary beginner CLI |
+| `scanner_gui.py` (interactive) | Single-target GUI scan, profiles (`Hybrid`, `Full AI`), depth/intensity sliders, model chooser, persistence toggle, findings/exploit panel | Documented as visual workflow |
+| `scanner_gui.py` (`--auto`) | Headless mode forwarding settings to `autonomous_scan.py` | Documented for automation and CI usage |
+| `autonomous_scan.py` | Positional URL + `--depth`, `--intensity`, `--model`, `--persist`, `--ai-mode`, `--pentester` | Treated as core scan engine |
+| Report output from scan flow | Markdown report in `reports/vulnerability_report_<timestamp>.md` | Documented as default output |
+| `utils/target_hunter.py` | Module exists, not wired to scanner CLI/GUI flags | Marked as module-level/aspirational |
+| `utils/zero_day_hunter.py` | Module exists, not wired to scanner CLI/GUI flags | Marked as module-level/aspirational |
+| `utils/proxy_fetcher.py` | Module exists, not exposed as scanner runtime flag set | Marked as module-level helper |
 
-1. [README.md](../README.md) - Project overview and key features
-2. [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) - Complete beginner's guide
-3. [QUICK_START.md](QUICK_START.md) - Quick reference for getting started
-4. [GUI_GUIDE.md](GUI_GUIDE.md) - GUI application tutorial
+## Suggested Reading Order
 
-## 📖 Documentation by Category
+1. `docs/QUICK_START.md`
+2. `docs/BEGINNER_GUIDE.md`
+3. `docs/GUI_GUIDE.md`
+4. `docs/GUI_AUTOMATION.md`
+5. `docs/AUTONOMOUS_SCAN_GUIDE.md`
+6. `docs/PROJECT_OVERVIEW.md`
+7. `docs/TECHNICAL_ARCHITECTURE.md`
 
-### Getting Started
+## Document Categories
 
-| Document                               | Description                            | Audience  |
-| -------------------------------------- | -------------------------------------- | --------- |
-| [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) | Complete guide for non-technical users | Beginners |
-| [QUICK_START.md](QUICK_START.md)       | Quick reference with CLI examples      | All users |
-| [GUI_GUIDE.md](GUI_GUIDE.md)           | GUI application guide                  | GUI users |
+- Getting started: `docs/QUICK_START.md`, `docs/BEGINNER_GUIDE.md`
+- User interfaces: `docs/GUI_GUIDE.md`, `docs/GUI_AUTOMATION.md`
+- Scanner behavior: `docs/AUTONOMOUS_SCAN_GUIDE.md`, `docs/REAL_WORLD_USAGE.md`
+- Architecture and internals: `docs/PROJECT_STRUCTURE.md`, `docs/ARCHITECTURE.md`, `docs/TECHNICAL_ARCHITECTURE.md`
+- Training and models: `docs/TRAINING_RECOMMENDATIONS.md`, `docs/CHECKPOINT_SYSTEM.md`, `docs/IMPROVED_ALGORITHMS.md`
+- Research modules (not default scanner modes): `docs/TARGET_HUNTER.md`, `docs/ZERO_DAY_HUNTER.md`, `docs/MAC_SPOOFING.md`
 
-### Usage Guides
+## Safety Note
 
-| Document                                             | Description                    | Audience       |
-| ---------------------------------------------------- | ------------------------------ | -------------- |
-| [AUTONOMOUS_SCAN_GUIDE.md](AUTONOMOUS_SCAN_GUIDE.md) | Advanced CLI scanning features | Advanced users |
-| [REAL_WORLD_USAGE.md](REAL_WORLD_USAGE.md)           | Practical usage examples       | All users      |
-| [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)           | Deployment instructions        | DevOps         |
-
-### Feature Documentation
-
-| Document                                 | Description                       | Audience             |
-| ---------------------------------------- | --------------------------------- | -------------------- |
-| [ZERO_DAY_HUNTER.md](ZERO_DAY_HUNTER.md) | Zero-Day hunting mode guide       | Security researchers |
-| [TARGET_HUNTER.md](TARGET_HUNTER.md)     | Targetless mode (5 OSINT sources) | Bug bounty hunters   |
-| [GUI_AUTOMATION.md](GUI_AUTOMATION.md)   | GUI automation features           | Automation users     |
-| [MAC_SPOOFING.md](MAC_SPOOFING.md)       | MAC spoofing capabilities         | Advanced users       |
-
-### Technical Documentation
-
-| Document                                                     | Description                    | Audience    |
-| ------------------------------------------------------------ | ------------------------------ | ----------- |
-| [AGENT_CAPABILITIES.md](AGENT_CAPABILITIES.md)               | What the agent can do          | All users   |
-| [REAL_WORLD_TRANSFER.md](REAL_WORLD_TRANSFER.md)             | Real-world performance analysis| All users   |
-| [TUNED_ACTION_SPACE.md](TUNED_ACTION_SPACE.md)               | Optimized action space design  | Researchers |
-| [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)                   | High-level project description | All users   |
-| [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)                 | Codebase structure             | Developers  |
-| [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)       | System architecture            | Developers  |
-| [AI_CONCEPTS.md](AI_CONCEPTS.md)                             | AI/ML concepts explained       | Learners    |
-| [AGENT_VS_HUMAN_COMPARISON.md](AGENT_VS_HUMAN_COMPARISON.md) | Agent vs human testing         | Researchers |
-| [CODE_LEARNING_GUIDE.md](CODE_LEARNING_GUIDE.md)             | Code learning guide            | Developers  |
-
-### Training & Optimization
-
-| Document                                                   | Description              | Audience         |
-| ---------------------------------------------------------- | ------------------------ | ---------------- |
-| [TRAINING_RECOMMENDATIONS.md](TRAINING_RECOMMENDATIONS.md) | Training best practices  | ML practitioners |
-| [CHECKPOINT_SYSTEM.md](CHECKPOINT_SYSTEM.md)               | Checkpoint management    | All users        |
-| [OPTIMIZATION_SUMMARY.md](OPTIMIZATION_SUMMARY.md)         | Performance optimization | Advanced users   |
-
-### Maintenance
-
-| Document                                               | Description         | Audience         |
-| ------------------------------------------------------ | ------------------- | ---------------- |
-| [CLEANUP_GUIDE.md](CLEANUP_GUIDE.md)                   | Cleanup procedures  | All users        |
-| [IMPLEMENTATION_JOURNEY.md](IMPLEMENTATION_JOURNEY.md) | Development history | Interested users |
-
-## 🎯 Find Documentation by Task
-
-### I want to...
-
-- **Start scanning websites** → [QUICK_START.md](QUICK_START.md) or [GUI_GUIDE.md](GUI_GUIDE.md)
-- **Learn the basics** → [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md)
-- **Use Zero-Day Hunter** → [ZERO_DAY_HUNTER.md](ZERO_DAY_HUNTER.md)
-- **Auto-discover targets** → [TARGET_HUNTER.md](TARGET_HUNTER.md)
-- **Train the agent** → [TRAINING_RECOMMENDATIONS.md](TRAINING_RECOMMENDATIONS.md)
-- **Understand the architecture** → [TECHNICAL_ARCHITECTURE.md](TECHNICAL_ARCHITECTURE.md)
-- **See real-world examples** → [REAL_WORLD_USAGE.md](REAL_WORLD_USAGE.md)
-- **Deploy to production** → [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-- **Clean up files** → [CLEANUP_GUIDE.md](CLEANUP_GUIDE.md)
-
-## 🔍 Search by Feature
-
-### Scan Modes
-
-- **Auto Mode** - [QUICK_START.md](QUICK_START.md#auto-mode-default)
-- **Aggressive Mode** - [QUICK_START.md](QUICK_START.md#aggressive-mode)
-- **OSINT Mode** - [QUICK_START.md](QUICK_START.md#osint-mode)
-- **Specific Mode** - [QUICK_START.md](QUICK_START.md#specific-mode)
-- **Zero-Day Mode** - [ZERO_DAY_HUNTER.md](ZERO_DAY_HUNTER.md)
-- **Targetless Mode** - [TARGET_HUNTER.md](TARGET_HUNTER.md)
-
-### Discovery Sources (Targetless Mode)
-
-- **Google Dorks** - [TARGET_HUNTER.md](TARGET_HUNTER.md#google-dorks)
-- **Shodan** - [TARGET_HUNTER.md](TARGET_HUNTER.md#shodan)
-- **CRT.sh** - [TARGET_HUNTER.md](TARGET_HUNTER.md#crtsh-certificate-transparency)
-- **DuckDuckGo** - [TARGET_HUNTER.md](TARGET_HUNTER.md#duckduckgo)
-- **Censys** - [TARGET_HUNTER.md](TARGET_HUNTER.md#censys)
-
-### Key Features
-
-- **100 Real-World Actions** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#100-actions-explained)
-- **200+ Attack Payloads** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#payload-database)
-- **Auto-Proxy Fetching** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#proxy-system)
-- **Stealth Options** - [QUICK_START.md](QUICK_START.md#stealth-levels)
-- **Report Generation** - [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md#report-formats)
-
-## 📊 Documentation Statistics
-
-- **Total Documents**: 22
-- **Getting Started**: 3 docs
-- **Usage Guides**: 3 docs
-- **Feature Docs**: 4 docs
-- **Technical Docs**: 6 docs
-- **Training Docs**: 3 docs
-- **Maintenance**: 2 docs
-- **Project Info**: 1 doc
-
-## 🆕 Latest Updates (2025)
-
-### New Features Documented
-
-- ✅ Zero-Day Hunter mode (fuzzing, CVE intelligence, config scanning)
-- ✅ Targetless Hunter mode (5 OSINT sources)
-- ✅ 200+ attack payloads
-- ✅ Auto-proxy fetching (6 sources)
-- ✅ Aggressive scan mode
-- ✅ Full exploit URLs
-- ✅ Comprehensive reports with captured flags
-
-### Recently Updated Docs
-
-- [PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md) - Added 2 new scan modes
-- [QUICK_START.md](QUICK_START.md) - Added Zero-Day and Targetless examples
-- [AUTONOMOUS_SCAN_GUIDE.md](AUTONOMOUS_SCAN_GUIDE.md) - Updated with all modes
-- [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md) - Simplified new mode explanations
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md) - Updated file structure
-- [GUI_GUIDE.md](GUI_GUIDE.md) - Added Targetless UI documentation
-
-## 💡 Tips for Using This Documentation
-
-1. **Start with the basics** - Read BEGINNER_GUIDE.md if you're new
-2. **Use the search** - Ctrl+F to find specific topics
-3. **Follow links** - Internal links connect related topics
-4. **Check examples** - Most guides include CLI examples
-5. **Stay updated** - Check this index for latest additions
-
-## 📞 Need Help?
-
-- 📖 Check the relevant guide above
-- 🐛 See [BEGINNER_GUIDE.md](BEGINNER_GUIDE.md#troubleshooting) for troubleshooting
-- 💬 Open an issue on GitHub
-- 📧 Contact the maintainers
-
----
-
-**Documentation Version**: 2.0  
-**Last Updated**: 2025-11-28  
-**Status**: ✅ Complete & Current
+Use this project only for systems you own or are explicitly authorized to test.

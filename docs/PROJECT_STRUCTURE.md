@@ -1,320 +1,57 @@
-# 📁 Project Structure - Complete Overview
+# Project Structure
 
-## ✅ Reorganization Complete!
+This map focuses on the files and folders that drive current behavior.
 
-All documentation has been moved to the `docs/` folder for better organization.
+## Top-Level Layout
 
----
-
-## 🗂️ Current File Structure
-
-```
-DQN web vul/
-│
-├── 📄 README.md                    # Main project documentation
-├── 📄 requirements.txt             # Python dependencies
-│
-├── 🎮 **Main Applications**
-│   ├── scanner_gui.py              # GUI application (recommended for beginners)
-│   ├── easy_scanner.py             # Interactive CLI scanner
-│   ├── autonomous_scan.py          # Advanced CLI scanner
-│   ├── train_mock_targets.py       # Mock target training (GPU accelerated)
-│   └── quick_train_5000.py         # Long-run training with auto-resume
-│
-├── 🧠 **Core Components**
-│   ├── agent/
-│   │   ├── __init__.py
-│   │   ├── dqn_agent.py           # Deep Q-Network implementation
-│   │   └── payload_manager.py     # 200+ attack payloads
-│   │
-│   ├── env/
-│   │   ├── __init__.py
-│   │   ├── web_sec_env.py         # Gymnasium environment (50 mock / 150 full actions)
-│   │   ├── target_app_*.py        # 5 vulnerable apps
-│   │   ├── templates/             # Modern UI templates
-│   │   └── static/                # CSS, JS assets
-│   │
-│   └── utils/
-│       ├── zero_day_hunter.py     # Fuzzing, CVE intelligence, config scanning
-│       ├── target_hunter.py       # 5 OSINT sources (Google, Shodan, CRT.sh, DuckDuckGo, Censys)
-│       ├── proxy_fetcher.py       # Auto-fetch proxies (6 sources)
-│       ├── vulnerability_database.py  # Vuln descriptions
-│       └── report_generator.py    # Report creation
-│
-├── 💾 **Models & Checkpoints**
-│   ├── checkpoints/
-│   │   ├── dqn_checkpoint_ep20.pth
-│   │   ├── dqn_checkpoint_ep40.pth (coming soon)
-│   │   ├── ... (every 20 episodes)
-│   │   └── dqn_checkpoint_ep500.pth (final checkpoint)
-│   │
-│   └── dqn_web_sec_model.pth      # Final trained model
-│
-└── 📚 **Documentation** (docs/)
-    ├── BEGINNER_GUIDE.md          # Complete guide for non-technical users
-    ├── QUICK_START.md             # Quick reference for easy_scanner.py
-    ├── GUI_GUIDE.md               # GUI application guide
-    ├── REAL_WORLD_USAGE.md        # Practical usage examples
-    ├── AUTONOMOUS_SCAN_GUIDE.md   # Advanced scanning features
-    ├── ZERO_DAY_HUNTER.md         # Zero-Day hunting mode
-    ├── TARGET_HUNTER.md           # Targetless mode (5 OSINT sources)
-    ├── DEPLOYMENT_GUIDE.md        # DVWA deployment guide
-    ├── CHECKPOINT_SYSTEM.md       # Model management
-    ├── TRAINING_RECOMMENDATIONS.md # Training best practices
-    ├── CLEANUP_GUIDE.md           # File management
-    └── PROJECT_OVERVIEW.md        # High-level project description
+```text
+.
+|-- easy_scanner.py
+|-- easyscan.py
+|-- scanner_gui.py
+|-- autonomous_scan.py
+|-- train_mock_targets.py
+|-- quick_train_5000.py
+|-- start_services.py
+|-- config.py
+|-- agent/
+|-- env/
+|-- utils/
+|-- checkpoints/
+|-- reports/
+|-- logs/
+|-- docs/
+`-- tests/
 ```
 
----
+## Key Runtime Files
 
-## 🎯 Quick Navigation
+- `easy_scanner.py`: interactive CLI + `--auto` wrapper around `autonomous_scan.py`.
+- `easyscan.py`: compatibility launcher mirroring `easy_scanner.py` behavior.
+- `scanner_gui.py`: Tk GUI and headless automation mode (`--auto`).
+- `autonomous_scan.py`: core scan engine (`SecurityAuditor`, crawler, attack loop, report generation).
+- `start_services.py`: boots local vulnerable mock targets on ports `5002` to `5006`.
 
-### For Beginners
+## AI and Environment
 
-1. Start here: [README.md](../README.md)
-2. Then read: [docs/BEGINNER_GUIDE.md](BEGINNER_GUIDE.md)
-3. Launch GUI: `python scanner_gui.py`
+- `agent/improved_dqn_agent.py`: improved DQN implementation (PER, noisy layers, dueling + double DQN).
+- `env/web_sec_env.py`: Gym-style web security environment with full 150-action book and 50-action mock mapping.
+- `env/target_app_*.py`: mock applications used for training and local scans.
 
-### For CLI Users
+## Utility Modules
 
-1. Quick start: [docs/QUICK_START.md](QUICK_START.md)
-2. Run: `python easy_scanner.py`
+- `utils/report_generator.py`: Markdown/TXT/HTML report generation helpers.
+- `utils/model_loader.py`: smart checkpoint/base model loading helpers.
+- `utils/false_positive_filter.py`: post-processing filter (used in non-AI mode).
+- `utils/validator.py`: secondary finding validation logic.
+- `utils/target_hunter.py`, `utils/zero_day_hunter.py`, `utils/proxy_fetcher.py`: research/helper modules (not exposed as default scanner flags).
 
-### For Advanced Users
+## Data and Outputs
 
-1. Advanced guide: [docs/AUTONOMOUS_SCAN_GUIDE.md](AUTONOMOUS_SCAN_GUIDE.md)
-2. Real-world examples: [docs/REAL_WORLD_USAGE.md](REAL_WORLD_USAGE.md)
+- `checkpoints/`: saved model checkpoints (for example `improved_mock_ep*.pth`).
+- `reports/`: scan reports (`vulnerability_report_<timestamp>.md`).
+- `logs/`: service logs and run-time logs.
 
-### For Developers
+## Docs Folder
 
-1. Training: [docs/SPEED_UP_TRAINING.md](SPEED_UP_TRAINING.md) (if exists)
-2. GPU setup: [docs/GPU_SUCCESS.md](GPU_SUCCESS.md)
-3. Checkpoints: [docs/CHECKPOINT_SYSTEM.md](CHECKPOINT_SYSTEM.md)
-
----
-
-## 📊 File Categories
-
-### 🎮 Executable Scripts (5 files)
-
-| File                 | Purpose             | Difficulty        |
-| -------------------- | ------------------- | ----------------- |
-| `scanner_gui.py`     | Graphical interface | ⭐ Easiest        |
-| `easy_scanner.py`    | Interactive CLI     | ⭐⭐ Easy         |
-| `autonomous_scan.py` | Advanced CLI        | ⭐⭐⭐ Medium     |
-| `train_mock_targets.py` | Train the AI     | ⭐⭐⭐⭐ Advanced |
-| `quick_train_5000.py` | Long-run training  | ⭐⭐⭐ Medium     |
-
-### 📚 Documentation (10 files)
-
-All located in `docs/` folder:
-
-- **Getting Started**: BEGINNER_GUIDE.md, QUICK_START.md, GUI_GUIDE.md
-- **Usage**: REAL_WORLD_USAGE.md, AUTONOMOUS_SCAN_GUIDE.md, DEPLOYMENT_GUIDE.md
-- **Technical**: CHECKPOINT_SYSTEM.md, GPU_SUCCESS.md, TRANSFER_LEARNING.md, CLEANUP_GUIDE.md
-
-### 🧠 Core Code (2 folders)
-
-- `agent/` - AI implementation
-- `env/` - Environment & test server
-
-### 💾 Models (1 folder + 1 file)
-
-- `checkpoints/` - Training checkpoints
-- `dqn_web_sec_model.pth` - Final model
-
----
-
-## 🚀 Common Tasks
-
-### Scan a Website
-
-```bash
-# GUI (easiest)
-python scanner_gui.py
-
-# CLI (simple)
-python easy_scanner.py
-
-# Advanced
-python autonomous_scan.py http://target.com
-```
-
-### Train the Agent
-
-```bash
-python train_mock_targets.py --episodes 1000
-```
-
-### View Documentation
-
-```bash
-# Open in browser or text editor
-start docs\BEGINNER_GUIDE.md
-```
-
----
-
-## 🎯 File Size Summary
-
-| Category      | Count   | Total Size    |
-| ------------- | ------- | ------------- |
-| Scripts       | 5       | ~50 KB        |
-| Core Code     | ~10     | ~100 KB       |
-| Documentation | 10      | ~60 KB        |
-| Models        | 1-25    | ~40-80 MB     |
-| **Total**     | **~30** | **~40-80 MB** |
-
----
-
-## 🧹 What Was Cleaned Up
-
-### Before Reorganization
-
-```
-DQN web vul/
-├── scanner_gui.py
-├── easy_scanner.py
-├── train_mock_targets.py
-├── BEGINNER_GUIDE.md          ❌ Root folder
-├── QUICK_START.md             ❌ Root folder
-├── GUI_GUIDE.md               ❌ Root folder
-├── REAL_WORLD_USAGE.md        ❌ Root folder
-├── AUTONOMOUS_SCAN_GUIDE.md   ❌ Root folder
-├── DEPLOYMENT_GUIDE.md        ❌ Root folder
-├── ... (10 guide files scattered)
-└── agent/
-```
-
-### After Reorganization ✅
-
-```
-DQN web vul/
-├── README.md                   ✅ Clear entry point
-├── scanner_gui.py
-├── easy_scanner.py
-├── train_mock_targets.py
-├── docs/                       ✅ All guides organized
-│   ├── BEGINNER_GUIDE.md
-│   ├── QUICK_START.md
-│   ├── GUI_GUIDE.md
-│   └── ... (10 guides)
-└── agent/
-```
-
----
-
-## 📖 Documentation Index
-
-### Getting Started (3 docs)
-
-1. **BEGINNER_GUIDE.md** - Complete guide for non-technical users
-
-   - Installation
-   - Step-by-step usage
-   - Troubleshooting
-   - Safety rules
-
-2. **QUICK_START.md** - Quick reference for easy_scanner.py
-
-   - 5-minute setup
-   - Simple examples
-   - Common commands
-
-3. **GUI_GUIDE.md** - GUI application guide
-   - Interface overview
-   - Step-by-step tutorial
-   - Features explanation
-
-### Usage Guides (3 docs)
-
-4. **REAL_WORLD_USAGE.md** - Practical examples
-
-   - DVWA scanning
-   - Remote websites
-   - Multiple targets
-   - Professional workflow
-
-5. **AUTONOMOUS_SCAN_GUIDE.md** - Advanced features
-
-   - Command-line options
-   - Customization
-   - Batch processing
-
-6. **DEPLOYMENT_GUIDE.md** - DVWA deployment
-   - Setup instructions
-   - Configuration
-   - Testing
-
-### Technical Docs (4 docs)
-
-7. **CHECKPOINT_SYSTEM.md** - Model management
-
-   - How checkpoints work
-   - Rolling back
-   - Comparing models
-
-8. **GPU_SUCCESS.md** - GPU setup
-
-   - Installation
-   - Performance gains
-   - Troubleshooting
-
-9. **TRANSFER_LEARNING.md** - Pre-trained models
-
-   - Research findings
-   - Fine-tuning
-   - Curriculum learning
-
-10. **CLEANUP_GUIDE.md** - File management
-    - What to keep
-    - What to delete
-    - Space optimization
-
----
-
-## 🎉 Benefits of New Structure
-
-### ✅ Cleaner Root Directory
-
-- Only essential files in root
-- Easy to find main scripts
-- Professional appearance
-
-### ✅ Organized Documentation
-
-- All guides in one place
-- Easy to browse
-- Clear categorization
-
-### ✅ Better Navigation
-
-- README.md as entry point
-- Clear links to all docs
-- Logical file grouping
-
-### ✅ Easier Maintenance
-
-- Update docs in one location
-- Add new guides easily
-- Version control friendly
-
----
-
-## 📞 Quick Reference
-
-| I want to...     | Go to...                                    |
-| ---------------- | ------------------------------------------- |
-| Start scanning   | `python scanner_gui.py` or `python easy_scanner.py` |
-| Learn the basics | `docs/BEGINNER_GUIDE.md`                    |
-| See examples     | `docs/REAL_WORLD_USAGE.md`                  |
-| Use the GUI      | `docs/GUI_GUIDE.md`                         |
-| Train the agent  | `python train_mock_targets.py` + `docs/GPU_SUCCESS.md` |
-| Manage models    | `docs/CHECKPOINT_SYSTEM.md`                 |
-| Clean up files   | `docs/CLEANUP_GUIDE.md`                     |
-
----
-
-**Structure Version**: 1.0  
-**Last Updated**: 2025-11-23  
-**Status**: ✅ Organized & Production Ready
+`docs/` contains user guides, architecture docs, training notes, and module-level references. This documentation has been aligned to current scanner entrypoints and currently implemented flags.

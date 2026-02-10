@@ -1,90 +1,40 @@
-# 🗺️ Implementation Journey: From Script to AI
+# Implementation Journey
 
-This document details the step-by-step evolution of the project. It serves as a roadmap of how we built this advanced AI system.
+This timeline summarizes major project evolution based on the current repository state.
 
-## 🏁 Phase 1: Foundation
+## Phase 1: Core RL Scanner Foundation
 
-**Goal**: Build a basic Reinforcement Learning agent that can interact with a website.
+- Introduced environment-driven web testing loop.
+- Built initial DQN-based attack policy architecture.
+- Added vulnerable mock applications for reproducible training.
 
-1.  **Environment Setup**: Created `WebSecEnv` using OpenAI Gym. Defined basic actions (Click, Login, Inject).
-2.  **Agent Creation**: Built a simple DQN (Deep Q-Network) agent.
-3.  **Basic Training**: Ran the agent on a simple "Hello World" Flask app.
-4.  **Result**: The agent could navigate pages but was "dumb" and random.
+## Phase 2: Training and Model Workflow
 
-## 🚀 Phase 2: Optimization & Speed
+- Added `train_mock_targets.py` for rotating local target training.
+- Added checkpoint saving/resume workflow (`improved_mock_ep*.pth`).
+- Added long-run script path (`quick_train_5000.py`).
 
-**Goal**: Make the agent learn faster and use hardware efficiently.
+## Phase 3: Improved Agent Stack
 
-1.  **GPU Acceleration**:
-    - Uninstalled CPU-only PyTorch.
-    - Installed CUDA-enabled PyTorch (`torch+cu118`).
-    - Moved Neural Networks to the GPU (`.to('cuda')`).
-2.  **Algorithmic Efficiency**:
-    - Replaced Python lists with **Numpy Arrays** for the Replay Buffer.
-    - Achieved **O(1)** complexity for memory access.
-    - Implemented `requests.Session` for connection pooling (2x network speed).
-3.  **Result**: Training speed increased by 1500%.
+- Introduced `ImprovedDQNAgent` with prioritized replay and noisy exploration.
+- Adopted dueling + double DQN style updates.
+- Standardized 15-dim state and tuned mock-target action mapping.
 
-## 🏰 Phase 3: The "Secure Blog" Environment
+## Phase 4: Scanner UX and Wrappers
 
-**Goal**: Create a realistic target for the AI to attack.
+- Built interactive wrapper `easy_scanner.py`.
+- Added GUI workflow in `scanner_gui.py`.
+- Added non-interactive automation modes (`easy_scanner.py --auto`, `scanner_gui.py --auto`).
+- Added `easyscan.py` compatibility launcher.
 
-1.  **Full-Stack App**: Built a Flask blog with SQLite database.
-2.  **Authentication**: Implemented JWT (JSON Web Tokens) for secure login.
-3.  **Vulnerabilities**: Intentionally coded bugs:
-    - **SQL Injection** in the login form.
-    - **XSS** in the comment section.
-    - **IDOR** in the profile page.
-4.  **Result**: The agent had a realistic playground to practice real attacks.
+## Phase 5: Reporting and Validation
 
-## 🚩 Phase 4: CTF Transformation
+- Consolidated finding structure and evidence fields.
+- Integrated validator and false-positive filtering path.
+- Standardized report output under `reports/`.
 
-**Goal**: Make the challenge harder and "gamified" (Capture The Flag).
+## Phase 6: Documentation Realignment
 
-1.  **Obfuscation**: Renamed simple paths (`/login`) to complex ones (`/api/v1/auth/gate_keeper_99`).
-2.  **Hidden Flags**: Buried `CTF{...}` strings in databases and API responses.
-3.  **Reward Shaping**: Updated the environment to give huge bonus points for finding Flags.
-4.  **Result**: The agent learned to look for secrets and explore obscure paths.
-
-## 🧠 Phase 5: Agent Capabilities Upgrade (Current)
-
-**Goal**: Transform the agent into a "Smart Attacker".
-
-1.  **Enhanced Vision (10-Dim State)**:
-    - Added **Response Time** (to detect lag).
-    - Added **Content Variance** (to detect changes).
-    - Added **Param Count** (to find complex forms).
-2.  **Advanced Arsenal**:
-    - Created `PayloadManager` to handle **Polyglots** and **Fuzzing**.
-    - Added **Time-Based SQLi** actions.
-3.  **Architecture Update**:
-    - Updated Neural Network input layer to 10.
-    - Restarted training from scratch.
-4.  **Result**: An AI that can detect subtle bugs like Time-Based SQLi and bypass basic filters.
-
-## 📚 Phase 6: Documentation Overhaul
-
-**Goal**: Create a comprehensive knowledge base.
-
-1.  **Architecture Docs**: Detailed system design and algorithms.
-2.  **Learning Guides**: Line-by-line code explanations.
-3.  **Project Overview**: High-level summary for non-technical readers.
-4.  **Result**: A project that is easy to understand and contribute to.
-
-## 🧹 Phase 7: Codebase Refactoring (Readability)
-
-**Goal**: Make the code read like English.
-
-1.  **Descriptive Naming**:
-    - `QNetwork` -> `NeuralNetworkBrain`
-    - `ReplayBuffer` -> `ExperienceMemory`
-    - `OptimizedWebSecEnv` -> `WebSecurityGym`
-2.  **Narrative Structure**: Refactored `autonomous_scan.py` to follow a clear "Recon -> Attack -> Report" story.
-3.  **Decluttering**: Moved massive data (Vulnerability DB) to utility files.
-4.  **Result**: A codebase that explains itself through clear names and structure.
-
-## 🔮 Future Steps
-
-- **Transformer Models**: Replace DQN with PPO or Transformer-based agents.
-- **Multi-Agent System**: One agent for Recon, one for SQLi, one for XSS.
-- **Cloud Deployment**: Dockerize the agent for scalable scanning.
+- Removed outdated scanner command claims.
+- Aligned docs to actual entrypoints and supported flags.
+- Marked module-level research helpers as aspirational where not wired into scanner flags.

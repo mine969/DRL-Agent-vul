@@ -1,225 +1,85 @@
-# Autonomous Web Security Scanner
+# Autonomous Scan Guide
 
-## 🚀 Just Give It a Homepage!
+`autonomous_scan.py` is the core scan engine.
 
-The agent will automatically:
-
-1. **Crawl** the website to discover all pages
-2. **Find** common endpoints (admin, login, api, etc.)
-3. **Test** each discovered page for vulnerabilities
-4. **Report** all findings
-
-## Quick Start
-
-### Basic Scan (Just provide the homepage!)
+## CLI Syntax
 
 ```bash
-python autonomous_scan.py http://localhost/dvwa
+python autonomous_scan.py <url> [--depth N] [--intensity N] [--model PATH] [--persist] [--ai-mode] [--pentester]
 ```
 
-### Deeper Scan
+## Supported Arguments
+
+- `url` (required positional argument)
+- `--depth` (crawl depth, default `20`)
+- `--intensity` (attack intensity, default `5`)
+- `--model` (model path, default `dqn_web_sec_model.pth`)
+- `--persist` (retry loop until findings are produced or retry cap is reached)
+- `--ai-mode` (AI-driven recon + online learning path)
+- `--pentester` (enables chain-style deeper runs; implies AI mode and raises minimum intensity)
+
+## Common Examples
+
+### Balanced local scan
 
 ```bash
-python autonomous_scan.py http://localhost/dvwa --depth 50 --episodes 5
+python autonomous_scan.py http://localhost:5002 --depth 30 --intensity 3
 ```
 
-### Use Specific Model
+### Full AI behavior
 
 ```bash
-python autonomous_scan.py http://your-site.com --model checkpoints/dqn_checkpoint_ep100.pth
+python autonomous_scan.py http://localhost:5002 --depth 50 --intensity 8 --ai-mode
 ```
 
-### Zero-Day Hunting Mode
+### Chain style deep pass
 
 ```bash
-python autonomous_scan.py http://your-site.com --mode zeroday --depth 30 --episodes 5
+python autonomous_scan.py http://localhost:5002 --depth 50 --intensity 8 --ai-mode --pentester
 ```
 
-### Targetless Mode (Auto-discover targets)
+### Persistence mode
 
 ```bash
-# Using Google Dorks
-python autonomous_scan.py --mode targetless --google-dork "inurl:admin.php"
-
-# Using Shodan
-python autonomous_scan.py --mode targetless --shodan-query "apache 2.4" --shodan-key YOUR_API_KEY
-
-# Using CRT.sh (Certificate Transparency)
-python autonomous_scan.py --mode targetless --crtsh example.com
-
-# Using DuckDuckGo
-python autonomous_scan.py --mode targetless --duckduckgo "site:example.com login"
-
-# Using Censys
-python autonomous_scan.py --mode targetless --censys-query "services.http.response.body:admin" --censys-id YOUR_ID --censys-secret YOUR_SECRET
-
-# Combine multiple sources
-python autonomous_scan.py --mode targetless --google-dork "inurl:login" --shodan-query "apache" --shodan-key YOUR_KEY --crtsh example.com
+python autonomous_scan.py http://localhost:5002 --depth 30 --intensity 3 --persist
 ```
 
-## What It Does
-
-### Phase 1: Reconnaissance 🕷️
-
-- Crawls from homepage
-- Follows all internal links
-- Discovers pages automatically
-- Probes for common endpoints:
-  - `/admin`, `/login`, `/api`
-  - `/upload`, `/download`, `/config`
-  - `/debug`, `/test`, `/.git`
-  - And 10+ more common paths
-
-### Phase 2: Vulnerability Testing 🔴
-
-- Tests each discovered URL
-- Uses your trained DQN agent
-- Tries multiple attack vectors
-- Records successful exploits
-
-### Phase 3: Reporting 📊
-
-- Generates `reports/vulnerability_report_[timestamp].md`
-- Lists all discovered URLs
-- Details found vulnerabilities
-- Includes confidence levels
-- Captures flags and evidence snippets when present
-
-## Example Output
-
-```
-==================================================================
-🤖 AUTONOMOUS SECURITY AGENT
-==================================================================
-
-📍 PHASE 1: RECONNAISSANCE
-----------------------------------------------------------------------
-🕷️  Starting reconnaissance on: http://localhost/dvwa
-🎯 Target domain: localhost
-
-📍 Crawling: http://localhost/dvwa
-  ✅ Found 3 form(s)
-  ✅ Found 8 input field(s)
-
-📍 Crawling: http://localhost/dvwa/login.php
-  ✅ Found 1 form(s)
-  ✅ Found 2 input field(s)
-
-✅ Reconnaissance complete!
-📊 Discovered 15 unique URLs
-
-🔍 Probing for common endpoints...
-  ✅ Found: /admin
-  ✅ Found: /api
-  🔒 Forbidden: /config
-
-🔴 PHASE 2: VULNERABILITY TESTING
-----------------------------------------------------------------------
-
-🎯 Testing: http://localhost/dvwa/login.php
-  🚨 Found 1 potential vulnerability(ies)
-
-🎯 Testing: http://localhost/dvwa/vulnerabilities/sqli/
-  🚨 Found 2 potential vulnerability(ies)
-
-==================================================================
-📊 FINAL REPORT
-==================================================================
-
-Target: http://localhost/dvwa
-Pages Discovered: 15
-Vulnerabilities Found: 3
-
-🔴 VULNERABILITIES:
-  - http://localhost/dvwa/login.php
-    Type: SQL Injection (Advanced)
-    Confidence: High
-
-  - http://localhost/dvwa/vulnerabilities/sqli/
-    Type: SQL Injection
-    Confidence: High
-
-💾 Report saved to: reports/vulnerability_report_[timestamp].md
-```
-
-## Parameters
-
-### Basic Parameters
-
-- `url` - **Required** (except for targetless mode): Target homepage URL
-- `--model` - Path to trained model (default: `dqn_web_sec_model.pth`)
-- `--depth` - Max pages to crawl (default: 30)
-- `--episodes` - Test episodes per URL (default: 3)
-
-### Scan Modes
-
-- `--mode auto` - AI-driven balanced scanning (default)
-- `--mode aggressive` - 1.5x depth, 2x intensity
-- `--mode osint` - Reconnaissance only, no attacks
-- `--mode specific --attack "TYPE"` - Test single vulnerability type
-- `--mode zeroday` - Fuzzing, CVE intelligence, config scanning
-- `--mode targetless` - Auto-discover targets via OSINT
-
-### Targetless Mode Discovery Sources
-
-- `--google-dork "QUERY"` - Google Dork search
-- `--shodan-query "QUERY" --shodan-key KEY` - Shodan search
-- `--crtsh DOMAIN` - Certificate Transparency lookup
-- `--duckduckgo "QUERY"` - DuckDuckGo search
-- `--censys-query "QUERY" --censys-id ID --censys-secret SECRET` - Censys search
-
-## Features
-
-✅ **Automatic Discovery** - No need to specify pages manually
-✅ **Smart Crawling** - Only follows links on same domain
-✅ **Endpoint Probing** - Checks common paths automatically
-✅ **Multi-Episode Testing** - Tests each page multiple times
-✅ **Confidence Scoring** - High/Medium based on reward
-✅ **Report Generation** - Saves detailed markdown report
-
-## Comparison
-
-### Old Way (Manual)
+### Specific checkpoint
 
 ```bash
-# You had to specify each URL
-python deploy_agent.py --target http://site.com/login
-python deploy_agent.py --target http://site.com/admin
-python deploy_agent.py --target http://site.com/api
-# ... repeat for every page
+python autonomous_scan.py http://localhost:5002 --model checkpoints/improved_mock_ep1000.pth --depth 30 --intensity 3
 ```
 
-### New Way (Autonomous)
+## Execution Phases
 
-```bash
-# Just give the homepage!
-python autonomous_scan.py http://site.com
-```
+1. Recon: crawl discovered pages and probe common endpoints.
+2. Attack: run action-policy steps against discovered URLs.
+3. Filter: apply false-positive filtering in non-AI mode.
+4. Report: write Markdown report to `reports/`.
 
-## Tips
+## AI Mode Notes
 
-1. **Start Small**: Use `--depth 10` for quick scans
-2. **Go Deep**: Use `--depth 100` for thorough scans
-3. **Multiple Runs**: Run with different checkpoints to compare
-4. **Review Reports**: Check `reports/vulnerability_report_[timestamp].md` for details
+- Enables AI-assisted exploration and online replay updates.
+- Saves session model snapshots as `checkpoints/online_session_<timestamp>.pth`.
+- Skips the false-positive filter pass currently used in non-AI mode.
 
-## Limitations
+## Pentester Mode Notes
 
-- Only crawls same domain (won't follow external links)
-- Respects basic crawling etiquette (timeouts, error handling)
-- Agent effectiveness depends on training quality
-- Some pages may not be compatible with the environment
+- Forces AI mode on.
+- Raises effective attack intensity for deeper chain testing.
 
-## Safety
+## Output
 
-⚠️ **ONLY USE ON:**
+- Report path: `reports/vulnerability_report_<timestamp>.md`
 
-- Your own websites
-- Systems you have permission to test
-- Lab environments (DVWA, WebGoat, etc.)
+## Important Compatibility Notes
 
-🚫 **NEVER USE ON:**
+These are not valid `autonomous_scan.py` flags in current code:
 
-- Production systems without authorization
-- Third-party websites
-- Any system you don't own
+- `--target` (use positional URL instead)
+- `--episodes` (use `--intensity`)
+- `--mode targetless`
+- `--mode zeroday`
+- `--auto-generate`
+
+Use module docs (`docs/TARGET_HUNTER.md`, `docs/ZERO_DAY_HUNTER.md`) for helper-module usage that is not exposed as scanner mode flags.
