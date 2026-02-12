@@ -1,0 +1,347 @@
+# Write the Training Pipeline From Scratch (Step by Step)
+
+This guide shows how to write a fresh training script for this repository using the current stack:
+
+- `ImprovedDQNAgent` (Rainbow-style DQN)
+- `WebSecurityGym` in `mock_targets` mode (50 actions)
+- auto-resume from latest checkpoint
+- checkpoint save every 50 episodes
+
+The result is a script you can run like this:
+
+```bash
+python train_from_scratch.py --episodes 1000
+```
+
+## Step 0: Prepare the Environment
+
+Install dependencies and start mock targets first.
+
+```bash
+pip install -r requirements.txt
+python start_services.py
+```
+
+Keep `start_services.py` running in a separate terminal while training.
+
+## Step 1: Create the Training Script
+
+Create a new file at project root: `train_from_scratch.py`
+
+Start with imports:
+
+```python
+import argparse
+from pathlib import Path
+
+from agent.improved_dqn_agent import ImprovedDQNAgent
+from env.web_sec_env import WebSecurityGym
+from utils.model_loader import find_latest_checkpoint
+```
+
+## Step 2: Define the Mock Targets
+
+Add the 5 local targets used by the project:
+
+```python
+TARGETS = [
+    {"name": "Banking App", "url": "http://localhost:5004"},
+    {"name": "Blog Platform", "url": "http://localhost:5005"},
+    {"name": "E-Commerce", "url": "http://localhost:5002"},
+    {"name": "File Share", "url": "http://localhost:5006"},
+    {"name": "Social Media", "url": "http://localhost:5003"},
+]
+```
+
+## Step 3: Initialize the Trainer and Agent
+
+Create a trainer class and initialize the improved agent with the current mock-target settings.
+
+```python
+class FromScratchTrainer:
+    def __init__(self, base_model="dqn_web_sec_model.pth", checkpoint_prefix="improved_mock"):
+        self.base_model = Path(base_model)
+        self.checkpoint_prefix = checkpoint_prefix
+
+        self.agent = ImprovedDQNAgent(
+            state_dim=15,
+            action_dim=50,
+            use_prioritized_replay=True,
+            use_noisy_networks=True,
+            n_step=1,
+        )
+
+        self.start_episode = 1
+        self._load_or_resume()
+```
+
+## Step 4: Add Checkpoint Resume Logic
+
+Resume from the latest `improved_mock_ep*.pth` checkpoint if it exists. Otherwise load base model if available.
+
+```python
+    def _load_or_resume(self):
+        latest_ep, latest_path = find_latest_checkpoint(
+            pattern=f"{self.checkpoint_prefix}_ep*.pth"
+        )
+
+        if latest_path:
+            self.agent.load(latest_path)
+            self.start_episode = latest_ep + 1
+            print(f"Resumed from: {latest_path}")
+            return
+
+        if self.base_model.exists():
+            self.agent.load(str(self.base_model))
+            print(f"Loaded base model: {self.base_model}")
+        else:
+            print("No checkpoint or base model found. Starting from random weights.")
+```
+
+## Step 5: Write the Single-Episode Training Loop
+
+Each episode runs one target URL in `mock_targets` mode for up to 50 steps.
+
+```python
+    def train_episode(self, target_url):
+        env = WebSecurityGym(target_url=target_url, mode="mock_targets")
+        state, _ = env.reset()
+
+        total_reward = 0.0
+        vuln_hits = 0
+        done = False
+        steps = 0
+
+        while not done and steps < 50:
+            action = self.agent.act(state)
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            done = terminated or truncated
+
+            self.agent.remember(state, action, reward, next_state, done)
+            self.agent.replay()
+
+            total_reward += reward
+            if reward >= 1.0:
+                vuln_hits += 1
+
+            state = next_state
+            steps += 1
+
+        return total_reward, vuln_hits
+```
+
+## Step 6: Add Checkpoint Saving
+
+Save checkpoints every 50 episodes into `checkpoints/`.
+
+```python
+    def save_checkpoint(self, episode):
+        checkpoint_dir = Path("checkpoints")
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        path = checkpoint_dir / f"{self.checkpoint_prefix}_ep{episode}.pth"
+        self.agent.save(str(path))
+        print(f"Saved checkpoint: {path}")
+```
+
+## Step 7: Build the Multi-Episode Training Loop
+
+Rotate targets each episode, log every 10 episodes, save every 50 episodes.
+
+```python
+    def train(self, total_episodes=1000):
+        current_episode = self.start_episode
+
+        try:
+            for episode in range(self.start_episode, total_episodes + 1):
+                current_episode = episode
+                target = TARGETS[episode % len(TARGETS)]
+
+                reward, vulns = self.train_episode(target["url"])
+
+                if episode % 10 == 0:
+                    print(
+                        f"Episode {episode}: Target={target['name']} | "
+                        f"Reward={reward:.1f} | Vulns={vulns}"
+                    )
+
+                if episode % 50 == 0:
+                    self.save_checkpoint(episode)
+
+        except KeyboardInterrupt:
+            print(f"Training interrupted. Saving episode {current_episode}...")
+            self.save_checkpoint(current_episode)
+```
+
+## Step 8: Add CLI Entrypoint
+
+Allow episode count from command line.
+
+```python
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--episodes", type=int, default=1000)
+    args = parser.parse_args()
+
+    trainer = FromScratchTrainer()
+    trainer.train(total_episodes=args.episodes)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Step 9: Run Training
+
+In a new terminal (with targets still running):
+
+```bash
+python train_from_scratch.py --episodes 1000
+```
+
+Common milestones:
+
+```bash
+python train_from_scratch.py --episodes 3000
+python train_from_scratch.py --episodes 5000
+```
+
+Because of checkpoint resume, each run continues from the latest saved episode.
+
+## Step 10: Evaluate a Saved Checkpoint
+
+Use a checkpoint with the scanner:
+
+```bash
+python autonomous_scan.py http://localhost:5002 --model checkpoints/improved_mock_ep1000.pth --depth 30 --intensity 3
+```
+
+Compare checkpoints by detection quality, consistency, and false positives.
+
+## Full Minimal Script (Reference)
+
+```python
+import argparse
+from pathlib import Path
+
+from agent.improved_dqn_agent import ImprovedDQNAgent
+from env.web_sec_env import WebSecurityGym
+from utils.model_loader import find_latest_checkpoint
+
+
+TARGETS = [
+    {"name": "Banking App", "url": "http://localhost:5004"},
+    {"name": "Blog Platform", "url": "http://localhost:5005"},
+    {"name": "E-Commerce", "url": "http://localhost:5002"},
+    {"name": "File Share", "url": "http://localhost:5006"},
+    {"name": "Social Media", "url": "http://localhost:5003"},
+]
+
+
+class FromScratchTrainer:
+    def __init__(self, base_model="dqn_web_sec_model.pth", checkpoint_prefix="improved_mock"):
+        self.base_model = Path(base_model)
+        self.checkpoint_prefix = checkpoint_prefix
+
+        self.agent = ImprovedDQNAgent(
+            state_dim=15,
+            action_dim=50,
+            use_prioritized_replay=True,
+            use_noisy_networks=True,
+            n_step=1,
+        )
+
+        self.start_episode = 1
+        self._load_or_resume()
+
+    def _load_or_resume(self):
+        latest_ep, latest_path = find_latest_checkpoint(
+            pattern=f"{self.checkpoint_prefix}_ep*.pth"
+        )
+
+        if latest_path:
+            self.agent.load(latest_path)
+            self.start_episode = latest_ep + 1
+            print(f"Resumed from: {latest_path}")
+            return
+
+        if self.base_model.exists():
+            self.agent.load(str(self.base_model))
+            print(f"Loaded base model: {self.base_model}")
+        else:
+            print("No checkpoint or base model found. Starting from random weights.")
+
+    def train_episode(self, target_url):
+        env = WebSecurityGym(target_url=target_url, mode="mock_targets")
+        state, _ = env.reset()
+
+        total_reward = 0.0
+        vuln_hits = 0
+        done = False
+        steps = 0
+
+        while not done and steps < 50:
+            action = self.agent.act(state)
+            next_state, reward, terminated, truncated, _ = env.step(action)
+            done = terminated or truncated
+
+            self.agent.remember(state, action, reward, next_state, done)
+            self.agent.replay()
+
+            total_reward += reward
+            if reward >= 1.0:
+                vuln_hits += 1
+
+            state = next_state
+            steps += 1
+
+        return total_reward, vuln_hits
+
+    def save_checkpoint(self, episode):
+        checkpoint_dir = Path("checkpoints")
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
+
+        path = checkpoint_dir / f"{self.checkpoint_prefix}_ep{episode}.pth"
+        self.agent.save(str(path))
+        print(f"Saved checkpoint: {path}")
+
+    def train(self, total_episodes=1000):
+        current_episode = self.start_episode
+
+        try:
+            for episode in range(self.start_episode, total_episodes + 1):
+                current_episode = episode
+                target = TARGETS[episode % len(TARGETS)]
+
+                reward, vulns = self.train_episode(target["url"])
+
+                if episode % 10 == 0:
+                    print(
+                        f"Episode {episode}: Target={target['name']} | "
+                        f"Reward={reward:.1f} | Vulns={vulns}"
+                    )
+
+                if episode % 50 == 0:
+                    self.save_checkpoint(episode)
+
+        except KeyboardInterrupt:
+            print(f"Training interrupted. Saving episode {current_episode}...")
+            self.save_checkpoint(current_episode)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--episodes", type=int, default=1000)
+    args = parser.parse_args()
+
+    trainer = FromScratchTrainer()
+    trainer.train(total_episodes=args.episodes)
+
+
+if __name__ == "__main__":
+    main()
+```
+
+## Safety Reminder
+
+Only train and scan against systems you own or are explicitly authorized to test.
