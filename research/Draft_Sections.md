@@ -1,6 +1,6 @@
 # Abstract
 
-This paper presents the development and evaluation of a novel autonomous web vulnerability scanner powered by a Reinforcement Learning (RL) agent. Traditional vulnerability testing relies heavily on either static heuristics or manual penetration testing, which are often time-consuming, unscalable, and prone to missing complex exploit chains. To address these limitations, we formulate the vulnerability discovery process as a Markov Decision Process (MDP) and implement a Double Dueling Deep Q-Network (D3QN) architecture with Experience Replay. The agent is trained within a specifically engineered Gymnasium environment, WebSecurityGym, interacting with dynamic mock applications reflecting real-world vulnerabilities such as SQL Injection (SQLi) and Cross-Site Scripting (XSS). Through a Phase-Based Learning strategy prioritizing reconnaissance before exploitation, the agent demonstrates a high capability of autonomously chaining attacks to uncover severe vulnerabilities while mitigating false positives and evading simulated Web Application Firewalls (WAFs).
+This paper presents the development and evaluation of a novel autonomous web vulnerability scanner powered by a Reinforcement Learning (RL) agent. Traditional vulnerability testing relies heavily on either static heuristics or manual penetration testing, which are often time-consuming, unscalable, and prone to missing complex exploit chains. To address these limitations, we formulate the vulnerability discovery process as a Markov Decision Process (MDP) and implement an Extended Double Dueling Deep Q-Network (Extended D3QN) architecture. Our configured agent incorporates five major components of the state-of-the-art Rainbow DQN algorithm. The agent is trained within a specifically engineered Gymnasium environment, WebSecurityGym, interacting with dynamic mock applications reflecting real-world vulnerabilities such as SQL Injection (SQLi) and Cross-Site Scripting (XSS). Through a Phase-Based Learning strategy prioritizing reconnaissance before exploitation, the agent demonstrates a high capability of autonomously chaining attacks to uncover severe vulnerabilities while mitigating false positives and evading simulated Web Application Firewalls (WAFs).
 
 ---
 
@@ -10,7 +10,7 @@ The proliferation of web-based applications has exponentially expanded the attac
 
 In recent years, Artificial Intelligence, particularly Reinforcement Learning (RL), has emerged as a state-of-the-art methodology for solving complex, dynamic decision-making problems. RL provides an optimal paradigm for cybersecurity applications where an agent learns to interact with an environment to maximize a defined reward signal. In the context of web application security, an RL agent can continuously probe an application, interpret HTTP responses, and dynamically adjust its exploit payloads until a vulnerability is successfully triggered.
 
-This research proposes an autonomous web vulnerability scanner governed by a Deep Q-Network (DQN) agent. The primary contributions of this work are threefold: First, the design of WebSecurityGym, a custom reinforcement learning environment bridging HTTP interactions into numerically represented states and distinct exploit actions. Second, the implementation of a Double Dueling Deep Q-Network (D3QN) tailored for high-dimensional action spaces representing various payloads. Third, the introduction of a Phase-Based Learning strategy that successfully guides the agent from basic reconnaissance to advanced exploitation, accelerating convergence and improving stability. We evaluate our RL-based orchestrator against heavily customized, deliberately vulnerable mock targets, demonstrating significant potential for scalable and intelligent automated security auditing.
+This research proposes an autonomous web vulnerability scanner governed by an advanced Deep Q-Network (DQN) agent. The primary contributions of this work are threefold: First, the design of WebSecurityGym, a custom reinforcement learning environment bridging HTTP interactions into numerically represented states and distinct exploit actions. Second, the implementation of an Extended D3QN—incorporating Double Q-Learning, Dueling Networks, Prioritized Experience Replay, Noisy Networks, and Multi-Step Learning—tailored for high-dimensional action spaces representing various payloads. Third, the introduction of a Phase-Based Learning strategy that successfully guides the agent from basic reconnaissance to advanced exploitation, accelerating convergence and improving stability. We evaluate our RL-based orchestrator against heavily customized, deliberately vulnerable mock targets, demonstrating significant potential for scalable and intelligent automated security auditing.
 
 ---
 
@@ -23,7 +23,7 @@ This section details the design, architecture, and implementation of the propose
 The autonomous vulnerability scanner is built upon a modular architecture designed to decouple the AI decision-making process from the underlying HTTP execution engine. The system comprises three primary modules:
 
 1. _The Target Environment (WebSecurityGym)_: A custom-built OpenAI Gymnasium-compatible environment that simulates realistic web applications. It translates HTTP responses into numerical state vectors and processes the agent's actions into actual security payloads.
-2. _The RL Agent (DQNAgent)_: A Deep Q-Network implementation utilizing a Dueling network architecture with experience replay. This module acts as the "brain," learning to sequence attacks to maximize the discovery of vulnerabilities.
+2. _The RL Agent (Extended D3QN)_: A Deep Q-Network implementation utilizing a highly extended D3QN architecture (incorporating five core elements of the Rainbow DQN algorithm, excluding Distributional RL). This module acts as the "brain," learning to sequence attacks to maximize the discovery of vulnerabilities.
 3. _The Orchestrator (SecurityAuditor & WebsiteExplorer)_: A functional wrapper that acts as the "body." It handles initial reconnaissance (crawling the target URL, extracting forms, and finding endpoints) and executes the actions selected by the agent against the target infrastructure.
 4. _Mock Applications_: A suite of deliberately vulnerable web applications (e-commerce, social media, banking, blog, file sharing) used exclusively for safe, controlled agent training and baseline evaluation.
 
@@ -49,7 +49,7 @@ The action space defines the set of security testing techniques available to the
 
 ## C. Agent Design and Training Strategy
 
-The intelligence of the scanner is powered by a Double Dueling Deep Q-Network (D3QN). This architecture addresses the overestimation bias inherent in standard DQN while efficiently learning the value of states independent of the actions taken.
+The intelligence of the scanner is powered by an Extended Double Dueling Deep Q-Network (Extended D3QN). This architecture addresses the overestimation bias inherent in standard DQN while efficiently learning the value of states independent of the actions taken.
 
 ### 1) Neural Network Architecture
 
@@ -57,6 +57,8 @@ The agent utilizes a multi-layer perceptron (MLP) architecture. The input layer 
 
 - A _Value Stream_ V(s) estimating the inherent value of being in a particular state.
 - An _Advantage Stream_ A(s, a) estimating the relative advantage of taking each specific action in that state.
+
+Crucially, this architecture is further augmented with three major extensions to optimize the sampling and exploration methodology towards a partial Rainbow DQN implementation. First, **Prioritized Experience Replay (PER)** supersedes standard uniform sampling by prioritizing the replay of highly surprising transitions (those with significant Temporal Difference errors), thereby rapidly accelerating convergence. Second, **Noisy Networks** replace the conventional $\epsilon$-greedy heuristic, actively injecting parametric noise into the fully connected layers to drive systematic, mathematically informed state exploration rather than relying on pure chance. Finally, **Multi-Step Learning ($n$-step returns)** aids in bridging the gap between Temporal Difference learning and Monte Carlo methods, assisting in the propagation of delayed rewards resulting from multi-step exploits.
 
 ### 2) Reward Design (R)
 
@@ -125,7 +127,7 @@ However, the evaluation also highlights key areas for future improvement. The ag
 
 # VI. CONCLUSION
 
-This paper presented an autonomous web vulnerability scanner driven by a Double Dueling Deep Q-Network (D3QN) agent. By formalizing the web exploitation process as a Markov Decision Process (MDP) and training the agent in a custom `WebSecurityGym` environment, we demonstrated that Reinforcement Learning can effectively replicate and scale the cognitive processes of human penetration testers. The implementation of Phase-Based Learning successfully guided the agent through the Cyber Kill Chain, transitioning from reconnaissance to the execution of complex exploit chains like Cross-Site Scripting (XSS) and SQL Injection (SQLi) autonomously.
+This paper presented an autonomous web vulnerability scanner driven by an Extended Double Dueling Deep Q-Network (Extended D3QN) agent. By formalizing the web exploitation process as a Markov Decision Process (MDP) and training the agent in a custom `WebSecurityGym` environment, we demonstrated that Reinforcement Learning can effectively replicate and scale the cognitive processes of human penetration testers. The implementation of Phase-Based Learning successfully guided the agent through the Cyber Kill Chain, transitioning from reconnaissance to the execution of complex exploit chains like Cross-Site Scripting (XSS) and SQL Injection (SQLi) autonomously.
 
 Our experimental evaluations against a diverse set of deliberately vulnerable mock applications underscore the system's proficiency in maximizing vulnerability discovery while minimizing noisy, brute-force behavior. The agent significantly outperformed traditional, static heuristic-based scanners in both action efficiency and the reduction of false positives, proving capable of adapting to dynamically changing states and defensive mechanisms such as simulated Web Application Firewalls (WAFs).
 

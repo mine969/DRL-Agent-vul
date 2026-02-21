@@ -10,7 +10,7 @@ Web applications are constantly growing in complexity, which means there are mor
 
 Recently, Reinforcement Learning (RL) has proven to be excellent at solving these types of problems. RL is an area of Artificial Intelligence where an "agent" learns to make decisions by trying different actions and receiving positive rewards or negative penalties. By treating web security testing as an RL problem, we can train an agent to probe an application, analyze the server's responses, and continuously adjust its attacks until it finds a vulnerability.
 
-In this project, we present an autonomous web vulnerability scanner driven by a Deep Q-Network (DQN) architecture. Our system uses a custom environment, WebSecurityGym, which translates complex website interactions into simple numeric states and actions that the AI can understand. The intelligence of the scanner is powered by an advanced version of DQN called a Double Dueling Deep Q-Network. To help the agent learn faster, we also introduce a Phase-Based Learning strategy, which restricts the agent to basic scanning before allowing it to try complex exploits. Through evaluating our system on several vulnerable websites, we demonstrate that RL is a promising technology for the future of automated security testing.
+In this project, we present an autonomous web vulnerability scanner driven by a Deep Q-Network (DQN) architecture. Our system uses a custom environment, WebSecurityGym, which translates complex website interactions into simple numeric states and actions that the AI can understand. The intelligence of the scanner is powered by a highly advanced variant of DQN called an Extended Double Dueling Deep Q-Network (Extended D3QN), which incorporates many components from the state-of-the-art Rainbow DQN algorithm. To help the agent learn faster, we also introduce a Phase-Based Learning strategy, which restricts the agent to basic scanning before allowing it to try complex exploits. Through evaluating our system on several vulnerable websites, we demonstrate that RL is a promising technology for the future of automated security testing.
 
 ---
 
@@ -48,14 +48,17 @@ The agent can choose from 150 distinct operations, which mimic the steps a human
 
 ## C. Agent Design
 
-The core intelligence runs on a **Deep Q-Network (DQN)**. Standard Q-Learning tries to learn the maximum expected future reward for taking a specific action in a specific state. This is updated using the Bellman equation, which we can simplify as:
+The core intelligence runs on an advanced **Deep Q-Network (DQN)** configured as an **Extended D3QN** (a partial implementation of the Rainbow DQN algorithm). Standard Q-Learning tries to learn the maximum expected future reward for taking a specific action in a specific state. This is updated using the Bellman equation, which we can simplify as:
 
 $$ Q(\text{State}, \text{Action}) \leftarrow Q + \text{LearningRate} \times \big[ \text{Reward} + ( \text{Discount} \times \text{MaxNextQ} ) - Q \big] $$
 
-To improve stability, we specifically use a **Double Dueling DQN**.
+To vastly improve stability and learning speed, our Extended D3QN combines five major AI improvements together:
 
 - **Double DQN** prevents the AI from becoming overly optimistic about its attack choices by separating the selection of an action from the evaluation of its value.
 - **Dueling Architecture** splits the neural network into two streams: one calculates the general value of the current website state, and the other calculates the advantage of taking a specific action. This helps the agent learn faster because it realizes some states are just inherently bad (like being blocked by a firewall), regardless of what action it takes next.
+- **Prioritized Experience Replay (PER)** ensures the agent learns from its most "surprising" mistakes or newly discovered vulnerabilities much more frequently than random, boring actions (like receiving a standard 404 page).
+- **Noisy Networks** adds deliberate mathematical noise directly into the neural network instead of just guessing random actions. This forces the agent to explore the website much more systematically.
+- **Multi-Step Learning** calculates rewards over several future steps (rather than just the single next step), allowing the agent to figure out which initial vulnerability (like a minor configuration flaw) led to a massive payoff (like a full database breach) much later in the attack chain.
 
 ### 1) Reward Function
 
@@ -137,7 +140,7 @@ That being said, the evaluation does shine a light on where the agent struggles.
 
 # VI. CONCLUSION
 
-In this paper, we introduced an autonomous web vulnerability scanner driven by a Double Dueling Deep Q-Network (D3QN) agent. By treating web exploitation as a formalized game environment, we've shown that Reinforcement Learning can successfully replicate the cognitive adaptability of a human penetration tester at scale. Thanks to our Phase-Based Learning implementation, the agent seamlessly learned to navigate the Cyber Kill Chain—moving from reconnaissance to the execution of deep exploit chains like XSS and SQLi.
+In this paper, we introduced an autonomous web vulnerability scanner driven by an Extended Double Dueling Deep Q-Network (Extended D3QN) agent. By treating web exploitation as a formalized game environment, we've shown that Reinforcement Learning can successfully replicate the cognitive adaptability of a human penetration tester at scale. Thanks to our Phase-Based Learning implementation, the agent seamlessly learned to navigate the Cyber Kill Chain—moving from reconnaissance to the execution of deep exploit chains like XSS and SQLi.
 
 Our testing against multiple deliberately vulnerable mock endpoints proves that the system strongly balances finding real flaws while keeping noise and false positives heavily minimized. It routinely outperformed traditional heuristic-based scanners when it came to efficiency, proving its ability to adapt dynamically to defensive mechanisms like simulated firewalls.
 

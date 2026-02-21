@@ -1,6 +1,6 @@
 # Abstract
 
-Traditional vulnerability testing often relies on manual penetration testing or static heuristic scanners. While these methods are effective to a degree, they are hard to scale and can miss complex, multi-step exploit chains. To solve this, we propose a more dynamic, intelligent approach: modeling the web vulnerability discovery process as a Markov Decision Process (MDP) and training a Double Dueling Deep Q-Network (D3QN) to navigate it. By building a custom Gymnasium environment, WebSecurityGym, we train our agent against diverse mock applications containing real-world flaws like SQL Injection (SQLi) and Cross-Site Scripting (XSS). Guided by a Phase-Based Learning strategy that naturally progresses from reconnaissance to active exploitation, the agent successfully learns how to chain attacks autonomously, significantly outperforming traditional heuristic-based scanners in uncovering deeply hidden vulnerabilities while successfully minimizing false positives.
+Traditional vulnerability testing often relies on manual penetration testing or static heuristic scanners. While these methods are effective to a degree, they are hard to scale and can miss complex, multi-step exploit chains. To solve this, we propose a more dynamic, intelligent approach: modeling the web vulnerability discovery process as a Markov Decision Process (MDP) and training an Extended Double Dueling Deep Q-Network (Extended D3QN) to navigate it. Our configured agent incorporates five major components of the state-of-the-art Rainbow DQN algorithm. By building a custom Gymnasium environment, WebSecurityGym, we train our agent against diverse mock applications containing real-world flaws like SQL Injection (SQLi) and Cross-Site Scripting (XSS). Guided by a Phase-Based Learning strategy that naturally progresses from reconnaissance to active exploitation, the agent successfully learns how to chain attacks autonomously, significantly outperforming traditional heuristic-based scanners in uncovering deeply hidden vulnerabilities while successfully minimizing false positives.
 
 ---
 
@@ -10,7 +10,7 @@ Web applications have exploded in complexity, bringing a continuously expanding 
 
 Recently, Reinforcement Learning (RL) has proven exceptional at exactly this type of problem: sequential decision-making in complex environments. By setting up web security as an RL problem, we can train an agent to probe an application, parse the HTTP responses, and tweak its payloads continuously until it successfully uncovers a vulnerability.
 
-In this work, we present a fully autonomous web vulnerability scanner driven by a Deep Q-Network (DQN) architecture. Our system leverages a custom environment, WebSecurityGym, which successfully abstracts standard HTTP interactions into states and actions. The "brain" of the scanner is implemented using a Double Dueling Deep Q-Network (D3QN) that can efficiently handle a large array of different payloads. To fast-track the agent's learning, we also introduce a Phase-Based Learning strategy that mirrors the Cyber Kill Chain, locking advanced exploits until the agent has successfully mapped the application's surface. Through extensive evaluation on multiple vulnerable mock targets, we show that this RL-based orchestrator holds massive potential for scaling intelligent, adaptive penetration testing.
+In this work, we present a fully autonomous web vulnerability scanner driven by a Deep Q-Network (DQN) architecture. Our system leverages a custom environment, WebSecurityGym, which successfully abstracts standard HTTP interactions into states and actions. The "brain" of the scanner is implemented using an Extended D3QN—a partial Rainbow DQN combining Double Q-Learning, Dueling Networks, Prioritized Experience Replay, Noisy Networks, and Multi-Step Learning—to efficiently handle a large array of different payloads. To fast-track the agent's learning, we also introduce a Phase-Based Learning strategy that mirrors the Cyber Kill Chain, locking advanced exploits until the agent has successfully mapped the application's surface. Through extensive evaluation on multiple vulnerable mock targets, we show that this RL-based orchestrator holds massive potential for scaling intelligent, adaptive penetration testing.
 
 ---
 
@@ -23,7 +23,7 @@ Our Reinforcement Learning framework is designed to completely decouple the inte
 At a high level, the system consists of three main parts:
 
 1. **Target Environment (WebSecurityGym)**: This acts as the translation layer. It crawls the target site, converts incoming HTTP responses into a clean numerical state vector, and translates chosen actions back into physical HTTP requests carrying various security payloads.
-2. **The RL Agent (D3QN)**: This acts as the "brain." It leverages a Double Dueling Deep Q-Network structure alongside an experience replay buffer to continuously learn from past experiments.
+2. **The RL Agent (Extended D3QN)**: This acts as the "brain." It leverages a highly extended D3QN structure incorporating key Rainbow DQN elements alongside a prioritized experience replay buffer to continuously and rapidly learn from past experiments.
 3. **Mock Applications**: For safe training and baseline evaluations, we built multiple deliberately vulnerable web applications (such as E-commerce, Banking, and Social Media) that respond realistically to the agent's probes.
 
 ## B. Formulation of the RL Environment
@@ -64,6 +64,8 @@ $$ Q(s, a; \theta, \alpha, \beta) = V(s; \theta, \beta) + \left( A(s, a; \theta,
 
 By subtracting the mean advantage, the network forces the advantage stream to have zero mean, which significantly stabilizes mathematical convergence during training.
 
+Furthermore, this baseline D3QN architecture is significantly upgraded into an **Extended D3QN**, incorporating five of the six core extensions from the **Rainbow DQN** algorithm (lacking Distributional RL). By integrating **Prioritized Experience Replay (PER)**, the agent samples highly surprising transitions (those with large Temporal Difference error) more frequently, accelerating convergence. Substituting $\epsilon$-greedy exploration with **Noisy Networks** adds parametric noise directly into the network weights, driving highly systematic exploration of the target application rather than relying on pure chance. Finally, the inclusion of **Multi-Step Learning ($n$-step returns)** bridges the gap between TD learning and Monte Carlo methods, accelerating the propagation of delayed rewards from multi-step exploits.
+
 ### 1) Reward Function ($\mathcal{R}$)
 
 To train the agent effectively, the reward function is highly shaped:
@@ -75,7 +77,7 @@ To train the agent effectively, the reward function is highly shaped:
 
 To stabilize learning and prevent the agent from indiscriminately firing complex exploits before understanding the target surface area, we implement a phase-based curriculum. Algorithm 1 illustrates the overall simulated penetration testing loop:
 
-**Algorithm 1: Phase-Based D3QN Training Process**
+**Algorithm 1: Phase-Based Extended D3QN Training Process**
 
 ```text
 Initialize replay buffer D to capacity N
@@ -158,7 +160,7 @@ That being said, the evaluation does shine a light on where the agent struggles.
 
 # VI. CONCLUSION
 
-In this paper, we introduced a fully autonomous web vulnerability scanner driven by a Double Dueling Deep Q-Network (D3QN) agent. By structuring web exploitation as a formalized Markov Decision Process (MDP) and training our model in the custom `WebSecurityGym` environment, we've shown that Reinforcement Learning can absolutely replicate the cognitive adaptability of a human penetration tester at scale. Thanks to our Phase-Based Learning implementation, the agent successfully learned to navigate the Cyber Kill Chain—moving seamlessly from reconnaissance to the execution of deep exploit chains like XSS and SQLi.
+In this paper, we introduced a fully autonomous web vulnerability scanner driven by an Extended Double Dueling Deep Q-Network (Extended D3QN) agent. By structuring web exploitation as a formalized Markov Decision Process (MDP) and training our model in the custom `WebSecurityGym` environment, we've shown that Reinforcement Learning can absolutely replicate the cognitive adaptability of a human penetration tester at scale. Thanks to our Phase-Based Learning implementation, the agent successfully learned to navigate the Cyber Kill Chain—moving seamlessly from reconnaissance to the execution of deep exploit chains like XSS and SQLi.
 
 Our testing against multiple deliberately vulnerable mock endpoints proves that the system strongly balances finding real flaws while keeping noise and false positives heavily minimized. It routinely outperformed traditional heuristic-based scanners when it came to efficiency, proving its ability to adapt dynamically to defensive mechanisms like simulated firewalls.
 
