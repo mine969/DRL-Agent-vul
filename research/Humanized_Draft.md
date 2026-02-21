@@ -14,6 +14,30 @@ In this work, we present a fully autonomous web vulnerability scanner driven by 
 
 ---
 
+# II. RELATED WORK
+
+The intersection of artificial intelligence and cybersecurity has seen explosive growth, particularly in automating vulnerability analysis. This section reviews the existing literature surrounding web application security testing, the transition from manual to automated methodologies, and the emerging role of Deep Reinforcement Learning (DRL) in modern penetration testing frameworks.
+
+## A. Traditional Web Application Security Testing
+
+Securing web applications has traditionally relied solely on well-established testing methodologies. Dynamic Application Security Testing (DAST) represents a highly active, real-time approach to identifying vulnerabilities by practically probing live applications through simulated attacks [1]. Unlike static source code analysis, DAST actively observes the application's runtime behavior, making it uniquely effective for discovering deep deployment flaws, server configuration errors, and vicious runtime injection vulnerabilities [1]. In a direct showdown between manual hacking and automated scripted scanning, research proves that while scripts run flawlessly fast, only the human eye consistently catches abstract, contextual business logic flaws [12].
+
+Furthermore, ethical hacking and manual penetration testing inevitably rely heavily on automated scanning tools. In fact, these tools are so prevalent that forensic researchers actively study the distinct network "tool marks" left behind by various automated offensive security toolkits [13]. For instance, comparisons of immensely popular vulnerability scanners, such as OWASP ZAP and Nikto, repeatedly demonstrate their brute-force efficacy in identifying common weaknesses across thousands of pages [2]. While these tools provide structured vulnerability analysis, they operate predominantly on rigid predefined rules and signatures. Consequently, they often struggle massively with complex, multi-step exploits or novel attack vectors (zero-days) that require deep contextual understanding [2]. To address specific domains like intricate Service-Oriented Architectures (SOA), specialized, laser-focused penetration testing tools exactly such as WS-Attacker have been developed to automate attacks like WS-Addressing spoofing and SOAPAction spoofing [3]. However, as the overall complexity of modern web services exponentially increases, there is a rapidly growing need for autonomous agents that can genuinely learn and creatively adapt their strategies dynamically.
+
+## B. Reinforcement Learning in Cybersecurity
+
+The known limitations of static, rule-based scanners have heavily driven the exploration of intelligent, learning-based agents for both cyber defense and offensive security operations. Deep Reinforcement Learning (DRL) is particularly well-suited for handling complicated, completely dynamic, and high-dimensional cyber protection problems [4]. In the realm of network intrusion detection, models based directly on Deep Q-Learning (DQL) have been proposed to detect various sorts of intrusions using an automated trial-and-error method, enabling the system to continually improve its detection skills completely autonomously [4].
+
+The foundation for these advanced DRL applications stems straight from breakthroughs in combining reinforcement learning with deep neural networks. Mnih et al. famously demonstrated that a deep Q-network (DQN) could achieve literal human-level performance across a diverse set of tasks using only raw inputs and reward signals, establishing a brilliant new state-of-the-art framework for autonomous decision-making [5].
+
+## C. Advanced DRL Architectures for Penetration Testing
+
+Building heavily upon the explosive success of the standard DQN model, increasingly sophisticated RL architectures have been introduced to drastically improve learning efficiency and network stability. A notable advancement in this space is the introduction of Prioritized Experience Replay (PER) by Schaul et al. [6]. PER prioritizes the replay of highly important memory transitions, allowing the agent to learn significantly more effectively from rare or critical experiences compared to standard uniform sampling [6].
+
+In the domain of automated penetration testing, researchers are increasingly leveraging these bleeding-edge DRL techniques to train intelligent agents truly capable of discovering vulnerabilities at scale. Recent studies, such as the widely recognized Intelligent Automated Penetration Testing Framework (IAPTF) by Ghanem et al., have successfully utilized reinforcement learning to fully automate sequential decision-making in complex security assessments. By cleverly modeling penetration testing as a Partially Observable Markov Decision Process (POMDP), IAPTF demonstrated a profound ability to discover multi-step vulnerabilities deeply embedded in complex networks, all while effortlessly integrating with established toolkits like Metasploit [7]. Combining these principles, frameworks like ASAP merge potent Deep Q-Networks with Attack Graphs to automatically plan highly complex attack chains against expansive enterprise networks [14]. Similarly, recent groundbreaking projects such as "Pentest-R1" successfully paired massive language models with reinforcement learning to dynamically enhance the "reasoning" capabilities of automated penetration testers globally [8]. The applications aren't even strictly limited to web and software—algorithms like "Re-Pen" have successfully ported these exact DRL methods over to verify physical hardware security, searching for exploitable flaws directly embedded inside microchip architectures [9]. To maintain adaptivity without experiencing catastrophic forgetting, frameworks like SCRIPT powerfully leverage continual reinforcement learning across dynamic networks [10]. Systematic literature reviews confirm this trend, arguing that RL is rapidly becoming indispensable for tackling infinitely expanding attack surfaces [11]. These "Red Team" algorithms map the manual penetration testing process to a strict Markov Decision Process (MDP), where the agent learns optimal attack sequences—or a "Kill Chain"—to cleanly navigate target environments, bypass active security controls, and exploit vulnerabilities. While existing research has strongly demonstrated the potential of DRL for network-level intrusion detection and niche web service attacks, comprehensive frameworks that address the full, complex spectrum of modern web vulnerabilities (such as the OWASP Top 10) utilizing a highly Extended Double Dueling Deep Q-Network (Extended D3QN) remain an area of intense active innovation. Our work cleanly bridges this gap by directly implementing an Extended D3QN agent paired with PER and Noisy Networks, specifically architected from the ground up for autonomous web vulnerability scanning.
+
+---
+
 # III. METHODOLOGY
 
 Our Reinforcement Learning framework is designed to completely decouple the internal AI logic from the actual HTTP execution engine. The core components include the system architecture, how we formulate vulnerability scanning as an MDP, the design of the DQN agent and its underlying mathematics, and the Phase-Based Learning progression.
@@ -165,3 +189,22 @@ In this paper, we introduced a fully autonomous web vulnerability scanner driven
 Our testing against multiple deliberately vulnerable mock endpoints proves that the system strongly balances finding real flaws while keeping noise and false positives heavily minimized. It routinely outperformed traditional heuristic-based scanners when it came to efficiency, proving its ability to adapt dynamically to defensive mechanisms like simulated firewalls.
 
 Moving forward, our immediate focus will be on dramatically expanding the agent's action space to cover far more sophisticated CVEs. Additionally, we believe bridging this RL orchestrator with Large Language Models (LLMs) could drastically improve its contextual understanding of HTTP responses, finally closing the gap between structural pattern recognition and human-like logic comprehension. Ultimately, this research lays down a solid foundation for the next massive leap in intelligent, adaptive, and scalable automated pentesting frameworks.
+
+---
+
+# REFERENCES
+
+[1] R. Singh, S. M. Patil, M. K. Gupta, and D. R. Patil, "Analysis of Web Application Vulnerabilities using Dynamic Application Security Testing."
+[2] R. Sri Devi and M. Mohan Kumar, "Testing for Security Weakness of Web Applications using Ethical Hacking."
+[3] C. Mainka, J. Somorovsky, and J. Schwenk, "Penetration Testing Tool for Web Services Security," Ruhr University Bochum, Germany.
+[4] P. Haritha, G. S. Prasad, K. Niharika, V. Charishma, and K. B. Sai, "Network Intrusion Detection using Deep Reinforcement Learning."
+[5] V. Mnih et al., "Human-level control through deep reinforcement learning," Nature, vol. 518, pp. 529-533, 2015.
+[6] T. Schaul, J. Quan, I. Antonoglou, and D. Silver, "Prioritized Experience Replay," Google DeepMind, ICLR 2016.
+[7] M. C. Ghanem and T. M. Chen, "Reinforcement learning for intelligent automated penetration testing," 2020.
+[8] Anonymous, "Pentest-R1: Towards Autonomous Penetration Testing Reasoning Optimized via Two-Stage Reinforcement Learning," arXiv, 2024.
+[9] H. A. Shaikh et al., "Reinforcement Learning-Enforced Penetration Testing for SoC Security Verification," IEEE Transactions on Very Large Scale Integration (VLSI) Systems, 2024.
+[10] S. Zhou et al., "SCRIPT: A Scalable Continual Reinforcement Learning Framework for Autonomous Penetration Testing," Expert Systems With Applications.
+[11] J. Liu et al., "Autonomous penetration testing using reinforcement learning: A review and perspectives," Expert Systems With Applications.
+[12] N. Singh, V. Meherhomji, and B. R. Chandavarkar, "Automated versus Manual Approach of Web Application Penetration Testing," National Institute of Technology Karnataka.
+[13] D. Kao, Y. Chen, and F. Tsai, "Hacking Tool Identification in Penetration Testing," Central Police University.
+[14] A. Chowdhary et al., "Autonomous Security Analysis and Penetration Testing," Arizona State University.
