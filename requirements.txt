@@ -9,5 +9,3 @@ numpy
 pyjwt
 beautifulsoup4
 python-dotenv
-dnspython
-python-whois
