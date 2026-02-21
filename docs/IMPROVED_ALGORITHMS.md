@@ -1,6 +1,6 @@
-# Improved Algorithms
+# Extended D3QN — Improved Algorithms
 
-This file documents the algorithms currently implemented in `agent/improved_dqn_agent.py`.
+This file documents the algorithms currently implemented in `agent/improved_dqn_agent.py`. The agent implements five of the six core Rainbow DQN extensions (Distributional RL is **not** implemented), giving it an **Extended Double Dueling Deep Q-Network (Extended D3QN)** architecture.
 
 ## Implemented Techniques
 
@@ -46,10 +46,11 @@ ImprovedDQNAgent(
 )
 ```
 
-## What Not to Overclaim
+## What This Is (And What It Isn't)
 
-- Some historical comments mention broader Rainbow/C51 scope.
-- The active implementation in this file centers on PER + noisy + dueling + double DQN, with optional n-step.
+- The active implementation combines: **PER + Noisy Networks + Dueling Network + Double DQN + (optional) n-step returns**.
+- This corresponds to **5 out of 6** core Rainbow DQN techniques. The missing piece is **Distributional RL (C51/Categorical DQN)**.
+- For paper and documentation purposes, this architecture is correctly called an **Extended D3QN** or a **Partial Rainbow DQN implementation**.
 
 ## Why This Matters for the Scanner
 

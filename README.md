@@ -6,7 +6,7 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 
 **Key Features:**
 
-- 🧠 Deep Q-Network (Double DQN) with experience replay
+- 🧠 Extended D3QN (Double DQN + Dueling Network + PER + Noisy Networks + Multi-Step)
 - 🎯 50 tuned actions for mock targets, 150 actions in full mode across 4 kill chain phases
 - 🎮 5 mock target applications for training
 - 🔍 Autonomous vulnerability scanning
@@ -164,7 +164,7 @@ python scanner_gui.py
 DQN web vul/
 ├── agent/                           # DQN Agent implementation
 │   ├── dqn_agent.py                # Baseline DQN (action_dim configurable)
-│   ├── improved_dqn_agent.py       # Rainbow DQN (50 mock / 150 full actions)
+│   ├── improved_dqn_agent.py       # Extended D3QN (PER + Noisy + Multi-Step on top of D3QN)
 │   └── payload_manager.py          # 200+ attack payloads
 │
 ├── env/                             # Training environment & target apps
@@ -194,7 +194,7 @@ DQN web vul/
 │   ├── CODE_STYLE.md               # Coding standards
 │   ├── ARCHITECTURE.md             # System architecture
 │   ├── TUNED_ACTION_SPACE.md       # Optimized action space
-│   ├── IMPROVED_ALGORITHMS.md      # Rainbow DQN algorithms
+│   ├── IMPROVED_ALGORITHMS.md      # Extended D3QN algorithms (PER, Noisy, Multi-Step)
 │   ├── REAL_WORLD_TRANSFER.md      # Real-world performance analysis
 │   ├── ENHANCED_REAL_WORLD_ACTIONS.md  # Advanced security bypass
 │   └── [20+ more guides]
@@ -229,7 +229,7 @@ The agent is capable of:
 2. **Deep Learning-Based Testing**
    - Learns optimal attack strategies through reinforcement learning
    - Adapts to different application types via transfer learning
-   - Improves over time with training (Rainbow DQN algorithms)
+   - Improves over time with training (Extended D3QN: PER + Noisy Networks + Multi-Step)
    - Makes intelligent decisions about which attacks to use
 
 3. **Multi-Target Scanning**
@@ -270,7 +270,7 @@ See **[REAL_WORLD_TRANSFER.md](docs/REAL_WORLD_TRANSFER.md)** for transfer learn
 - **Prioritized Experience Replay (PER)** - 2-3x faster learning
 - **Noisy Networks** - Better exploration without epsilon-greedy
 - **Multi-Step Learning** - Faster reward propagation
-- **Rainbow DQN** - Combination of all improvements
+- **Extended D3QN** — All five techniques combined (Double DQN + Dueling + PER + Noisy + Multi-Step). Note: Distributional RL (C51) is **not** implemented.
 
 **Performance Improvements:**
 
@@ -285,7 +285,7 @@ See **[IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details and us
 ### Agent Capabilities
 
 ✅ **100 Real-World Actions** (4 kill chain phases)  
-✅ **Double DQN Architecture** with experience replay  
+✅ **Extended D3QN Architecture** (Double DQN + Dueling + PER + Noisy Networks + Multi-Step)  
 ✅ **Phase-Based Learning** (Progressive unlock system)  
 ✅ **Flexible Configuration** (Centralized config system)  
 ✅ **Type-Safe Code** (Type hints throughout)  
