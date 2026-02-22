@@ -1,3 +1,5 @@
+# Deep Reinforcement Learning Vulnerability Scanner for Modern Web Applications
+
 # Abstract
 
 Traditional vulnerability testing often relies on manual security audits or automated scanners that use static rules. While these tools are helpful, they struggle to discover complex chains of vulnerabilities and cannot easily adapt to new situations. To address this, we propose an intelligent approach: modeling the vulnerability discovery process as a game and training a Reinforcement Learning (RL) agent to play it. By building a custom simulation environment called WebSecurityGym, we train our agent against multiple mock applications containing real-world flaws like SQL Injection (SQLi) and Cross-Site Scripting (XSS). Guided by a phase-based strategy that progresses from simple reconnaissance to active exploitation, the agent learns how to chain attacks autonomously. The results show that our RL agent can successfully uncover hidden vulnerabilities while minimizing false positives, presenting a scalable alternative to traditional heuristic scanners.
@@ -44,7 +46,9 @@ Our system is designed to separate the Artificial Intelligence logic from the ac
 
 ## A. System Architecture
 
-At a high level, the system consists of three main parts:
+![D3QN Vulnerability Finder Architecture](D3QN%20vuln%20finder.png)
+
+The vulnerability scanner uses a clear, modular design to separate the AI's "brain" from the actual web request engine. The system is built around three main parts:
 
 1. **Target Environment (WebSecurityGym)**: This acts as the bridge between the AI and the website. It observes the website's HTTP responses and converts them into numbers (the state). It also takes the AI's numerical choices (the action) and executes the actual web attack.
 2. **The RL Agent**: This is the "brain." It uses neural networks to continuously learn from past experiments and decide which attack payload is best to use next.
@@ -160,15 +164,29 @@ As shown, the RL agent has a surprisingly strong talent for uncovering standard 
 
 That being said, the evaluation does shine a light on where the agent struggles. Complex logic vulnerabilities, such as Insecure Direct Object Reference (IDOR), were incredibly difficult for the agent to spot consistently. These flaws often require deep, contextual understanding of what user data belongs to whom across multiple sequential requests. Additionally, complex multi-step exploits like uploading a malicious file and then subsequently triggering it via path traversal proved difficult. This suggests that while RL is incredible at chaining payloads on a syntax level, giving it true abstract business-logic comprehension represents the next major hurdle for completely autonomous pentesting.
 
+# V. DISCUSSION
+
+## A. Experimental Setup
+
+To validate the proposed Extended D3QN framework, the autonomous scanner and target environments were deployed and evaluated locally. The RL agent was trained over 10,000 algorithmic episodes. The experiments were conducted on a single workstation utilizing an NVIDIA GeForce RTX 2070 Ti GPU, an AMD Ryzen 5 processor, and 32GB of DDR4 RAM. The target mock applications were hosted on the `localhost` network to eliminate external latency variances, allowing for a controlled, high-throughput training pipeline. Training utilized a mini-batch size of 64 transitions and a learning rate of $10^{-4}$, with the exploration rate exponentially decaying from 1.0 down to a minimum of 0.01.
+
+![Agent Training Progression](training_curve.png)
+
+The learning progression of the Extensive D3QN agent over the 10,000 training episodes demonstrates rapid initial exploration characterized by high variance due to WAF penalties, followed by steady convergence as the agent discovers high-value exploitation chains.
+
+## B. Limitations
+
+While the agent demonstrates significant efficacy in discovering injection flaws and state-based vulnerabilities, several limitations remain. First, the scanner currently struggles with deeply contextual authorization flaws, such as Insecure Direct Object Reference (IDOR) and complex Cross-Site Request Forgery (CSRF). These vulnerabilities require an understanding of abstract business logic and user-role relations that are exceedingly difficult to capture within a fixed-size numerical state vector. Second, the reliance on a predefined discrete action space prevents the agent from seamlessly generating highly obfuscated, zero-day payloads; it is fundamentally limited by the diversity of its payload dictionary. Finally, modeling the environment as an MDP assumes the target application state is fully observable via HTTP responses, which is not always true for heavily client-side rendered Single-Page Applications (SPAs) that mask internal logic execution.
+
 ---
 
 # VI. CONCLUSION
 
-In this paper, we introduced an autonomous web vulnerability scanner driven by an Extended Double Dueling Deep Q-Network (Extended D3QN) agent. By treating web exploitation as a formalized game environment, we've shown that Reinforcement Learning can successfully replicate the cognitive adaptability of a human penetration tester at scale. Thanks to our Phase-Based Learning implementation, the agent seamlessly learned to navigate the Cyber Kill Chain—moving from reconnaissance to the execution of deep exploit chains like XSS and SQLi.
+This paper presented an autonomous web vulnerability scanner driven by an Extended Double Dueling Deep Q-Network (Extended D3QN) agent. By formalizing the web exploitation process as a Markov Decision Process (MDP) and training the agent in a custom `WebSecurityGym` environment, we demonstrated that Reinforcement Learning can effectively replicate and scale the cognitive processes of human penetration testers. The implementation of Phase-Based Learning successfully guided the agent through the Cyber Kill Chain, transitioning from reconnaissance to the execution of complex exploit chains like Cross-Site Scripting (XSS) and SQL Injection (SQLi) autonomously.
 
-Our testing against multiple deliberately vulnerable mock endpoints proves that the system strongly balances finding real flaws while keeping noise and false positives heavily minimized. It routinely outperformed traditional heuristic-based scanners when it came to efficiency, proving its ability to adapt dynamically to defensive mechanisms like simulated firewalls.
+Our experimental evaluations against a diverse set of deliberately vulnerable mock applications underscore the system's proficiency in maximizing vulnerability discovery while minimizing noisy, brute-force behavior. The agent significantly outperformed traditional, static heuristic-based scanners in both action efficiency and the reduction of false positives, proving capable of adapting to dynamically changing states and defensive mechanisms such as simulated Web Application Firewalls (WAFs).
 
-Moving forward, our immediate focus will be on dramatically expanding the agent's action abilities to cover far more sophisticated flaws. Additionally, we believe bridging this RL orchestrator with Large Language Models (LLMs) could drastically improve its contextual understanding of HTTP responses, finally closing the gap between structural pattern recognition and human-like logic comprehension. Ultimately, this research lays down a solid foundation for the next massive leap in intelligent, adaptive, and scalable automated pentesting frameworks.
+Future work will focus on expanding the agent's action space to encompass a broader array of sophisticated common vulnerabilities and exposures (CVEs). Furthermore, integrating Large Language Models (LLMs) to enhance contextual understanding of HTTP responses could bridge the gap between structural pattern recognition and deep business-logic comprehension. Ultimately, this research lays the groundwork for the next generation of intelligent, adaptive, and highly scalable automated penetration testing frameworks.
 
 ---
 

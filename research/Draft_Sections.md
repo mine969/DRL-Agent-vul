@@ -1,3 +1,5 @@
+# Deep Reinforcement Learning Vulnerability Scanner for Modern Web Applications
+
 # Abstract
 
 This paper presents the development and evaluation of a novel autonomous web vulnerability scanner powered by a Reinforcement Learning (RL) agent. Traditional vulnerability testing relies heavily on either static heuristics or manual penetration testing, which are often time-consuming, unscalable, and prone to missing complex exploit chains. To address these limitations, we formulate the vulnerability discovery process as a Markov Decision Process (MDP) and implement an Extended Double Dueling Deep Q-Network (Extended D3QN) architecture. Our configured agent incorporates five major components of the state-of-the-art Rainbow DQN algorithm. The agent is trained within a specifically engineered Gymnasium environment, WebSecurityGym, interacting with dynamic mock applications reflecting real-world vulnerabilities such as SQL Injection (SQLi) and Cross-Site Scripting (XSS). Through a Phase-Based Learning strategy prioritizing reconnaissance before exploitation, the agent demonstrates a high capability of autonomously chaining attacks to uncover severe vulnerabilities while mitigating false positives and evading simulated Web Application Firewalls (WAFs).
@@ -43,6 +45,8 @@ In the domain of automated penetration testing, researchers are increasingly lev
 This section details the design, architecture, and implementation of the proposed Reinforcement Learning (RL) based autonomous vulnerability scanner. The methodology is structured around the core components of the system: the system architecture, the formulation of vulnerability scanning as a Markov Decision Process (MDP), the design of the Deep Q-Network (DQN) agent, and the implementation of the simulation environment.
 
 ## A. System Architecture
+
+![D3QN Vulnerability Finder Architecture](D3QN%20vuln%20finder.png)
 
 The autonomous vulnerability scanner is built upon a modular architecture designed to decouple the AI decision-making process from the underlying HTTP execution engine. The system comprises three primary modules:
 
@@ -146,6 +150,20 @@ Table I summarizes the agent's detection rates grouped by the vulnerable applica
 As observed in Table I, the RL model demonstrates a strong propensity for autonomous vulnerability discovery, particularly in standard injection and state-based flaws. For instance, the agent achieved a 100% detection rate for Cross-Site Scripting (XSS) on the Banking and File Share platforms. Similarly, critical vulnerabilities such as Broken Access Control, Command Injection, Server-Side Request Forgery, and Session Fixation were consistently identified across their respective applications with a 100% success rate.
 
 However, the evaluation also highlights key areas for future improvement. The agent struggled with discovering complex logic vulnerabilities and authorization flaws like Insecure Direct Object Reference (IDOR), which often require deep contextual understanding of user ownership and authentication tokens across multiple requests. In addition, vulnerabilities residing deeply behind complex multi-step workflows, such as File Upload execution or JWT Bypasses, yielded lower detection rates. These findings corroborate that while Reinforcement Learning excels in dynamically chaining parameter-level and syntax-level payloads, incorporating abstract business-logic comprehension remains the next critical frontier for fully autonomous penetration testing.
+
+# V. DISCUSSION
+
+## A. Experimental Setup
+
+To validate the proposed Extended D3QN framework, the autonomous scanner and target environments were deployed and evaluated locally. The RL agent was trained over 10,000 algorithmic episodes. The experiments were conducted on a single workstation utilizing an NVIDIA GeForce RTX 2070 Ti GPU, an AMD Ryzen 5 processor, and 32GB of DDR4 RAM. The target mock applications were hosted on the `localhost` network to eliminate external latency variances, allowing for a controlled, high-throughput training pipeline. Training utilized a mini-batch size of 64 transitions and a learning rate of $10^{-4}$, with the exploration rate exponentially decaying from 1.0 down to a minimum of 0.01.
+
+![Agent Training Progression](training_curve.png)
+
+The learning progression of the Extensive D3QN agent over the 10,000 training episodes demonstrates rapid initial exploration characterized by high variance due to WAF penalties, followed by steady convergence as the agent discovers high-value exploitation chains.
+
+## B. Limitations
+
+While the agent demonstrates significant efficacy in discovering injection flaws and state-based vulnerabilities, several limitations remain. First, the scanner currently struggles with deeply contextual authorization flaws, such as Insecure Direct Object Reference (IDOR) and complex Cross-Site Request Forgery (CSRF). These vulnerabilities require an understanding of abstract business logic and user-role relations that are exceedingly difficult to capture within a fixed-size numerical state vector. Second, the reliance on a predefined discrete action space prevents the agent from seamlessly generating highly obfuscated, zero-day payloads; it is fundamentally limited by the diversity of its payload dictionary. Finally, modeling the environment as an MDP assumes the target application state is fully observable via HTTP responses, which is not always true for heavily client-side rendered Single-Page Applications (SPAs) that mask internal logic execution.
 
 ---
 
