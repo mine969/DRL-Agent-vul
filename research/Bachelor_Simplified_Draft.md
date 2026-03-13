@@ -36,7 +36,7 @@ The foundation for these advanced DRL applications comes from major breakthrough
 
 Building upon the success of the standard DQN, more sophisticated AI architectures have been invented to improve how fast an agent learns. A notable advancement is Prioritized Experience Replay (PER) by Schaul et al., which forces the agent to review its most important or "surprising" experiences more often than normal, boring events so that it learns faster [6].
 
-In automated penetration testing, researchers are using these advanced techniques to train intelligent agents capable of discovering vulnerabilities. Recent studies, such as the Intelligent Automated Penetration Testing Framework (IAPTF) by Ghanem et al., have successfully used reinforcement learning to automate step-by-step decision-making in security assessments. By modeling hacking as a Partially Observable Markov Decision Process (POMDP), IAPTF showed it could discover multi-step vulnerabilities in complex networks while integrating with established toolkits like Metasploit [7]. Similarly, systems like ASAP combine Deep Q-Networks with Attack Graphs to automatically generate non-intuitive pathways to penetrate large enterprise networks [14]. Other modern tools are pushing these boundaries further; "Pentest-R1" pairs AI reasoning (like ChatGPT) with RL to navigate complex capture-the-flag environments [8], while frameworks like "Re-Pen" apply these identical RL mechanics to find physical hardware flaws in microchips [9]. To prevent automated agents from "forgetting" past environments, tools like SCRIPT use continual RL for dynamic networks [10]. Moreover, recent systematic reviews confirm that applying RL to penetration testing is becoming essential to handle modern cyber threats [11]. These "Red Team" algorithms map the hacking process to a mathematical game, where the agent learns the best sequence of attacks to navigate environments and exploit vulnerabilities. While existing research has proven DRL works well for network-level intrusion detection and specific web service attacks, comprehensive scanners that address the full spectrum of modern web vulnerabilities utilizing an Extended Double Dueling Deep Q-Network (Extended D3QN) remain a largely unexplored area. Our work bridges this gap by implementing an Extended D3QN agent with PER and Noisy Networks specifically designed for autonomous web vulnerability scanning.
+In automated penetration testing, researchers are using these advanced techniques to train intelligent agents capable of discovering vulnerabilities. Recent studies, such as the Intelligent Automated Penetration Testing Framework (IAPTF) by Ghanem et al., have successfully used reinforcement learning to automate step-by-step decision-making in security assessments. By modeling hacking as a Partially Observable Markov Decision Process (POMDP), IAPTF showed it could discover multi-step vulnerabilities in complex networks while integrating with established toolkits like Metasploit [7]. Similarly, systems like ASAP combine Deep Q-Networks with Attack Graphs to automatically generate non-intuitive pathways to penetrate large enterprise networks [14]. Other modern tools are pushing these boundaries further; "Pentest-R1" pairs AI reasoning (like ChatGPT) with RL to navigate complex capture-the-flag environments [8], while frameworks like "Re-Pen" apply these identical RL mechanics to find physical hardware flaws in microchips [9]. To prevent automated agents from "forgetting" past environments, tools like SCRIPT use continual RL for dynamic networks [10]. Moreover, recent systematic reviews confirm that applying RL to penetration testing is becoming essential to handle modern cyber threats [11]. Similarly, recent comparative studies have evaluated the effectiveness of various RL algorithms—such as Deep Q-Network (DQN), Deep Deterministic Policy Gradient (DDPG), and Asynchronous Episodic DDPG (AE-DDPG)—in automating penetration testing tasks by dynamically identifying critical network vulnerabilities [15]. These "Red Team" algorithms map the hacking process to a mathematical game, where the agent learns the best sequence of attacks to navigate environments and exploit vulnerabilities. While existing research has proven DRL works well for network-level intrusion detection and specific web service attacks, comprehensive scanners that address the full spectrum of modern web vulnerabilities utilizing an Extended Double Dueling Deep Q-Network (Extended D3QN) remain a largely unexplored area. Our work bridges this gap by implementing an Extended D3QN agent with PER and Noisy Networks specifically designed for autonomous web vulnerability scanning.
 
 ---
 
@@ -78,7 +78,9 @@ The agent can choose from 150 distinct operations, which mimic the steps a human
 
 The core intelligence runs on an advanced **Deep Q-Network (DQN)** configured as an **Extended D3QN** (a partial implementation of the Rainbow DQN algorithm). Standard Q-Learning tries to learn the maximum expected future reward for taking a specific action in a specific state. This is updated using the Bellman equation, which we can simplify as:
 
-$$ Q(\text{State}, \text{Action}) \leftarrow Q + \text{LearningRate} \times \big[ \text{Reward} + ( \text{Discount} \times \text{MaxNextQ} ) - Q \big] $$
+$$
+Q(\text{State}, \text{Action}) \leftarrow Q + \text{LearningRate} \times \big[ \text{Reward} + ( \text{Discount} \times \text{MaxNextQ} ) - Q \big]
+$$
 
 To vastly improve stability and learning speed, our Extended D3QN combines five major AI improvements together:
 
@@ -102,7 +104,7 @@ To prevent the agent from randomly guessing complex exploits before it understan
 **Algorithm 1: Training Process**
 
 ```text
-Initialize Neural Networks (Q_Network)
+d cite Initialize Neural Networks (Q_Network)
 Set Current Phase = 0 (Reconnaissance)
 
 For every training episode:
@@ -206,3 +208,4 @@ Future work will focus on expanding the agent's action space to encompass a broa
 [12] N. Singh, V. Meherhomji, and B. R. Chandavarkar, "Automated versus Manual Approach of Web Application Penetration Testing," National Institute of Technology Karnataka.
 [13] D. Kao, Y. Chen, and F. Tsai, "Hacking Tool Identification in Penetration Testing," Central Police University.
 [14] A. Chowdhary et al., "Autonomous Security Analysis and Penetration Testing," Arizona State University.
+[15] S. Jaganathan, M. K. Latha, and K. Dharanikota, "Design and analysis of reinforcement learning models for automated penetration testing," IAES International Journal of Artificial Intelligence (IJ-AI), vol. 14, no. 5, pp. 4061-4073, 2025.
