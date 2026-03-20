@@ -1,3 +1,4 @@
+import argparse
 import io
 import os
 import re
@@ -5,10 +6,12 @@ import sys
 import time
 import subprocess
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
 import openpyxl
 import requests
+import torch
 
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -35,9 +38,11 @@ TARGETS = [
     Target("File Share", "http://localhost:5006", "env/target_app_fileshare.py", 5006),
 ]
 
-MODEL_PATH = "dqn_web_sec_model.pth"
-SCAN_DEPTH = 12
-SCAN_INTENSITY = 15
+DEFAULT_MODEL_PATH = "checkpoints/improved_mock_ep10000.pth"
+DEFAULT_WORKBOOK_PATH = "research/results/Evaluation Form.xlsx"
+DEFAULT_RUNS = 5
+DEFAULT_SCAN_STEPS = 15
+FULL_POTENTIAL_SCAN_STEPS = 60
 
 TYPE_ORDER = [
     "SQL Injection",
@@ -252,16 +257,30 @@ def stop_process(process: Optional[subprocess.Popen]) -> None:
             pass
 
 
-def scan_model_counts(target: Target) -> Dict[str, int]:
+def scan_model_counts(
+    target: Target, model_path: str, scan_steps: int, full_potential: bool
+) -> Dict[str, int]:
     env = WebSecEnv(target_url=target.url, mode="mock_targets")
-    env.max_steps_per_episode = SCAN_INTENSITY
+    env.max_steps_per_episode = max(scan_steps, getattr(env, "max_steps_per_episode", scan_steps))
 
     agent = ImprovedDQNAgent(state_dim=15, action_dim=50)
-    load_model_smart(agent, model_path=MODEL_PATH, auto_checkpoint=True, verbose=True)
+    checkpoint = torch.load(model_path, map_location=agent.device)
+    if isinstance(checkpoint, dict) and "q_network_state_dict" in checkpoint:
+        agent.q_network.load_state_dict(checkpoint["q_network_state_dict"])
+        if "target_network_state_dict" in checkpoint:
+            agent.target_network.load_state_dict(checkpoint["target_network_state_dict"])
+        else:
+            agent.target_network.load_state_dict(agent.q_network.state_dict())
+        print(f"Loaded exact checkpoint: {model_path}")
+    else:
+        load_model_smart(agent, model_path=model_path, auto_checkpoint=False, verbose=True)
 
     network = getattr(agent, "q_network", None)
     if network:
-        network.eval()
+        if full_potential:
+            network.train()
+        else:
+            network.eval()
 
     try:
         env.action_login_valid()
@@ -270,8 +289,8 @@ def scan_model_counts(target: Target) -> Dict[str, int]:
 
     buckets: Dict[str, Set[str]] = {}
     state, _ = env.reset()
-    for _ in range(SCAN_INTENSITY):
-        action = agent.act(state, training=False)
+    for _ in range(scan_steps):
+        action = agent.act(state, training=full_potential)
         next_state, _, terminated, truncated, info = env.step(action)
 
         response = getattr(env, "last_response", None)
@@ -303,9 +322,15 @@ def scan_model_counts(target: Target) -> Dict[str, int]:
                 key = f"{vuln_type}|{action_name}|{vuln_id}"
                 buckets.setdefault(vuln_type, set()).add(key)
 
-        state = next_state
         if terminated or truncated:
-            break
+            try:
+                env.action_login_valid()
+            except Exception:
+                pass
+            state, _ = env.reset()
+            continue
+
+        state = next_state
 
     env.close()
     return {k: len(v) for k, v in buckets.items()}
@@ -316,7 +341,58 @@ def sort_types(types: List[str]) -> List[str]:
     return sorted(types, key=lambda name: index.get(name, len(TYPE_ORDER)))
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run repeated model evaluations and write average findings to the workbook."
+    )
+    parser.add_argument("--model", default=DEFAULT_MODEL_PATH, help="Checkpoint to evaluate")
+    parser.add_argument("--runs", type=int, default=DEFAULT_RUNS, help="Repeated runs per target")
+    parser.add_argument(
+        "--steps",
+        type=int,
+        default=DEFAULT_SCAN_STEPS,
+        help="Total agent action budget per run",
+    )
+    parser.add_argument(
+        "--full-potential",
+        action="store_true",
+        help="Use a larger step budget and noisy-network exploration during evaluation",
+    )
+    parser.add_argument(
+        "--workbook",
+        default=DEFAULT_WORKBOOK_PATH,
+        help="Workbook to update with averaged results",
+    )
+    return parser.parse_args()
+
+
+def _format_average(value: float) -> float | int:
+    rounded = round(value, 1)
+    if abs(rounded - round(rounded)) < 1e-9:
+        return int(round(rounded))
+    return rounded
+
+
 def main() -> int:
+    args = parse_args()
+    model_path = str(Path(args.model))
+    workbook_path = Path(args.workbook)
+    runs = max(1, int(args.runs))
+    full_potential = bool(args.full_potential)
+    scan_steps = max(1, int(args.steps))
+    if full_potential and scan_steps == DEFAULT_SCAN_STEPS:
+        scan_steps = FULL_POTENTIAL_SCAN_STEPS
+
+    if not Path(model_path).exists():
+        raise FileNotFoundError(f"Model checkpoint not found: {model_path}")
+    if not workbook_path.exists():
+        raise FileNotFoundError(f"Workbook not found: {workbook_path}")
+
+    print(f"Using model: {model_path}")
+    print(f"Repeated runs per target: {runs}")
+    print(f"Scan steps per run: {scan_steps}")
+    print(f"Full potential mode: {full_potential}")
+
     processes: List[Optional[subprocess.Popen]] = []
     try:
         for target in TARGETS:
@@ -327,15 +403,20 @@ def main() -> int:
                 return 1
 
         ground_truth: Dict[str, Dict[str, int]] = {}
-        model_results: Dict[str, Dict[str, int]] = {}
+        model_runs: Dict[str, List[Dict[str, int]]] = {}
 
         for target in TARGETS:
             ground_truth[target.name] = ground_truth_counts(target.app)
 
         for target in TARGETS:
-            model_results[target.name] = scan_model_counts(target)
+            model_runs[target.name] = []
+            for run_index in range(runs):
+                print(f"[{target.name}] Run {run_index + 1}/{runs}")
+                model_runs[target.name].append(
+                    scan_model_counts(target, model_path, scan_steps, full_potential)
+                )
 
-        wb = openpyxl.load_workbook("Evaluation Form.xlsx")
+        wb = openpyxl.load_workbook(workbook_path)
         ws = wb.active
 
         for r in range(2, ws.max_row + 1):
@@ -346,12 +427,19 @@ def main() -> int:
         site_index = 1
         for target in TARGETS:
             gt = ground_truth.get(target.name, {})
-            mr = model_results.get(target.name, {})
             types = sort_types(list(gt.keys()))
             for idx, vuln_type in enumerate(types):
                 total = gt.get(vuln_type, 0)
-                detected = mr.get(vuln_type, 0)
-                percent = 0.0 if total == 0 else (detected / total) * 100.0
+                per_run_detected = [
+                    min(run.get(vuln_type, 0), total)
+                    for run in model_runs.get(target.name, [])
+                ]
+                avg_detected = (
+                    sum(per_run_detected) / len(per_run_detected)
+                    if per_run_detected
+                    else 0.0
+                )
+                percent = 0.0 if total == 0 else (avg_detected / total) * 100.0
 
                 if idx == 0:
                     ws.cell(row, 1).value = site_index
@@ -362,13 +450,14 @@ def main() -> int:
 
                 ws.cell(row, 3).value = vuln_type
                 ws.cell(row, 4).value = total
-                ws.cell(row, 5).value = detected
+                ws.cell(row, 5).value = _format_average(avg_detected)
                 ws.cell(row, 6).value = f"{percent:.1f}%"
                 ws.cell(row, 7).value = IMPACT_MAP.get(vuln_type, "Medium")
                 row += 1
             site_index += 1
 
-        wb.save("Evaluation Form.xlsx")
+        wb.save(workbook_path)
+        print(f"Updated workbook: {workbook_path}")
         return 0
     finally:
         for proc in processes:

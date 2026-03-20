@@ -1,0 +1,643 @@
+{
+  "config": {
+    "runs": 5,
+    "depth": 10,
+    "intensity": 2,
+    "model": "checkpoints_backup_v21_success/multi_target_10k_ep10100.pth",
+    "timeout": 300,
+    "ai_mode": false,
+    "persist": false,
+    "pentester": false
+  },
+  "targets": {
+    "ecommerce": {
+      "name": "E-Commerce (5002)",
+      "url": "http://localhost:5002",
+      "app": "env/target_app_ecommerce.py",
+      "runs": [
+        {
+          "run": 1,
+          "report": "research/results/autonomous_scan_logs/ecommerce_run_1_report.md",
+          "log": "research/results/autonomous_scan_logs/ecommerce_run_1.log",
+          "category_counts": {}
+        },
+        {
+          "run": 2,
+          "report": "research/results/autonomous_scan_logs/ecommerce_run_2_report.md",
+          "log": "research/results/autonomous_scan_logs/ecommerce_run_2.log",
+          "category_counts": {}
+        },
+        {
+          "run": 3,
+          "report": "research/results/autonomous_scan_logs/ecommerce_run_3_report.md",
+          "log": "research/results/autonomous_scan_logs/ecommerce_run_3.log",
+          "category_counts": {}
+        },
+        {
+          "run": 4,
+          "report": "research/results/autonomous_scan_logs/ecommerce_run_4_report.md",
+          "log": "research/results/autonomous_scan_logs/ecommerce_run_4.log",
+          "category_counts": {}
+        },
+        {
+          "run": 5,
+          "report": "research/results/autonomous_scan_logs/ecommerce_run_5_report.md",
+          "log": "research/results/autonomous_scan_logs/ecommerce_run_5.log",
+          "category_counts": {}
+        }
+      ],
+      "rows": [
+        {
+          "category": "Mass Assignment",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "SQL Injection",
+          "total_existing": 3,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Critical"
+        },
+        {
+          "category": "JWT Bypass",
+          "total_existing": 3,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 4,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Medium"
+        },
+        {
+          "category": "Business Logic",
+          "total_existing": 4,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Medium"
+        },
+        {
+          "category": "Cross-Site Scripting (XSS)",
+          "total_existing": 2,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Broken Access Control (BAC)",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Critical"
+        },
+        {
+          "category": "Sensitive Data Exposure",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Insecure Deserialization",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Critical"
+        }
+      ]
+    },
+    "social": {
+      "name": "Social Media (5003)",
+      "url": "http://localhost:5003",
+      "app": "env/target_app_social.py",
+      "runs": [
+        {
+          "run": 1,
+          "report": "research/results/autonomous_scan_logs/social_run_1_report.md",
+          "log": "research/results/autonomous_scan_logs/social_run_1.log",
+          "category_counts": {}
+        },
+        {
+          "run": 2,
+          "report": "research/results/autonomous_scan_logs/social_run_2_report.md",
+          "log": "research/results/autonomous_scan_logs/social_run_2.log",
+          "category_counts": {}
+        },
+        {
+          "run": 3,
+          "report": "research/results/autonomous_scan_logs/social_run_3_report.md",
+          "log": "research/results/autonomous_scan_logs/social_run_3.log",
+          "category_counts": {}
+        },
+        {
+          "run": 4,
+          "report": "research/results/autonomous_scan_logs/social_run_4_report.md",
+          "log": "research/results/autonomous_scan_logs/social_run_4.log",
+          "category_counts": {}
+        },
+        {
+          "run": 5,
+          "report": "research/results/autonomous_scan_logs/social_run_5_report.md",
+          "log": "research/results/autonomous_scan_logs/social_run_5.log",
+          "category_counts": {}
+        }
+      ],
+      "rows": [
+        {
+          "category": "Weak Password",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Session Fixation",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Weak Reset Token",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "OAuth Bypass",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 6,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Medium"
+        },
+        {
+          "category": "Cross-Site Scripting (XSS)",
+          "total_existing": 3,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "File Upload",
+          "total_existing": 2,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Critical"
+        },
+        {
+          "category": "Path Traversal",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Cross-Site Request Forgery (CSRF)",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Medium"
+        },
+        {
+          "category": "SQL Injection",
+          "total_existing": 2,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Critical"
+        },
+        {
+          "category": "JWT Bypass",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        }
+      ]
+    },
+    "banking": {
+      "name": "Banking (5004)",
+      "url": "http://localhost:5004",
+      "app": "env/target_app_banking.py",
+      "runs": [
+        {
+          "run": 1,
+          "report": "research/results/autonomous_scan_logs/banking_run_1_report.md",
+          "log": "research/results/autonomous_scan_logs/banking_run_1.log",
+          "category_counts": {}
+        },
+        {
+          "run": 2,
+          "report": "research/results/autonomous_scan_logs/banking_run_2_report.md",
+          "log": "research/results/autonomous_scan_logs/banking_run_2.log",
+          "category_counts": {}
+        },
+        {
+          "run": 3,
+          "report": "research/results/autonomous_scan_logs/banking_run_3_report.md",
+          "log": "research/results/autonomous_scan_logs/banking_run_3.log",
+          "category_counts": {}
+        },
+        {
+          "run": 4,
+          "report": "research/results/autonomous_scan_logs/banking_run_4_report.md",
+          "log": "research/results/autonomous_scan_logs/banking_run_4.log",
+          "category_counts": {}
+        },
+        {
+          "run": 5,
+          "report": "research/results/autonomous_scan_logs/banking_run_5_report.md",
+          "log": "research/results/autonomous_scan_logs/banking_run_5.log",
+          "category_counts": {}
+        }
+      ],
+      "rows": [
+        {
+          "category": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 2,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Medium"
+        },
+        {
+          "category": "Cross-Site Request Forgery (CSRF)",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Medium"
+        },
+        {
+          "category": "Cross-Site Scripting (XSS)",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        }
+      ]
+    },
+    "blog": {
+      "name": "Blog (5005)",
+      "url": "http://localhost:5005",
+      "app": "env/target_app_blog.py",
+      "runs": [
+        {
+          "run": 1,
+          "report": "research/results/autonomous_scan_logs/blog_run_1_report.md",
+          "log": "research/results/autonomous_scan_logs/blog_run_1.log",
+          "category_counts": {}
+        },
+        {
+          "run": 2,
+          "report": "research/results/autonomous_scan_logs/blog_run_2_report.md",
+          "log": "research/results/autonomous_scan_logs/blog_run_2.log",
+          "category_counts": {}
+        },
+        {
+          "run": 3,
+          "report": "research/results/autonomous_scan_logs/blog_run_3_report.md",
+          "log": "research/results/autonomous_scan_logs/blog_run_3.log",
+          "category_counts": {}
+        },
+        {
+          "run": 4,
+          "report": "research/results/autonomous_scan_logs/blog_run_4_report.md",
+          "log": "research/results/autonomous_scan_logs/blog_run_4.log",
+          "category_counts": {}
+        },
+        {
+          "run": 5,
+          "report": "research/results/autonomous_scan_logs/blog_run_5_report.md",
+          "log": "research/results/autonomous_scan_logs/blog_run_5.log",
+          "category_counts": {}
+        }
+      ],
+      "rows": [
+        {
+          "category": "Cross-Site Scripting (XSS)",
+          "total_existing": 4,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "JWT Bypass",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Server-Side Request Forgery (SSRF)",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        }
+      ]
+    },
+    "fileshare": {
+      "name": "File Share (5006)",
+      "url": "http://localhost:5006",
+      "app": "env/target_app_fileshare.py",
+      "runs": [
+        {
+          "run": 1,
+          "report": "research/results/autonomous_scan_logs/fileshare_run_1_report.md",
+          "log": "research/results/autonomous_scan_logs/fileshare_run_1.log",
+          "category_counts": {}
+        },
+        {
+          "run": 2,
+          "report": "research/results/autonomous_scan_logs/fileshare_run_2_report.md",
+          "log": "research/results/autonomous_scan_logs/fileshare_run_2.log",
+          "category_counts": {}
+        },
+        {
+          "run": 3,
+          "report": "research/results/autonomous_scan_logs/fileshare_run_3_report.md",
+          "log": "research/results/autonomous_scan_logs/fileshare_run_3.log",
+          "category_counts": {}
+        },
+        {
+          "run": 4,
+          "report": "research/results/autonomous_scan_logs/fileshare_run_4_report.md",
+          "log": "research/results/autonomous_scan_logs/fileshare_run_4.log",
+          "category_counts": {}
+        },
+        {
+          "run": 5,
+          "report": "research/results/autonomous_scan_logs/fileshare_run_5_report.md",
+          "log": "research/results/autonomous_scan_logs/fileshare_run_5.log",
+          "category_counts": {}
+        }
+      ],
+      "rows": [
+        {
+          "category": "File Upload",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Critical"
+        },
+        {
+          "category": "Cross-Site Scripting (XSS)",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 2,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Medium"
+        },
+        {
+          "category": "Path Traversal",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "High"
+        },
+        {
+          "category": "Command Injection",
+          "total_existing": 1,
+          "per_run_counts": [
+            0,
+            0,
+            0,
+            0,
+            0
+          ],
+          "average_detected": 0,
+          "detection_rate": "0.0%",
+          "severity": "Critical"
+        }
+      ]
+    }
+  }
+}

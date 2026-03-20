@@ -1,3 +1,4 @@
+import argparse
 import os
 import sys
 import time
@@ -56,7 +57,9 @@ TARGETS: Dict[str, TargetConfig] = {
     ),
 }
 
-MODEL_PATH = "checkpoints/improved_mock_ep6000.pth"
+DEFAULT_MODEL_PATH = "checkpoints/improved_mock_ep6000.pth"
+DEFAULT_WORKBOOK_PATH = "research/results/Evaluation Form.xlsx"
+DEFAULT_RUNS = 5
 SCAN_DEPTH = 120
 SCAN_INTENSITY = 10
 SCAN_PERSIST = True
@@ -546,11 +549,11 @@ def run_direct_action_scan(target_url: str, rounds: int = DIRECT_ACTION_SWEEP_RO
     return found
 
 
-def run_ai_scan_pass(target_url: str, pass_config: ScanPassConfig):
+def run_ai_scan_pass(target_url: str, pass_config: ScanPassConfig, model_path: str):
     from autonomous_scan import SecurityAuditor
 
     found = defaultdict(set)
-    auditor = SecurityAuditor(base_url=target_url, model_path=MODEL_PATH)
+    auditor = SecurityAuditor(base_url=target_url, model_path=model_path)
     findings = auditor.start_audit(
         crawl_depth=pass_config.depth,
         test_intensity=pass_config.intensity,
@@ -584,34 +587,109 @@ def run_ai_scan_pass(target_url: str, pass_config: ScanPassConfig):
     return found
 
 
-def run_model_scan(target_url: str):
+def run_model_scan(
+    target_url: str,
+    model_path: str,
+    action_sweep_rounds: int,
+    direct_sweep_rounds: int,
+    include_ai_passes: bool,
+):
     combined = defaultdict(set)
 
-    print(f"    pass=action_sweep rounds={ACTION_SWEEP_ROUNDS}")
-    sweep_found = run_action_sweep_scan(target_url, rounds=ACTION_SWEEP_ROUNDS)
-    _merge_found(combined, sweep_found)
+    if action_sweep_rounds > 0:
+        print(f"    pass=action_sweep rounds={action_sweep_rounds}")
+        sweep_found = run_action_sweep_scan(target_url, rounds=action_sweep_rounds)
+        _merge_found(combined, sweep_found)
 
-    if ENABLE_DIRECT_ACTION_SWEEP:
-        print(f"    pass=direct_action_sweep rounds={DIRECT_ACTION_SWEEP_ROUNDS}")
+    if ENABLE_DIRECT_ACTION_SWEEP and direct_sweep_rounds > 0:
+        print(f"    pass=direct_action_sweep rounds={direct_sweep_rounds}")
         direct_found = run_direct_action_scan(
-            target_url, rounds=DIRECT_ACTION_SWEEP_ROUNDS
+            target_url, rounds=direct_sweep_rounds
         )
         _merge_found(combined, direct_found)
 
-    for pass_config in SCAN_PASSES:
-        print(
-            f"    pass={pass_config.name} depth={pass_config.depth} intensity={pass_config.intensity} "
-            f"persist={pass_config.persist} ai_mode={pass_config.ai_mode} pentester={pass_config.pentester}"
-        )
-        current = run_ai_scan_pass(target_url, pass_config)
-        _merge_found(combined, current)
+    if include_ai_passes:
+        for pass_config in SCAN_PASSES:
+            print(
+                f"    pass={pass_config.name} depth={pass_config.depth} intensity={pass_config.intensity} "
+                f"persist={pass_config.persist} ai_mode={pass_config.ai_mode} pentester={pass_config.pentester}"
+            )
+            current = run_ai_scan_pass(target_url, pass_config, model_path)
+            _merge_found(combined, current)
 
     return combined
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Run repeated evaluation scans and write average findings to the workbook."
+    )
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL_PATH,
+        help="Checkpoint to evaluate",
+    )
+    parser.add_argument(
+        "--runs",
+        type=int,
+        default=DEFAULT_RUNS,
+        help="Number of repeated scans per target",
+    )
+    parser.add_argument(
+        "--workbook",
+        default=DEFAULT_WORKBOOK_PATH,
+        help="Workbook path to update",
+    )
+    parser.add_argument(
+        "--action-sweep-rounds",
+        type=int,
+        default=ACTION_SWEEP_ROUNDS,
+        help="Deterministic mock-action sweep rounds per run",
+    )
+    parser.add_argument(
+        "--direct-sweep-rounds",
+        type=int,
+        default=DIRECT_ACTION_SWEEP_ROUNDS,
+        help="Direct full action-book sweep rounds per run",
+    )
+    parser.add_argument(
+        "--disable-ai-passes",
+        action="store_true",
+        help="Skip the slow autonomous scanner passes and use deterministic sweeps only",
+    )
+    return parser.parse_args()
+
+
+def _format_average(value: float) -> float | int:
+    rounded = round(value, 1)
+    if abs(rounded - round(rounded)) < 1e-9:
+        return int(round(rounded))
+    return rounded
+
+
 def main():
+    args = parse_args()
+    model_path = str(Path(args.model))
+    workbook_path = Path(args.workbook)
+    runs = max(1, int(args.runs))
+    action_sweep_rounds = max(0, int(args.action_sweep_rounds))
+    direct_sweep_rounds = max(0, int(args.direct_sweep_rounds))
+    include_ai_passes = not bool(args.disable_ai_passes)
+
+    if not Path(model_path).exists():
+        raise FileNotFoundError(f"Model checkpoint not found: {model_path}")
+    if not workbook_path.exists():
+        raise FileNotFoundError(f"Workbook not found: {workbook_path}")
+
     processes = {}
     all_ok = True
+
+    print(f"Using model: {model_path}")
+    print(f"Repeated runs per target: {runs}")
+    print(f"Workbook: {workbook_path}")
+    print(f"Action sweep rounds: {action_sweep_rounds}")
+    print(f"Direct sweep rounds: {direct_sweep_rounds}")
+    print(f"Include AI passes: {include_ai_passes}")
 
     print("Starting targets...")
     for key, cfg in TARGETS.items():
@@ -629,7 +707,7 @@ def main():
         raise SystemExit(1)
 
     ground_truth = {}
-    detected = {}
+    detected_runs = {}
 
     try:
         for key, cfg in TARGETS.items():
@@ -644,14 +722,25 @@ def main():
                 print(f"[Target Check] {cfg.name}: {status}")
                 if not ok:
                     ground_truth[key] = run_ground_truth_scan(cfg.app)
-                    detected[key] = defaultdict(set)
+                    detected_runs[key] = []
                     continue
 
             print(f"\n[Ground Truth] Scanning actions for {cfg.name}...")
             ground_truth[key] = run_ground_truth_scan(cfg.app)
 
-            print(f"[Model] Running model scan for {cfg.name}...")
-            detected[key] = run_model_scan(cfg.url)
+            print(f"[Model] Running {runs} scan(s) for {cfg.name}...")
+            detected_runs[key] = []
+            for run_index in range(runs):
+                print(f"  -> Run {run_index + 1}/{runs}")
+                detected_runs[key].append(
+                    run_model_scan(
+                        cfg.url,
+                        model_path,
+                        action_sweep_rounds,
+                        direct_sweep_rounds,
+                        include_ai_passes,
+                    )
+                )
 
     finally:
         for proc in processes.values():
@@ -661,7 +750,7 @@ def main():
     site_index = 1
     for key, cfg in TARGETS.items():
         gt = ground_truth.get(key, {})
-        det = detected.get(key, {})
+        run_results = detected_runs.get(key, [])
 
         categories = [c for c in CATEGORY_ORDER if c in gt]
         extra = sorted([c for c in gt.keys() if c not in CATEGORY_ORDER])
@@ -672,9 +761,14 @@ def main():
             total = len(gt.get(category, set()))
             if total == 0:
                 continue
-            detected_set = det.get(category, set())
-            detected_count = min(len(detected_set), total)
-            percent = (detected_count / total) * 100 if total else 0.0
+            per_run_counts = [
+                min(len(run_result.get(category, set())), total)
+                for run_result in run_results
+            ]
+            average_detected = (
+                sum(per_run_counts) / len(per_run_counts) if per_run_counts else 0.0
+            )
+            percent = (average_detected / total) * 100 if total else 0.0
             impact = impact_for(category)
 
             rows.append(
@@ -683,8 +777,8 @@ def main():
                     cfg.name if first_row else None,
                     category,
                     total,
-                    detected_count,
-                    f"{percent:.0f}%",
+                    _format_average(average_detected),
+                    f"{percent:.1f}%",
                     impact.title() if isinstance(impact, str) else impact,
                 ]
             )
@@ -692,7 +786,7 @@ def main():
 
         site_index += 1
 
-    wb = openpyxl.load_workbook("Evaluation Form.xlsx")
+    wb = openpyxl.load_workbook(workbook_path)
     ws = wb.active
     if ws is None:
         raise RuntimeError("Workbook has no active worksheet")
@@ -702,8 +796,10 @@ def main():
         for col, value in enumerate(row, start=1):
             ws.cell(row=idx, column=col, value=value)
 
-    wb.save("Evaluation Form.xlsx")
-    print("\n✅ Evaluation Form.xlsx updated with current test results.")
+    wb.save(workbook_path)
+    print(
+        f"\n✅ {workbook_path} updated with {runs}-run average findings using {model_path}."
+    )
 
 
 if __name__ == "__main__":

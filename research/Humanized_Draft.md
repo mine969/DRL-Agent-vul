@@ -151,40 +151,48 @@ End For
 
 # IV. EVALUATION AND RESULTS
 
-To see how well our RL scanner performs in practice, we benchmarked it against our intentionally vulnerable mock applications. We mapped its detections against a strict list of ground-truth vulnerabilities native to the targets.
+To make this section more reliable, we did not rely on a single lucky run. Instead, `autonomous_scan.py` was executed five times for each mock website using the checkpoint `checkpoints/improved_mock_ep10000.pth`. Because the scanner runs in `mock_targets` mode, the agent uses the reduced 50-action space designed for this benchmark. Table I reports the average number of unique confirmed findings per vulnerability class after matching the scan output against source-code-verified ground truth.
 
-Table I outlines precisely how many vulnerabilities the agent discovered across various high and critical severity classifications.
+| Website             | Vulnerability Type                      | Total Existing | Average Findings (5 Runs) | Detection Rate | Severity |
+| ------------------- | --------------------------------------- | -------------: | ------------------------: | -------------: | -------- |
+| E-Commerce (5002)   | Mass Assignment                         |              1 |                       0.0 |           0.0% | High     |
+| E-Commerce (5002)   | SQL Injection                           |              3 |                       2.0 |          66.7% | Critical |
+| E-Commerce (5002)   | JWT Bypass                              |              3 |                       0.0 |           0.0% | High     |
+| E-Commerce (5002)   | Insecure Direct Object Reference (IDOR) |              4 |                       2.0 |          50.0% | Medium   |
+| E-Commerce (5002)   | Business Logic                          |              4 |                       0.0 |           0.0% | Medium   |
+| E-Commerce (5002)   | Cross-Site Scripting (XSS)              |              2 |                       1.0 |          50.0% | High     |
+| E-Commerce (5002)   | Broken Access Control (BAC)             |              1 |                       0.0 |           0.0% | Critical |
+| E-Commerce (5002)   | Sensitive Data Exposure                 |              1 |                       0.0 |           0.0% | High     |
+| E-Commerce (5002)   | Insecure Deserialization                |              1 |                       0.0 |           0.0% | Critical |
+| Social Media (5003) | Weak Password                           |              1 |                       0.0 |           0.0% | High     |
+| Social Media (5003) | Session Fixation                        |              1 |                       0.0 |           0.0% | High     |
+| Social Media (5003) | Weak Reset Token                        |              1 |                       0.0 |           0.0% | High     |
+| Social Media (5003) | OAuth Bypass                            |              1 |                       0.0 |           0.0% | High     |
+| Social Media (5003) | Insecure Direct Object Reference (IDOR) |              6 |                       1.8 |          30.0% | Medium   |
+| Social Media (5003) | Cross-Site Scripting (XSS)              |              3 |                       0.6 |          20.0% | High     |
+| Social Media (5003) | File Upload                             |              2 |                       0.0 |           0.0% | Critical |
+| Social Media (5003) | Path Traversal                          |              1 |                       0.0 |           0.0% | High     |
+| Social Media (5003) | Cross-Site Request Forgery (CSRF)       |              1 |                       1.0 |         100.0% | Medium   |
+| Social Media (5003) | SQL Injection                           |              2 |                       0.8 |          40.0% | Critical |
+| Social Media (5003) | JWT Bypass                              |              1 |                       0.0 |           0.0% | High     |
+| Banking (5004)      | Insecure Direct Object Reference (IDOR) |              2 |                       0.0 |           0.0% | Medium   |
+| Banking (5004)      | Cross-Site Request Forgery (CSRF)       |              1 |                       0.8 |          80.0% | Medium   |
+| Banking (5004)      | Cross-Site Scripting (XSS)              |              1 |                       0.8 |          80.0% | High     |
+| Blog (5005)         | Cross-Site Scripting (XSS)              |              4 |                       0.4 |          10.0% | High     |
+| Blog (5005)         | JWT Bypass                              |              1 |                       0.0 |           0.0% | High     |
+| Blog (5005)         | Server-Side Request Forgery (SSRF)      |              1 |                       0.0 |           0.0% | High     |
+| File Share (5006)   | File Upload                             |              1 |                       0.0 |           0.0% | Critical |
+| File Share (5006)   | Cross-Site Scripting (XSS)              |              1 |                       0.2 |          20.0% | High     |
+| File Share (5006)   | Insecure Direct Object Reference (IDOR) |              2 |                       0.4 |          20.0% | Medium   |
+| File Share (5006)   | Path Traversal                          |              1 |                       0.2 |          20.0% | High     |
+| File Share (5006)   | Command Injection                       |              1 |                       0.0 |           0.0% | Critical |
 
-| Website             | Vulnerability Type                      | Total Existing | Detected by Agent | Detection Rate | Severity |
-| ------------------- | --------------------------------------- | -------------: | ----------------: | -------------: | -------- |
-| E-Commerce (5002)   | SQL Injection                           |              3 |                 2 |            67% | Critical |
-| E-Commerce (5002)   | Cross-Site Scripting (XSS)              |              2 |                 2 |           100% | High     |
-| E-Commerce (5002)   | Insecure Direct Object Reference (IDOR) |              4 |                 1 |            25% | Medium   |
-| E-Commerce (5002)   | Broken Access Control (BAC)             |              1 |                 1 |           100% | Critical |
-| E-Commerce (5002)   | Insecure Deserialization                |              1 |                 0 |             0% | Critical |
-| E-Commerce (5002)   | Mass Assignment                         |              1 |                 0 |             0% | High     |
-| E-Commerce (5002)   | Business Logic                          |              4 |                 1 |            25% | Medium   |
-| E-Commerce (5002)   | Sensitive Data Exposure                 |              1 |                 1 |           100% | High     |
-| E-Commerce (5002)   | JWT Bypass                              |              3 |                 0 |             0% | High     |
-| Social Media (5003) | SQL Injection                           |              2 |                 1 |            50% | Critical |
-| Social Media (5003) | Cross-Site Scripting (XSS)              |              3 |                 1 |            33% | High     |
-| Social Media (5003) | Insecure Direct Object Reference (IDOR) |              6 |                 0 |             0% | Medium   |
-| Social Media (5003) | Cross-Site Request Forgery (CSRF)       |              1 |                 1 |           100% | Medium   |
-| Social Media (5003) | File Upload                             |              2 |                 0 |             0% | Critical |
-| Social Media (5003) | Path Traversal                          |              1 |                 0 |             0% | High     |
-| Social Media (5003) | Session Fixation                        |              1 |                 1 |           100% | High     |
-| Social Media (5003) | Weak Reset Token                        |              1 |                 1 |           100% | High     |
-| Banking (5004)      | Cross-Site Scripting (XSS)              |              1 |                 1 |           100% | High     |
-| Banking (5004)      | Insecure Direct Object Reference (IDOR) |              2 |                 0 |             0% | Medium   |
-| Banking (5004)      | Cross-Site Request Forgery (CSRF)       |              1 |                 1 |           100% | Medium   |
-| Blog (5005)         | Cross-Site Scripting (XSS)              |              4 |                 1 |            25% | High     |
-| Blog (5005)         | Server-Side Request Forgery (SSRF)      |              1 |                 1 |           100% | High     |
-| File Share (5006)   | Cross-Site Scripting (XSS)              |              1 |                 1 |           100% | High     |
-| File Share (5006)   | Command Injection                       |              1 |                 1 |           100% | Critical |
+The five-run averages paint a clearer and more balanced picture of performance. Overall, this checkpoint shows low-to-moderate coverage rather than strong end-to-end coverage. The strongest target is E-Commerce, where the scanner repeatedly confirms SQL Injection, Stored XSS, and part of the IDOR surface. Social Media comes next, with stable CSRF detection and partial coverage of IDOR, SQL Injection, and XSS. Banking still shows repeatable XSS and CSRF findings, but Blog and File Share remain much harder and only yield light coverage.
 
-As shown, the RL agent has a surprisingly strong talent for uncovering standard injection flaws and state-based issues. It hit a 100% detection rate for Cross-Site Scripting (XSS) on the Banking and File Share platforms. It successfully found critical vulnerabilities like Command Injection, Server-Side Request Forgery (SSRF), and Broken Access Control without skipping a beat.
+This pattern suggests that the agent is more dependable on direct input-driven attacks than on vulnerabilities that require deeper context, stronger authorization reasoning, or longer exploit chains. That is why categories such as File Upload, Command Injection, JWT Bypass, and most business-logic flaws remain at zero in the averaged table.
 
-That being said, the evaluation does shine a light on where the agent struggles. Complex logic vulnerabilities, such as Insecure Direct Object Reference (IDOR), were incredibly difficult for the agent to spot consistently. These flaws often require deep, contextual understanding of what user data belongs to whom across multiple sequential requests—something that is still challenging to represent numerically to a standard multi-layer perceptron. Additionally, complex multi-step exploits like uploading a malicious file and then subsequently triggering it via path traversal proved difficult. This suggests that while RL is incredible at chaining payloads on a syntax level, giving it true abstract business-logic comprehension represents the next major hurdle for completely autonomous pentesting.
+Importantly, the low detection rates should be treated as a limitation of the current model-and-scanner setup, not as a failure of the benchmark itself. The mock websites still contain the planted vulnerabilities, and the benchmark is doing its job by exposing where the agent is still weak. In other words, the results show that the evaluation is strict and useful, while the present checkpoint still needs stronger coverage and better contextual reasoning.
+
 
 # V. DISCUSSION
 
