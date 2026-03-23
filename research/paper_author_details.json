@@ -1,0 +1,46 @@
+{
+  "authors": [
+    {
+      "name": "Author 1 Name Surname",
+      "department": "Department / School",
+      "organization": "University / Organization",
+      "location": "City, Country",
+      "email": "author1@example.com"
+    },
+    {
+      "name": "Author 2 Name Surname",
+      "department": "Department / School",
+      "organization": "University / Organization",
+      "location": "City, Country",
+      "email": "author2@example.com"
+    },
+    {
+      "name": "Author 3 Name Surname",
+      "department": "Department / School",
+      "organization": "University / Organization",
+      "location": "City, Country",
+      "email": "author3@example.com"
+    },
+    {
+      "name": "Author 4 Name Surname",
+      "department": "Department / School",
+      "organization": "University / Organization",
+      "location": "City, Country",
+      "email": "author4@example.com"
+    },
+    {
+      "name": "Author 5 Name Surname",
+      "department": "Department / School",
+      "organization": "University / Organization",
+      "location": "City, Country",
+      "email": "author5@example.com"
+    },
+    {
+      "name": "Author 6 Name Surname",
+      "department": "Department / School",
+      "organization": "University / Organization",
+      "location": "City, Country",
+      "email": "author6@example.com"
+    }
+  ]
+}
