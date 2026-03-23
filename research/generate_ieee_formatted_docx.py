@@ -411,11 +411,10 @@ def insert_paragraph_before_table(table, style_name, text):
 
 
 def format_tables(document):
-    content_tables = []
-    for table in document.tables:
-        if any("author" in cell.text.lower() and "surname" in cell.text.lower() for cell in table.rows[0].cells):
-            continue
-        content_tables.append(table)
+    if not document.tables:
+        return
+
+    content_tables = list(document.tables)[1:]
 
     caption_index = 1
     for table in content_tables:

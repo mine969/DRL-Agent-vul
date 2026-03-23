@@ -1,46 +1,46 @@
 {
   "authors": [
     {
-      "name": "Author 1 Name Surname",
-      "department": "Department / School",
-      "organization": "University / Organization",
-      "location": "City, Country",
-      "email": "author1@example.com"
+      "name": "Hein Htet Zaw",
+      "department": "",
+      "organization": "Digital Innovative Technology / Rangsit University / Organization",
+      "location": "Bangkok, Pathum Thani",
+      "email": "devildog.kk@gmail.com"
     },
     {
-      "name": "Author 2 Name Surname",
-      "department": "Department / School",
-      "organization": "University / Organization",
+      "name": "2nd Given Name Surname",
+      "department": "dept. name of organization (of Affiliation)",
+      "organization": "name of organization (of Affiliation)",
       "location": "City, Country",
-      "email": "author2@example.com"
+      "email": "email address or ORCID"
     },
     {
-      "name": "Author 3 Name Surname",
-      "department": "Department / School",
-      "organization": "University / Organization",
+      "name": "3rd Given Name Surname",
+      "department": "dept. name of organization (of Affiliation)",
+      "organization": "name of organization (of Affiliation)",
       "location": "City, Country",
-      "email": "author3@example.com"
+      "email": "email address or ORCID"
     },
     {
-      "name": "Author 4 Name Surname",
-      "department": "Department / School",
-      "organization": "University / Organization",
+      "name": "4th Given Name Surname",
+      "department": "dept. name of organization (of Affiliation)",
+      "organization": "name of organization (of Affiliation)",
       "location": "City, Country",
-      "email": "author4@example.com"
+      "email": "email address or ORCID"
     },
     {
-      "name": "Author 5 Name Surname",
-      "department": "Department / School",
-      "organization": "University / Organization",
+      "name": "5th Given Name Surname",
+      "department": "dept. name of organization (of Affiliation)",
+      "organization": "name of organization (of Affiliation)",
       "location": "City, Country",
-      "email": "author5@example.com"
+      "email": "email address or ORCID"
     },
     {
-      "name": "Author 6 Name Surname",
-      "department": "Department / School",
-      "organization": "University / Organization",
+      "name": "6th Given Name Surname",
+      "department": "dept. name of organization (of Affiliation)",
+      "organization": "name of organization (of Affiliation)",
       "location": "City, Country",
-      "email": "author6@example.com"
+      "email": "email address or ORCID"
     }
   ]
 }
