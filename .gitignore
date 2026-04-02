@@ -51,6 +51,10 @@ nul
 
 # Office temp files
 ~$*.xlsx
+~$*.doc
+~$*.docx
+~$*.ppt
+~$*.pptx
 
 # Uploads
 uploads/
