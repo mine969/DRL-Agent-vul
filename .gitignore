@@ -55,6 +55,8 @@ nul
 ~$*.docx
 ~$*.ppt
 ~$*.pptx
+*.tmp
+* - Copy.*
 
 # Uploads
 uploads/
