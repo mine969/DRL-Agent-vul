@@ -2,18 +2,16 @@
 Improved DQN Agent with Advanced Algorithms
 ===========================================
 
-Implements enhanced DQN variants with:
+Implements an Extended D3QN (Double DQN + Dueling + PER + Noisy Networks).
+
+Components actually implemented:
 - Prioritized Experience Replay (PER)
 - Noisy Networks for exploration
-- Multi-step learning
-- Double DQN + Dueling (baseline)
+- Double DQN + Dueling architecture
+- Multi-step returns (optional; n_step=1 used in all published training runs)
 
-This provides significant improvements in:
-- Learning speed (faster convergence)
-- Sample efficiency (better use of experiences)
-- Exploration (more efficient exploration)
-- Stability (more stable training)
-- Accuracy (better performance)
+Not implemented (despite the name "Rainbow"):
+- Distributional RL (C51) — absent; this is NOT full Rainbow DQN
 
 Author: DRL Web Security Team
 Date: 2025
@@ -292,15 +290,17 @@ class NoisyLinear(nn.Module):
         return nn.functional.linear(x, weight, bias)
 
 
-class RainbowDQN(nn.Module):
+class DuelingNoisyDQN(nn.Module):
     """
-    Rainbow DQN Network.
+    Dueling DQN network with optional Noisy Linear layers.
 
-    Combines multiple DQN improvements:
-    - Dueling architecture (Value + Advantage)
-    - Noisy networks (better exploration)
+    Implements:
+    - Dueling architecture (Value + Advantage streams)
+    - Noisy networks for learned exploration (optional)
 
-    Based on: "Rainbow: Combining Improvements in Deep RL" (Hessel et al., 2018)
+    This is NOT a full Rainbow network — distributional RL (C51) is absent.
+    The full agent (ImprovedDQNAgent) adds Double DQN, PER, and n-step returns
+    on top of this network to form an Extended D3QN.
     """
 
     def __init__(
@@ -311,7 +311,7 @@ class RainbowDQN(nn.Module):
         use_noisy: bool = True,
     ):
         """
-        Initialize Rainbow DQN network.
+        Initialize Dueling Noisy DQN network.
 
         Args:
             input_size: Input dimension
@@ -319,7 +319,7 @@ class RainbowDQN(nn.Module):
             hidden_sizes: List of hidden layer sizes
             use_noisy: Whether to use noisy networks
         """
-        super(RainbowDQN, self).__init__()
+        super(DuelingNoisyDQN, self).__init__()
 
         if hidden_sizes is None:
             hidden_sizes = [256, 128]
@@ -382,21 +382,17 @@ class RainbowDQN(nn.Module):
 
 class ImprovedDQNAgent:
     """
-    Improved DQN Agent with advanced algorithms.
+    Extended D3QN agent (Double DQN + Dueling + PER + Noisy Networks).
 
     Features:
     - Prioritized Experience Replay (PER)
     - Noisy Networks (replaces epsilon-greedy)
     - Double DQN
-    - Dueling architecture
-    - Multi-step learning (optional)
+    - Dueling architecture (via DuelingNoisyDQN)
+    - Multi-step returns (available via n_step parameter; n_step=1 was used
+      for all published training runs — single-step TD)
 
-    This provides significantly better:
-    - Learning speed (faster convergence)
-    - Sample efficiency (better use of experiences)
-    - Exploration (more efficient)
-    - Stability (more stable training)
-    - Final performance (higher accuracy)
+    Note: This is NOT a Rainbow DQN. Distributional RL (C51) is not implemented.
 
     Example:
         >>> agent = ImprovedDQNAgent(state_dim=11, action_dim=100)
@@ -412,7 +408,7 @@ class ImprovedDQNAgent:
         config: Optional[AgentConfig] = None,
         use_prioritized_replay: bool = True,
         use_noisy_networks: bool = True,
-        n_step: int = 1,  # Multi-step learning (Disabled by default for stability)
+        n_step: int = 1,  # n_step=1 → standard single-step TD (all published runs used this)
         seed: Optional[int] = None,
     ):
         """
@@ -485,14 +481,14 @@ class ImprovedDQNAgent:
                 )
 
         # Networks
-        self.q_network = RainbowDQN(
+        self.q_network = DuelingNoisyDQN(
             state_dim,
             action_dim,
             hidden_sizes=config.hidden_sizes,
             use_noisy=use_noisy_networks,
         ).to(self.device)
 
-        self.target_network = RainbowDQN(
+        self.target_network = DuelingNoisyDQN(
             state_dim,
             action_dim,
             hidden_sizes=config.hidden_sizes,

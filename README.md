@@ -252,16 +252,28 @@ The agent is capable of:
 
 See **[AGENT_CAPABILITIES.md](docs/AGENT_CAPABILITIES.md)** for complete details.
 
-### Real-World Performance
+### Mock-Target Benchmark Results (Table I)
 
-The tuned action space provides **excellent real-world transfer learning**:
+Results from 5 evaluation runs using `checkpoints/improved_mock_ep10000.pth` against the 5 mock targets (n_step=1, 50-action space). Detection rate = avg. confirmed findings / ground-truth vulnerabilities.
 
-- **IDOR Detection**: 85-90% accuracy on real applications
-- **XSS Detection**: 75-85% accuracy across different platforms
-- **SQL Injection**: 70-80% accuracy on vulnerable endpoints
-- **Overall Detection**: 75-85% F1-score on authorized real-world targets
+| Target | Vuln Class | Detection Rate |
+|---|---|---|
+| E-Commerce | SQL Injection | 66.7% |
+| E-Commerce | IDOR | 50.0% |
+| E-Commerce | XSS (Stored) | 50.0% |
+| Social Media | IDOR | 30.0% |
+| Social Media | XSS | 20.0% |
+| Social Media | SQL Injection | 40.0% |
+| Banking | IDOR | 0.0% |
+| Banking | CSRF | 80.0% |
+| Banking | XSS | 80.0% |
+| Blog | XSS | 10.0% |
+| File Share | IDOR | 20.0% |
+| File Share | XSS | 20.0% |
 
-See **[REAL_WORLD_TRANSFER.md](docs/REAL_WORLD_TRANSFER.md)** for transfer learning analysis.
+**Overall:** Low-to-moderate coverage. The E-Commerce target is most reliably detected; Blog and File Share remain difficult. IDOR detection ranges from 0–50% across targets — not 85–90%.
+
+See **[Eval_Markdown.md](research/Eval_Markdown.md)** for the full evaluation methodology.
 
 ### 🚀 Improved Algorithms Available
 
