@@ -116,6 +116,15 @@ Verified: 0 flagged hyperbole terms remain; `document.xml` parses well-formed.
 - Fuller use of page limit (more methodology/results explanation) → Phase 3.
 - Convincing results (convergence, stability, Wilcoxon, Friedman vs baselines) → Phase 4, needs GPU.
 
+## Batch G — expansion + framework flowchart (done, verified)
+**#1 Methodology/results expansion (R2 "more detail"):** added two grounded paragraphs (no new/contradicting numbers):
+- Phase-based curriculum mechanics — the three phases (Recon 0-29 → Assessment 30-69 → Exploitation 70-149), action gating, WAF-evasion action family, and reward shaping (grounded in `env/web_sec_env.py`).
+- Results analysis — why input-driven flaws (SQLi/XSS) are detected reliably while authorization/workflow flaws (IDOR, mass assignment, JWT) are harder (credit-assignment across authenticated requests); ties strong E-Commerce/Social Media vs weak Blog/File Share to the state/action design.
+
+**#2 Framework flowchart (R1 + R3):** built and embedded as **Fig. 2** (`image3.png`) at the end of Methodology — end-to-end pipeline: Environment → State Encoder (15-D) → Extended D3QN → Phase Controller → Action/Payload → HTTP → loop, plus the training sub-loop (Reward & Detection → Replay Buffer → Agent) and the Report output. Caption auto-numbers via the `figurecaption` style (training curve becomes Fig. 3). Added an in-text pointer to Fig. 2 in the Methodology intro. Diagram visually verified before embedding.
+
+Plan status: Phase-3 flowchart + R2 "more detail" now **done**. Remaining: equation numbering (R3, best in Word), and the statistics/synthetic-Fig. decision (Phase 4, GPU).
+
 ## Already clean in this draft (no action)
 - Title already "…for Modern Web Applications" (no "Benchmarks") — R2 handled.
 - Duplicate reference numbers `[1] [1]` not present.
