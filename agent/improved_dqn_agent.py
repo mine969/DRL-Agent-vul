@@ -6,7 +6,6 @@ Implements enhanced DQN variants with:
 - Prioritized Experience Replay (PER)
 - Noisy Networks for exploration
 - Multi-step learning
-- Distributional DQN (C51)
 - Double DQN + Dueling (baseline)
 
 This provides significant improvements in:
