@@ -1,0 +1,12 @@
+# Enforce LF line endings for all text files in this repo
+* text=auto eol=lf
+
+# Explicitly binary — never touch line endings
+*.pth binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.db binary
