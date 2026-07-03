@@ -10,7 +10,7 @@ Welcome to the research framework for autonomous web vulnerability discovery usi
 
 This research project demonstrates how advanced DRL algorithms can autonomously discover web vulnerabilities with high accuracy and efficiency. The project includes:
 
-- **Rainbow DQN Agent** with Prioritized Experience Replay, Noisy Networks, and Multi-step learning
+- **Extended D3QN Agent** with Prioritized Experience Replay, Noisy Networks, and Multi-step learning
 - **5 Mock Applications** with 33 verified vulnerabilities
 - **Comprehensive Ground Truth Database** for evaluation
 - **Automated Evaluation Framework** with detailed metrics
@@ -46,7 +46,7 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 
 3. **Train the Agent**
    ```bash
-   # Train with improved algorithms (Rainbow DQN, default)
+   # Train with improved algorithms (Extended D3QN, default)
    python train_mock_targets.py --episodes 1000
    ```
 
@@ -70,7 +70,7 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 | **[ground_truth_vulnerabilities.md](ground_truth_vulnerabilities.md)** | Ground truth database | 33 verified vulnerabilities with exploitation details |
 | **[experimental_results.md](experimental_results.md)** | Results framework | Comparative analysis template and metrics |
 | **[findings_and_conclusions.md](findings_and_conclusions.md)** | Final conclusions | Research achievements and implications |
-| **[IMPROVED_ALGORITHMS.md](../docs/IMPROVED_ALGORITHMS.md)** | Algorithm details | Technical implementation of Rainbow DQN |
+| **[IMPROVED_ALGORITHMS.md](../docs/IMPROVED_ALGORITHMS.md)** | Algorithm details | Technical implementation of Extended D3QN |
 
 ### Tools and Scripts
 
@@ -114,7 +114,7 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 
 2. **Train Agent**
    ```bash
-   # Train with Rainbow DQN (recommended)
+   # Train with Extended D3QN (recommended)
    python train_mock_targets.py --episodes 1000
    ```
 
@@ -156,7 +156,7 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
    - ✅ **YES** - Agent achieved 95.2% detection accuracy
 
 2. **How do advanced DRL algorithms compare to baselines?**
-   - ✅ **Rainbow DQN outperforms baseline by 27% accuracy**
+   - ✅ **Extended D3QN outperforms baseline by 27% accuracy**
 
 3. **What are the practical limitations and capabilities?**
    - ✅ **Strengths:** IDOR, SQLi, XSS detection (90%+ accuracy)
@@ -167,7 +167,7 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 
 ### Technical Insights
 
-- **Algorithm Selection Matters:** Rainbow DQN provides significant improvements
+- **Algorithm Selection Matters:** Extended D3QN provides significant improvements
 - **Exploration is Critical:** Noisy networks solve exploration challenges
 - **Experience Prioritization:** PER accelerates learning by focusing on important experiences
 - **Multi-step Learning:** Better credit assignment for long-term consequences
@@ -211,7 +211,7 @@ Path Traversal (2 total): ████████░░ 80% (1.6/2 detected)
 | **Double + Dueling** | 2,000 | 0.81 | 32 min | Stable learning |
 | **+ Prioritized Replay** | 1,200 | 0.89 | 24 min | Smart experience sampling |
 | **+ Noisy Networks** | 800 | 0.94 | 18 min | Efficient exploration |
-| **Rainbow DQN** | **600** | **0.96** | **15 min** | All improvements combined |
+| **Extended D3QN** | **600** | **0.96** | **15 min** | All improvements combined |
 
 ---
 

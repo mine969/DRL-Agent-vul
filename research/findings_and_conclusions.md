@@ -27,7 +27,7 @@
 | **Prioritized Experience Replay** | 2.5x faster learning | Novel application to security domain |
 | **Noisy Networks** | 3.75x faster convergence | First comprehensive security implementation |
 | **Multi-Step Learning** | Improved credit assignment | Enhanced long-term vulnerability understanding |
-| **Rainbow DQN Integration** | 27% accuracy improvement | State-of-the-art security testing |
+| **Extended D3QN Integration** | 27% accuracy improvement | State-of-the-art security testing |
 
 ---
 
@@ -39,7 +39,7 @@
 
 **Evidence:**
 - **33 ground truth vulnerabilities** across 5 applications
-- **Rainbow DQN agent** identified 31.5/33 vulnerabilities correctly
+- **Extended D3QN Agent** identified 31.5/33 vulnerabilities correctly
 - **F1-score of 0.96** represents publication-quality performance
 - **Consistent results** across different application architectures
 
@@ -52,7 +52,7 @@
 **Evidence:**
 ```
 Algorithm Progression:
-Baseline DQN → Double+Dueling → +PER → +Noisy → Rainbow DQN
+Baseline DQN → Double+Dueling → +PER → +Noisy → Extended D3QN
 F1-Score:     0.72 → 0.81 → 0.89 → 0.94 → 0.96 (+27% total)
 Convergence:  3000 → 2000 → 1200 → 800 → 600 episodes (5x faster)
 ```
@@ -80,7 +80,7 @@ Challenging Types (< 70% accuracy):
 
 ### 4. Training Efficiency and Scalability
 
-**Finding:** The Rainbow DQN agent achieves production-ready performance with reasonable computational requirements.
+**Finding:** The Extended D3QN Agent achieves production-ready performance with reasonable computational requirements.
 
 **Evidence:**
 - **Training Time:** 15 minutes to convergence (vs 45 minutes for baseline)
@@ -164,8 +164,8 @@ Episode Range │ F1-Score │ Key Developments
 
 ### Technical Contributions
 
-#### 1. Rainbow DQN for Cybersecurity
-- **Novel Application:** First comprehensive implementation of Rainbow DQN for web vulnerability discovery
+#### 1. Extended D3QN for Cybersecurity
+- **Novel Application:** First comprehensive implementation of Extended D3QN for web vulnerability discovery
 - **Performance Benchmark:** Established baseline performance metrics for future research
 - **Algorithm Optimization:** Tuned hyperparameters for security domain characteristics
 
@@ -338,7 +338,7 @@ Episode Range │ F1-Score │ Key Developments
 
 ### Research Success Summary
 
-This research successfully demonstrated that **advanced Deep Reinforcement Learning algorithms can achieve autonomous web vulnerability discovery with production-ready accuracy and efficiency**. The Rainbow DQN agent achieved:
+This research successfully demonstrated that **advanced Deep Reinforcement Learning algorithms can achieve autonomous web vulnerability discovery with production-ready accuracy and efficiency**. The Extended D3QN Agent achieved:
 
 - **95.2% detection accuracy** across 33 ground truth vulnerabilities
 - **1.8% false positive rate**, minimizing security team burden
@@ -347,7 +347,7 @@ This research successfully demonstrated that **advanced Deep Reinforcement Learn
 
 ### Key Achievements
 
-1. **State-of-the-Art Performance:** Rainbow DQN significantly outperformed all baseline algorithms
+1. **State-of-the-Art Performance:** Extended D3QN significantly outperformed all baseline algorithms
 2. **Practical Effectiveness:** Agent can be deployed for real-world vulnerability assessment
 3. **Research Reproducibility:** Complete methodology and ground truth database provided
 4. **Community Contribution:** Open-source implementation for continued research
@@ -363,7 +363,7 @@ This work establishes **Deep Reinforcement Learning as a viable approach for aut
 
 ### Research Legacy
 
-The comprehensive framework, extensive ground truth database, and open-source implementation provide a solid foundation for future research in autonomous security testing. The demonstrated effectiveness of Rainbow DQN establishes a new performance baseline for AI-powered vulnerability discovery.
+The comprehensive framework, extensive ground truth database, and open-source implementation provide a solid foundation for future research in autonomous security testing. The demonstrated effectiveness of Extended D3QN establishes a new performance baseline for AI-powered vulnerability discovery.
 
 ---
 

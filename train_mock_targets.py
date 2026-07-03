@@ -13,7 +13,7 @@ import torch
 import numpy as np
 from agent.improved_dqn_agent import (
     ImprovedDQNAgent,
-)  # Using Rainbow DQN for 5x faster training
+)  # Extended D3QN: PER + Noisy Networks + Dueling + Double DQN
 from env.web_sec_env import WebSecurityGym
 import sys
 import io
@@ -67,10 +67,9 @@ class MockTargetsTrainer:
         self.verbose = verbose
         self.checkpoint_prefix = "improved_mock"  # Improved DQN on mock targets
 
-        # Initialize Improved DQN Agent (Rainbow) with all enhancements
-        # - Prioritized Experience Replay: 2-3x faster learning
-        # - Noisy Networks: Better exploration (no epsilon needed)
-        # - Multi-step Learning: Faster reward propagation
+        # Initialize Extended D3QN Agent with all enhancements
+        # - Prioritized Experience Replay: faster learning via TD-error sampling
+        # - Noisy Networks: learned exploration (no epsilon needed)
         self.agent = ImprovedDQNAgent(
             state_dim=15,  # ENRICHED STATE: Now 15 dimensions (Context+History)
             action_dim=50,  # RESTRICTED for Mock Targets (was 150)
@@ -78,7 +77,7 @@ class MockTargetsTrainer:
             use_noisy_networks=True,  # Learned exploration
             n_step=1,  # N-step disabled for stability (1-step TD)
         )
-        print("🚀 Using Improved DQN (Rainbow) - 5x faster convergence, +27% accuracy!")
+        print("🚀 Using Extended D3QN (PER + Noisy + Dueling + Double DQN)")
 
         # Load existing model if possible
         self._load_model()

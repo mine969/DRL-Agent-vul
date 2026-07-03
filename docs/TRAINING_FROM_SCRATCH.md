@@ -2,7 +2,7 @@
 
 This guide shows how to write a fresh training script for this repository using the current stack:
 
-- `ImprovedDQNAgent` (Rainbow-style DQN)
+- `ImprovedDQNAgent` (Extended D3QN)
 - `WebSecurityGym` in `mock_targets` mode (50 actions)
 - auto-resume from latest checkpoint
 - checkpoint save every 50 episodes

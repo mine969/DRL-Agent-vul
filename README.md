@@ -282,7 +282,7 @@ See **[Eval_Markdown.md](research/Eval_Markdown.md)** for the full evaluation me
 - **Prioritized Experience Replay (PER)** - 2-3x faster learning
 - **Noisy Networks** - Better exploration without epsilon-greedy
 - **Multi-Step Learning** - Faster reward propagation
-- **Extended D3QN** — All five techniques combined (Double DQN + Dueling + PER + Noisy + Multi-Step). Note: Distributional RL (C51) is **not** implemented.
+- **Extended D3QN** — All techniques combined (Double DQN + Dueling + PER + Noisy Networks + Multi-Step).
 
 **Performance Improvements:**
 
