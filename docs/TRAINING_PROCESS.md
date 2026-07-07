@@ -30,7 +30,7 @@ python train_mock_targets.py --episodes 1000
 
 What this script does:
 
-- Uses `ImprovedDQNAgent` (Rainbow-style improvements)
+- Uses `ImprovedDQNAgent` (Extended D3QN: PER + Noisy + Dueling + Double DQN)
 - Rotates across all 5 mock targets episode by episode
 - Saves checkpoints every 50 episodes to `checkpoints/improved_mock_ep*.pth`
 - Auto-resumes from the latest compatible checkpoint if one exists

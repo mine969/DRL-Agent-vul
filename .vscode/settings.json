@@ -1,4 +1,4 @@
 {
   "liveServer.settings.port": 5501,
-  "postman.settings.dotenv-detection-notification-visibility": false
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv312/Scripts/python.exe"
 }

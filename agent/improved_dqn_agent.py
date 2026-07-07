@@ -4,14 +4,11 @@ Improved DQN Agent with Advanced Algorithms
 
 Implements an Extended D3QN (Double DQN + Dueling + PER + Noisy Networks).
 
-Components actually implemented:
+Components implemented (Extended D3QN):
 - Prioritized Experience Replay (PER)
 - Noisy Networks for exploration
 - Double DQN + Dueling architecture
 - Multi-step returns (optional; n_step=1 used in all published training runs)
-
-Not implemented (despite the name "Rainbow"):
-- Distributional RL (C51) — absent; this is NOT full Rainbow DQN
 
 Author: DRL Web Security Team
 Date: 2025
@@ -298,7 +295,6 @@ class DuelingNoisyDQN(nn.Module):
     - Dueling architecture (Value + Advantage streams)
     - Noisy networks for learned exploration (optional)
 
-    This is NOT a full Rainbow network — distributional RL (C51) is absent.
     The full agent (ImprovedDQNAgent) adds Double DQN, PER, and n-step returns
     on top of this network to form an Extended D3QN.
     """
@@ -392,7 +388,6 @@ class ImprovedDQNAgent:
     - Multi-step returns (available via n_step parameter; n_step=1 was used
       for all published training runs — single-step TD)
 
-    Note: This is NOT a Rainbow DQN. Distributional RL (C51) is not implemented.
 
     Example:
         >>> agent = ImprovedDQNAgent(state_dim=11, action_dim=100)

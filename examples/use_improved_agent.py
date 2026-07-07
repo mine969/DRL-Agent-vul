@@ -9,7 +9,7 @@ Features demonstrated:
 - Prioritized Experience Replay (PER)
 - Noisy Networks (better exploration)
 - Multi-step learning
-- Rainbow DQN (combination of improvements)
+- Extended D3QN (combination of improvements)
 
 Usage:
     python examples/use_improved_agent.py
