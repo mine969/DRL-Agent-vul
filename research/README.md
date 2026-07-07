@@ -46,10 +46,10 @@ This research project demonstrates the application of Deep Reinforcement Learnin
 ```python
 # Improved DQN with advanced algorithms
 agent = ImprovedDQNAgent(
-    state_dim=11, action_dim=100,
+    state_dim=15, action_dim=50,   # 15-dim observation vector; 50 actions in mock_targets mode (150 in standard mode)
     use_prioritized_replay=True,
     use_noisy_networks=True,
-    n_step=3  # Extended D3QN
+    n_step=1  # n_step=1 (standard single-step TD) was used in all published training runs
 )
 ```
 
@@ -109,6 +109,12 @@ def calculate_detection_accuracy(agent_findings, ground_truth):
 
 ## 📋 Research Deliverables
 
+<!-- TODO(owner): clarify -- of the 5 deliverable files listed below, only
+ground_truth_vulnerabilities.md and findings_and_conclusions.md currently
+exist in research/. experimental_results.md, agent_capabilities_analysis.md,
+and technical_implementation.md are not present. Confirm whether these were
+renamed/merged into existing docs or are still planned/outstanding. -->
+
 ### 1. Ground Truth Database
 **File:** `research/ground_truth_vulnerabilities.md`
 - Complete inventory of all vulnerabilities in 5 mock applications
@@ -164,6 +170,10 @@ python research/generate_report.py
 ```
 
 ### Analysis Tools
+<!-- TODO(owner): clarify -- research/compare_findings.py and
+research/analyze_training.py do not exist in the repo. Confirm whether this
+functionality now lives in evaluate_agent.py / generate_report.py, or these
+scripts were never committed. -->
 ```bash
 # Compare results with ground truth
 python research/compare_findings.py

@@ -52,8 +52,10 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 
 4. **Evaluate Performance**
    ```bash
-   # Run comprehensive evaluation
-   python research/evaluate_agent.py --agent improved --checkpoint checkpoints/latest.pth
+   # Run comprehensive evaluation (omit --checkpoint to auto-select the
+   # highest-episode checkpoint under checkpoints/, or point at one directly,
+   # e.g. checkpoints/improved_mock_ep1000.pth)
+   python research/evaluate_agent.py --agent improved
 
    # Generate research report
    python research/generate_report.py --results research/results/evaluation_improved_*.json
@@ -68,7 +70,10 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 | Document | Purpose | Key Content |
 |----------|---------|-------------|
 | **[ground_truth_vulnerabilities.md](ground_truth_vulnerabilities.md)** | Ground truth database | 33 verified vulnerabilities with exploitation details |
-| **[experimental_results.md](experimental_results.md)** | Results framework | Comparative analysis template and metrics |
+<!-- TODO(owner): clarify -- this row pointed at experimental_results.md, which
+does not exist in research/. If a results framework doc was planned but never
+written, either remove this row or point it at the actual results source
+(e.g. research/results/). -->
 | **[findings_and_conclusions.md](findings_and_conclusions.md)** | Final conclusions | Research achievements and implications |
 | **[IMPROVED_ALGORITHMS.md](../docs/IMPROVED_ALGORITHMS.md)** | Algorithm details | Technical implementation of Extended D3QN |
 
@@ -120,8 +125,9 @@ This research project demonstrates how advanced DRL algorithms can autonomously 
 
 3. **Evaluate Performance**
    ```bash
-   # Run evaluation against ground truth
-   python research/evaluate_agent.py --agent improved --checkpoint checkpoints/latest.pth
+   # Run evaluation against ground truth (auto-selects the latest checkpoint
+   # under checkpoints/ if --checkpoint is omitted)
+   python research/evaluate_agent.py --agent improved
    ```
 
 ### Phase 3: Analysis and Reporting
@@ -252,8 +258,8 @@ Path Traversal (2 total): ████████░░ 80% (1.6/2 detected)
 2. **Change Algorithms**
    ```python
    agent = ImprovedDQNAgent(
-       state_dim=11,
-       action_dim=100,
+       state_dim=15,   # matches WebSecurityGym's 15-dim observation vector
+       action_dim=50,  # 50 for mock_targets mode, 150 for standard mode
        use_prioritized_replay=True,   # Enable/disable features
        use_noisy_networks=False,      # Try different combinations
        n_step=5                       # Experiment with multi-step

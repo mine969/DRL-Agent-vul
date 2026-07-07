@@ -58,6 +58,12 @@ patterns in these signals, not specific HTML.
 | Full mode | 150 | `autonomous_scan.py` full runs |
 
 Actions map to concrete security operations:
+<!-- TODO(owner): clarify -- the phase ranges below (0-29/30-59/60-89/90-99+)
+describe how the 150-action book is organized/commented in
+env/web_sec_env.py. The reward-shaping phase gate that actually runs during
+training, `_validate_phase_action`, uses a different quartering (0-39 Recon,
+40-79 Discovery, 80-119 Exploit, 120-149 Post-Exploit). Confirm which
+numbering is the one to present here, or note both explicitly. -->
 - 0–29: Reconnaissance (OSINT, port scan, WAF detect)
 - 30–59: Discovery & probing (SQLi, XSS, IDOR, CSRF)
 - 60–89: Exploitation (blind SQLi, RCE, cloud attacks)

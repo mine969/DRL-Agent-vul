@@ -4,6 +4,15 @@ Configuration Management
 
 Centralized configuration for the DRL Web Vulnerability Scanner.
 All configuration options are defined here for easy modification and maintenance.
+
+How this maps to the actual training pipeline:
+- AgentConfig feeds ImprovedDQNAgent (agent/improved_dqn_agent.py) — network
+  size, learning rate, replay buffer size.
+- TrainingConfig.* reward fields are read by WebSecurityGym's reward shaping
+  (env/web_sec_env.py._calculate_reward and _validate_phase_action) — change
+  a reward value here, not in the environment file, to retune shaping.
+- EnvironmentConfig.mock_targets lists the 5 in-house target apps used for
+  the "mock_targets" training mode (see train_mock_targets.py).
 """
 
 from dataclasses import dataclass
@@ -26,6 +35,10 @@ class AgentConfig:
     epsilon_decay: float = 0.995
     memory_size: int = 100000
     batch_size: int = 64  # REDUCED: 4096 -> 64 for stability
+    # NOTE: not read by ImprovedDQNAgent — it soft-updates the target network
+    # every replay() call via `tau` instead of a periodic hard copy (see
+    # ImprovedDQNAgent.soft_update). This field only affects the older
+    # legacy_archive/dqn_agent.py agent, which is not used in current training.
     target_update_frequency: int = 100
     device: str = "auto"  # Let torch decide based on availability
 
