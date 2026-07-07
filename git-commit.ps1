@@ -56,6 +56,21 @@ try {
     $refPath = "$repo\.git\refs\heads\$branch"
     [System.IO.File]::WriteAllText($refPath, "$commitHash`n")
 
+    # 6. Sync the real .git/index to HEAD so VS Code shows a clean working tree.
+    #    The temp-index approach never touches the real index, which causes VS Code
+    #    to show stale diffs. We rebuild it from HEAD here via in-place overwrite
+    #    (Defender blocks atomic rename, but allows direct FileStream writes).
+    $syncTmp = [System.IO.Path]::GetTempFileName()
+    $env:GIT_INDEX_FILE = $syncTmp
+    git -C $repo read-tree HEAD | Out-Null
+    $env:GIT_INDEX_FILE = $null
+    $newBytes = [System.IO.File]::ReadAllBytes($syncTmp)
+    $fs = [System.IO.File]::Open("$repo\.git\index", [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::None)
+    $fs.SetLength($newBytes.Length)
+    $fs.Write($newBytes, 0, $newBytes.Length)
+    $fs.Close()
+    Remove-Item $syncTmp -Force -ErrorAction SilentlyContinue
+
     Write-Host ""
     git -C $repo log --oneline -3
     Write-Host ""
