@@ -453,19 +453,27 @@ class ImprovedDQNAgent:
 
         self._log_initialization()
 
-        # Experience replay — PER is required for Extended D3QN
-        if not use_prioritized_replay:
-            raise ValueError(
-                "use_prioritized_replay=False is not supported. "
-                "ImprovedDQNAgent requires Prioritized Experience Replay."
+        # Experience replay
+        if use_prioritized_replay:
+            self.memory = PrioritizedReplayBuffer(
+                capacity=config.memory_size,
+                alpha=0.6,  # Prioritization exponent
+                beta=0.4,  # Importance sampling (anneals to 1)
+                beta_increment=0.001,
+                seed=seed,  # Pass seed to buffer
             )
-        self.memory = PrioritizedReplayBuffer(
-            capacity=config.memory_size,
-            alpha=0.6,
-            beta=0.4,
-            beta_increment=0.001,
-            seed=seed,
-        )
+        else:
+            # Fallback to regular replay buffer from dqn_agent
+            try:
+                from agent.dqn_agent import ExperienceMemory
+
+                self.memory = ExperienceMemory(
+                    state_dim, action_dim, capacity=config.memory_size
+                )
+            except ImportError:
+                raise ImportError(
+                    "Please use prioritized_replay=True or ensure dqn_agent is available"
+                )
 
         # Networks
         self.q_network = DuelingNoisyDQN(

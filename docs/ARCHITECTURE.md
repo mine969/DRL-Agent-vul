@@ -1,38 +1,121 @@
 # Architecture Overview
 
-This project combines a reinforcement learning agent, a web environment, and scanner wrappers.
+This project is a Deep Reinforcement Learning web vulnerability scanner.
+It has three layers: learning, environment, and scanner interfaces.
 
-## Layered View
+---
 
-```text
-User Interfaces
-  - easy_scanner.py / easyscan.py
-  - scanner_gui.py
-  - autonomous_scan.py (direct)
+## Layer Diagram
 
-Core Orchestration
-  - SecurityAuditor
-  - WebsiteExplorer
-
-Learning and Environment
-  - ImprovedDQNAgent
-  - WebSecurityGym (WebSecEnv)
-
-Support Modules
-  - model loading
-  - validation/filtering
-  - report generation
+```
+ ┌─────────────────────────────────────────────────┐
+ │              User Interfaces                    │
+ │  easy_scanner.py / easyscan.py  (interactive)   │
+ │  scanner_gui.py                 (GUI)            │
+ │  autonomous_scan.py             (CLI / direct)   │
+ └─────────────────┬───────────────────────────────┘
+                   │ delegates to
+ ┌─────────────────▼───────────────────────────────┐
+ │            Core Orchestration                   │
+ │  SecurityAuditor    — scan session controller   │
+ │  WebsiteExplorer    — crawl & probe logic       │
+ └──────────┬──────────────────┬───────────────────┘
+            │ acts              │ queries
+ ┌──────────▼──────┐  ┌────────▼────────────────────┐
+ │  ImprovedDQNAgent│  │  WebSecurityGym             │
+ │  (agent/)       │  │  (env/web_sec_env.py)        │
+ │                 │  │                              │
+ │  Extended D3QN  │  │  state vector (15 dims)      │
+ │  PER buffer     │  │  50 / 150 actions            │
+ │  NoisyLinear    │  │  reward shaping              │
+ │  Dueling heads  │◄─┤  5 mock target apps          │
+ │  Double DQN     │  │  (ports 5002–5006)           │
+ └──────────┬──────┘  └─────────────────────────────┘
+            │
+ ┌──────────▼──────────────────────────────────────┐
+ │              Support Modules (utils/)            │
+ │  model_loader.py      — checkpoint load/resume  │
+ │  validator.py         — false-positive filter   │
+ │  report_generator.py  — HTML/MD/text reports    │
+ │  proxy_fetcher.py     — auto-fetch proxy list   │
+ │  payload_manager.py   — 200+ attack payloads    │
+ │  target_hunter.py     — OSINT target discovery  │
+ │  zero_day_hunter.py   — CVE / fuzzing intel     │
+ └─────────────────────────────────────────────────┘
 ```
 
-## Key Design Points
+---
 
-- Scanner wrappers (`easy_scanner.py`, `scanner_gui.py`) delegate to `autonomous_scan.py` logic.
-- Environment supports a full 150-action book and a 50-action mock-target subset.
-- Current scanner audit flow runs in `mock_targets` mode.
-- Reports are generated as Markdown in `reports/`.
+## Data Flow (Training)
 
-## Current Scope
+```
+train_mock_targets.py
+        │
+        ├── starts 5 mock target apps (env/target_app_*.py)
+        │
+        └── episode loop:
+                env.reset() → state
+                agent.act(state) → action
+                env.step(action) → (next_state, reward, done)
+                agent.remember(...)
+                agent.replay()   ← learning happens here
+                checkpoint saved every 50 episodes → checkpoints/
+```
 
-- Strongest support: local mock targets on ports `5002` to `5006`.
-- External target scans are possible but still use mock-target action mapping.
-- `target_hunter` and `zero_day_hunter` are module-level components, not scanner CLI modes.
+## Data Flow (Scanning)
+
+```
+autonomous_scan.py  (or easy_scanner / GUI)
+        │
+        ├── loads checkpoint from checkpoints/
+        │
+        └── scan loop:
+                probe target URL
+                build state vector
+                agent.act(state, training=False) → action
+                execute action payload against target
+                collect finding
+                write report → reports/
+```
+
+---
+
+## Key Design Decisions
+
+**Action space split:** A 50-action subset covers mock-target training;
+the full 150-action book is used for real-world scanning. The environment
+maps between them transparently.
+
+**Single active agent class:** `ImprovedDQNAgent` is the only agent used
+by all active scripts. The old `DQNAgent` (epsilon-greedy, no PER) has
+been moved to `legacy_archive/`.
+
+**No shared state between scanner and trainer:** The scanner loads a
+checkpoint and runs inference. It does not write back to the checkpoint
+during a scan (unless `--ai-mode` online learning is enabled).
+
+**False-positive filtering:** `utils/validator.py` re-executes each
+candidate finding before it is written to the report.
+
+---
+
+## Directory Map
+
+```
+DQN web vul/
+├── agent/                   # ImprovedDQNAgent + payload library
+├── env/                     # WebSecurityGym + 5 mock target Flask apps
+├── utils/                   # model loader, validator, reporter, etc.
+├── docs/                    # all documentation
+├── research/                # paper drafts, evaluation results, scripts
+├── examples/                # usage examples
+├── tests/                   # verification scripts
+├── legacy_archive/          # retired code (dqn_agent.py, old trainers)
+├── checkpoints/             # saved model .pth files (only latest tracked)
+├── train_mock_targets.py    # main training script
+├── quick_train_5000.py      # long-run training with auto-resume
+├── autonomous_scan.py       # CLI scanner
+├── easy_scanner.py          # interactive CLI (menus)
+├── scanner_gui.py           # GUI
+└── config.py                # centralized configuration dataclasses
+```
