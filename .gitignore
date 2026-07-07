@@ -1,33 +1,56 @@
-# === Python ===
+# Python
 __pycache__/
 *.py[cod]
-*.pyo
+*$py.class
 *.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# === Virtual environments ===
+# Virtual Environment
 .venv/
-.venv*/
 venv/
-# NOTE: env/ is source code (WebSecurityGym targets), not a virtualenv
+# Don't block env/ directory - it contains source code
 
-# === Environment & secrets ===
-.env
-.env.local
-.env.*.local
+# IDEs
 
-# === IDEs & editors ===
 .idea/
 .claude/
 *.swp
 *.swo
 *~
 
-# === OS artifacts ===
+
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+evaluation/
+
+# OS
 .DS_Store
 Thumbs.db
 nul
 
-# === Windows office temp files ===
+# Office temp files
 ~$*.xlsx
 ~$*.doc
 ~$*.docx
@@ -36,39 +59,15 @@ nul
 *.tmp
 * - Copy.*
 
-# === Databases ===
-*.db
-*.sqlite
-*.sqlite3
-
-# === Logs & runtime output ===
-*.log
-logs/
-evaluation/
-
-# === Generated scan reports (runtime output) ===
-reports/
+# Uploads
 uploads/
 downloads/
 
-# === Large reference PDFs / Office docs ===
-*.pdf
-*.docx
-*.xlsx
-
-# === ML model checkpoints ===
-# All .pth files and checkpoint dirs are ignored by default.
-# To publish the latest checkpoint: git add -f checkpoints/<name>.pth
+# LARGE FILES - Checkpoints and Models
+*.pth
 checkpoints/
 models/
-checkpoints_backup*/
-*.pth
 *.h5
 *.pkl
 *.model
 
-# === Personal AI memory (session notes) ===
-.remember/
-
-# === Proxy list (fetched at runtime) ===
-proxies.txt
