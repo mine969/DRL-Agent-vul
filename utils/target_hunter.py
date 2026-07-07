@@ -1,3 +1,13 @@
+"""
+Target Hunter
+=============
+
+Standalone reconnaissance utility for discovering candidate real-world
+targets (via Google dorking / Shodan) to scan. Unrelated to the DQN training
+loop itself — used for the separate "autonomous scan" workflow
+(autonomous_scan.py), not for generating training environments.
+"""
+
 import requests
 import random
 import time

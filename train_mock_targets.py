@@ -157,6 +157,12 @@ class MockTargetsTrainer:
         done = False
         steps = 0
 
+        # Standard online DQN loop: act -> step env -> store transition in
+        # replay buffer -> immediately run one gradient step (agent.replay()).
+        # This is "online" learning (learn every step) rather than collecting
+        # a full episode/rollout buffer before updating, which is possible
+        # because PrioritizedReplayBuffer + PER let us learn from arbitrary
+        # past transitions, not just the current trajectory.
         while not done and steps < 50:
             action = self.agent.act(state)
             next_state, reward, terminated, truncated, _ = env.step(action)
@@ -166,7 +172,7 @@ class MockTargetsTrainer:
             self.agent.replay()
 
             total_reward += reward
-            if reward >= 1.0:
+            if reward >= 1.0:  # heuristic: reward >= 1.0 implies a confirmed vuln (see _calculate_reward)
                 vulns += 1
 
             state = next_state

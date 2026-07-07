@@ -1,3 +1,16 @@
+"""
+Vulnerability Validator
+========================
+
+Post-hoc validation used outside the RL training loop (e.g. by evaluation/
+reporting scripts) to sanity-check whether a flagged "vulnerability" is a
+true positive, by looking for concrete evidence (DB error strings, reflected
+payloads, environment success markers) rather than trusting the agent's
+reward signal alone. This is independent of the env's own reward shaping in
+env/web_sec_env.py._calculate_reward — it exists to double-check results
+after the fact, not to shape training.
+"""
+
 import re
 import requests
 from urllib.parse import urljoin

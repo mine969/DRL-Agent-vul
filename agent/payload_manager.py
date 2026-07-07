@@ -1,3 +1,21 @@
+"""
+Payload Manager
+===============
+
+Holds the static "arsenal" of attack payload strings (SQLi, XSS, SSRF, etc.)
+that the environment's attack_* action methods (env/web_sec_env.py) send to
+target apps. This module has no learning logic of its own — it is a
+resource/lookup class used BY the RL environment, not the agent itself.
+
+Note on RL reproducibility: `PayloadManager` owns its own `random.Random`
+instance (`self.rng`), seeded independently from the agent's/environment's
+RNGs (see `seed()` below). This matters for reproducing a training run: to
+fully replay an episode you need to seed the env, the agent, AND this
+payload manager, since payload choice/mutation is a separate source of
+stochasticity from action selection (agent) or replay sampling (agent's
+PrioritizedReplayBuffer).
+"""
+
 import random
 import json
 import os
@@ -578,6 +596,12 @@ class PayloadManager:
         """
         CREATIVITY ENGINE: Mutates a payload to bypass WAFs.
         Randomly applies obfuscation techniques.
+
+        This is payload-level randomness, separate from the agent's
+        exploration strategy (NoisyLinear layers in improved_dqn_agent.py).
+        Even when the DQN deterministically picks the same attack *action*
+        (e.g. "SQLi login bypass"), the actual payload string sent can still
+        vary run-to-run unless this instance's RNG is seeded (see seed()).
         """
         mutation_type = self.rng.choice(
             ["case", "url_encode", "comment", "whitespace", "double_encode"]

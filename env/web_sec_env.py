@@ -2,8 +2,9 @@
 The Web Security Gym
 ====================
 
-This is the "Virtual World" where our AI Agent lives and trains.
-It simulates a web browser interacting with a vulnerable website.
+Custom Gymnasium environment (`WebSecurityGym`) where the DQN agent (see
+agent/improved_dqn_agent.py) learns to find web vulnerabilities by making
+real HTTP requests against mock target applications (env/target_app_*.py).
 
 Concepts:
 - Environment: The world (the website).
@@ -11,6 +12,25 @@ Concepts:
 - Action: What the player does (click link, inject SQL).
 - Observation: What the player sees (page content, status code).
 - Reward: Points for doing good things (finding bugs) or bad things (crashing).
+
+Design notes relevant for a thesis defense:
+- Action space is a large flat Discrete space (150 actions in "standard" mode,
+  50 in "mock_targets" mode) rather than a hierarchical/parameterized action
+  space. Each integer maps 1:1 to a bound Python method in `self.action_book`
+  (see __init__), so "action masking" in this project takes the form of a
+  phase-gating mechanism (_validate_phase_action) rather than literally zeroing
+  out logits — invalid-phase actions are still selectable but are penalized
+  and mapped through anyway, teaching the agent (via reward shaping) to prefer
+  the unlocked phase instead of hard-blocking it at the environment level.
+- State (observation) is a small hand-engineered 15-dim vector, not raw HTML/
+  DOM. This keeps the input space tractable for a plain MLP (see
+  DuelingNoisyDQN in improved_dqn_agent.py) instead of requiring a text/HTML
+  encoder, at the cost of throwing away most page content detail.
+- Reward is a dense, mixed shaping signal (small navigation/discovery bonuses
+  + large one-time vulnerability/CTF bonuses + anti-farming decay), not a
+  sparse win/lose signal. This was necessary because "did I actually exploit
+  a vulnerability" is a rare event relative to episode length, so pure sparse
+  reward gave the agent almost nothing to learn from early in training.
 """
 
 from flask import json
@@ -39,6 +59,17 @@ class WebSecurityGym(gym.Env):
     """
     The Gymnasium Environment for Web Security.
     Think of this as the game engine.
+
+    Two operating modes (see `mode` param):
+    - "standard": full 150-action space, used against richer/real targets
+      (e.g. Juice Shop extension).
+    - "mock_targets": a curated 50-action subset (see `mock_action_map`),
+      remapped onto the subset of the 150 full actions that are actually
+      relevant to the 5 in-house mock target apps. This exists because
+      training on the full 150-action space against small mock apps wasted
+      exploration budget on actions that could never succeed there (e.g.
+      GraphQL introspection against apps with no GraphQL endpoint) — cutting
+      the action space to what is achievable speeds up learning materially.
     """
 
     def __init__(
@@ -79,6 +110,11 @@ class WebSecurityGym(gym.Env):
         self.action_counts = {}
 
         # Define Action Space
+        # gymnasium.spaces.Discrete(N) gives the DQN a flat softmax-free
+        # N-way classification target: the network's output layer has N
+        # Q-value heads (see DuelingNoisyDQN.advantage_stream), one per
+        # action id below. There is no continuous or multi-discrete
+        # component to the action space in this project.
         if self.mode == "mock_targets":
             # RESTRICTED ACTION SPACE FOR FASTER LEARNING ON MOCK APPS
             # Only includes actions relevant to: SQLi, XSS, SSRF, IDOR, Auth Bypass, Deserialization, Command Inj
@@ -99,7 +135,13 @@ class WebSecurityGym(gym.Env):
         # - Mass Assignment: 1 instance (registration bypass)
         # - Info Disclosure: 1 instance (admin endpoint)
 
-        # Observations: The agent sees 10 features about the current page
+        # Observations: The agent sees 15 hand-engineered features about the
+        # current page/request, NOT raw HTML/DOM. This is a deliberate state
+        # representation choice: encoding raw response text would need a
+        # text encoder (e.g. embeddings) and a much larger network, whereas
+        # this compact numeric vector lets a small MLP (see DuelingNoisyDQN)
+        # learn quickly. The cost is that some page content nuance is lost —
+        # the agent only "sees" what these 15 scalars capture.
         # 1. Current Page ID
         # 2. HTTP Status Code (200, 404, 500, etc.)
         # 3. Vulnerability Detected? (Yes/No)
@@ -111,8 +153,14 @@ class WebSecurityGym(gym.Env):
         # 9. Content Variance (Did the page change unexpectedly?)
         # 10. Input Count (How many forms/inputs are there?)
         # 11. Business Context (Is this a money/admin page?)
-        # 12. Steps Remaining (Normalized 0-1)
-        # 13. Phase ID (Normalized 0-1)
+        # 12. Steps Remaining (Normalized 0-1) -- added to make state closer to
+        #     Markovian: without a countdown feature, two identical page
+        #     states early vs. late in the episode look indistinguishable to
+        #     the agent even though the correct action may differ (e.g. don't
+        #     start a new recon phase with 2 steps left).
+        # 13. Phase ID (Normalized 0-1) -- current kill-chain phase, see
+        #     _validate_phase_action.
+        # 14. Vulns discovered so far (Normalized 0-1)
         # 15. Coverage Ratio (Visited / Total Known)
         # Fix: Increased high bound to accommodate all values (page_id can exceed 5, status_val can be 6)
         self.observation_space = spaces.Box(
@@ -347,6 +395,12 @@ class WebSecurityGym(gym.Env):
         pass
 
         # ACTION SPACE MAPPING FOR MOCK TARGETS
+        # In "mock_targets" mode the DQN's output layer only has 50 heads
+        # (see action_space above), so the network only ever outputs action
+        # ids 0-49. This dict remaps each of those 50 ids to whichever of the
+        # 150 full-action-space methods is actually relevant for the mock
+        # apps, so the same `action_book` (built for the 150-action space)
+        # can be reused unmodified in both modes.
         if self.mode == "mock_targets":
             self.mock_action_map = {
                 # CORE (0-9)
@@ -513,6 +567,18 @@ class WebSecurityGym(gym.Env):
         EFFICIENT ALGORITHM: Phase-Based Reward Shaping
         Guides agent through Kill Chain phases with progressive unlocking.
         Returns: (is_valid, reward_modifier)
+
+        This is the closest thing this project has to "action masking."
+        Rather than literally zeroing out invalid Q-values for locked-phase
+        actions (hard masking at the network/env boundary), invalid actions
+        are still executed by `step()` — they just get a -5.0 reward penalty
+        here, and phase-appropriate actions get a small positive bonus. This
+        soft approach was chosen so the agent still receives a normal
+        (state, action, reward, next_state) transition for every action
+        (needed for standard DQN loss / replay), rather than requiring
+        custom handling for "rejected" actions that never touched the env.
+        The tradeoff: early in training the agent wastes steps on locked
+        phases before learning to avoid the penalty.
         """
         # Define action phases for 150-action space
         # Phase 1: Reconnaissance (0-39) - 40 actions
@@ -551,6 +617,18 @@ class WebSecurityGym(gym.Env):
         """
         The Agent takes one step (performs one action).
         Returns: (New State, Reward, Game Over?, Truncated?, Info)
+
+        Standard Gymnasium 5-tuple step signature (obs, reward, terminated,
+        truncated, info). `game_over` (terminated) is only ever set True on
+        an unrecoverable request exception below; normal episodes end via
+        `truncated` once max_steps_per_episode is hit — this environment has
+        no natural "win/lose" terminal state, it's an exploration budget.
+
+        Total reward per step is a sum of several independent shaping terms:
+        base step penalty (-0.01, encourages efficiency) + phase bonus/penalty
+        (_validate_phase_action) + action-specific reward (_calculate_reward,
+        via the action method) + coverage bonus (_update_coverage). See the
+        module docstring for why reward is dense rather than sparse.
         """
         self.steps_taken += 1
         reward = -0.01  # Small penalty for each step (encourages speed)
@@ -617,7 +695,12 @@ class WebSecurityGym(gym.Env):
                             response = fallback
                             self.last_response = response
 
-                    # ANTI-FARMING: Diminishing returns for repeated actions
+                    # ANTI-FARMING: Diminishing returns for repeated actions.
+                    # Without this, an agent that finds *any* small positive
+                    # reward (e.g. "found a form": +0.02) can maximize return
+                    # by spamming that one cheap action forever instead of
+                    # exploring toward higher-value vulnerabilities. Repetition
+                    # count is tracked per-episode in self.action_counts.
                     # Exception: If we found a NEW vulnerability (reward >= 1.0), don't diminish
                     if action_reward < 1.0:
                         count = self.action_counts.get(real_action_id, 0)
@@ -715,6 +798,16 @@ class WebSecurityGym(gym.Env):
     def _get_observation(self, status_code: int = 200) -> np.ndarray:
         """
         Compiles what the agent sees into a list of numbers (Vector).
+
+        This is the state encoding fed to the Q-network. HTTP status codes
+        are remapped to small consecutive integers (status_map below) rather
+        than fed in raw (200/403/...) because raw status codes are sparse,
+        large, and non-ordinal from the network's perspective — a small
+        dense encoding is easier for the MLP's first linear layer to use
+        meaningfully. Everything else in this vector is similarly normalized
+        into a roughly 0-5 range (see time_norm/inputs_norm/*_norm below) to
+        keep input feature scales comparable, which helps gradient-based
+        optimization (Adam) converge more stably.
         """
         # Simplify status codes for the AI
         # 0=OK, 2=Forbidden, 3=RateLimit, 4=NotFound, 5=Error, 6=Unauthorized
@@ -2505,6 +2598,28 @@ class WebSecurityGym(gym.Env):
     def _calculate_reward(self, response: requests.Response, vuln_type: str) -> float:
         """
         The Judge. Decides how many points the agent gets.
+
+        Reward shaping strategy (why it's structured this way):
+        - Ground-truth first: if the mock target itself confirms a real
+          exploit via the `X-Vuln-Confirmed` response header, that is
+          trusted directly and rewarded highly — this is the actual signal
+          of success and avoids relying purely on brittle text matching.
+        - Dense partial credit (forms found, params found, 403s, etc.) gives
+          the agent *some* gradient signal on almost every step, since
+          confirmed exploits are rare relative to episode length (see module
+          docstring — sparse-only reward was tried and starved learning).
+        - A "combo multiplier" (authenticated + business-context bonuses)
+          rewards attacking higher-value application states more, mirroring
+          how a human pentester would prioritize an authenticated session
+          over an anonymous one.
+        - Text/keyword `success_indicators` matching is a fallback ground-truth
+          proxy for targets/paths that don't set the `X-Vuln-Confirmed`
+          header — inherently noisier than the header check, hence checked
+          second.
+        - Vulnerabilities are only rewarded at full value the *first* time
+          they're found per page (`self.discovered_vulns` set) — repeat hits
+          get a token 0.001 reward, which is the reward-side complement to
+          the anti-farming logic in `step()`.
         """
         # Fix: Fallback constants when config is unavailable
         if self.config is None:
@@ -3245,7 +3360,19 @@ class WebSecurityGym(gym.Env):
             return self._update_state_error()
 
     def _register_missing_actions(self):
-        """Registers valid placeholders for missing attack methods."""
+        """
+        Registers valid placeholders for missing attack methods.
+
+        The 150-action `action_book` (built later in __init__) references
+        methods for the full OWASP-style attack catalogue, but not every one
+        of the 150 has a bespoke implementation — many are intentionally
+        stubbed here via `_generic_attack_placeholder` (bound dynamically
+        with setattr/lambda) so that `getattr`/`hasattr` calls against
+        `self.action_book` never raise AttributeError regardless of which
+        action id the agent picks. This keeps the action space's *size*
+        matching the network's output layer size even where behavior is
+        still a neutral no-op reward.
+        """
         missing_methods = [
             "attack_account_lockout_bypass",
             "attack_authorization_bypass",
