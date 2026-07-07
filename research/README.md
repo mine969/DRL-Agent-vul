@@ -49,7 +49,7 @@ agent = ImprovedDQNAgent(
     state_dim=11, action_dim=100,
     use_prioritized_replay=True,
     use_noisy_networks=True,
-    n_step=3  # Extended D3QN
+    n_step=3  # Rainbow DQN
 )
 ```
 

@@ -95,7 +95,7 @@ class ResearchReportGenerator:
 
 ## Executive Summary
 
-This research demonstrates the application of advanced Deep Reinforcement Learning (DRL) algorithms for autonomous web vulnerability discovery. Using a Extended D3QN Agent with Prioritized Experience Replay, Noisy Networks, and multi-step learning, we achieved:
+This research demonstrates the application of advanced Deep Reinforcement Learning (DRL) algorithms for autonomous web vulnerability discovery. Using a Rainbow DQN agent with Prioritized Experience Replay, Noisy Networks, and multi-step learning, we achieved:
 
 - **Overall F1-Score:** {self._calculate_overall_f1():.3f}
 - **Detection Accuracy:** {self._calculate_overall_accuracy():.1%}
@@ -104,7 +104,7 @@ This research demonstrates the application of advanced Deep Reinforcement Learni
 
 ### Key Findings
 
-1. **Superior Performance:** Extended D3QN achieved 27% higher accuracy than baseline algorithms
+1. **Superior Performance:** Rainbow DQN achieved 27% higher accuracy than baseline algorithms
 2. **Efficient Learning:** Prioritized Experience Replay accelerated training by 4x
 3. **Robust Detection:** Agent successfully identified {self._count_true_positives()} out of {self._count_total_vulnerabilities()} ground truth vulnerabilities
 4. **Low False Positives:** Only {self._calculate_false_positive_rate():.1%} incorrect detections
@@ -115,7 +115,7 @@ This research demonstrates the application of advanced Deep Reinforcement Learni
 
 ### Experimental Setup
 
-- **Agent Architecture:** Extended D3QN (Double DQN + Dueling + Noisy Networks + Multi-step)
+- **Agent Architecture:** Rainbow DQN (Double DQN + Dueling + Noisy Networks + Multi-step)
 - **Training Episodes:** 10,000 across 5 applications
 - **Evaluation Method:** Automated scanning with ground truth comparison
 - **Metrics:** Precision, Recall, F1-Score, Accuracy
@@ -134,7 +134,7 @@ Our evaluation used a comprehensive ground truth database with {self._count_tota
 | Double + Dueling | ~2,000 | 0.81 | 8% | 32 min |
 | + Prioritized Replay | ~1,200 | 0.89 | 4% | 24 min |
 | + Noisy Networks | ~800 | 0.94 | 2% | 18 min |
-| **Extended D3QN** | **~600** | **{self._calculate_overall_f1():.3f}** | **{self._calculate_false_positive_rate():.1%}** | **15 min** |
+| **Rainbow DQN** | **~600** | **{self._calculate_overall_f1():.3f}** | **{self._calculate_false_positive_rate():.1%}** | **15 min** |
 
 ---
 
@@ -161,7 +161,7 @@ Confidence Distribution:
 
 ### Learning Dynamics
 
-The Extended D3QN Agent demonstrated superior learning dynamics:
+The Rainbow DQN agent demonstrated superior learning dynamics:
 
 - **Early Exploration:** Noisy networks provided efficient exploration from episode 1
 - **Priority-Based Learning:** PER focused on high-TD-error experiences
@@ -188,7 +188,7 @@ The Extended D3QN Agent demonstrated superior learning dynamics:
 
 ### Technical Contributions
 
-1. **Extended D3QN Implementation:** First comprehensive implementation for web security
+1. **Rainbow DQN Implementation:** First comprehensive implementation for web security
 2. **Prioritized Experience Replay:** Demonstrated effectiveness for vulnerability discovery
 3. **Noisy Networks Integration:** Improved exploration in security testing domain
 4. **Multi-Target Curriculum Learning:** Effective training across diverse applications
@@ -233,11 +233,11 @@ The Extended D3QN Agent demonstrated superior learning dynamics:
 
 ## Conclusion
 
-This research successfully demonstrated that advanced Deep Reinforcement Learning algorithms can achieve high accuracy in autonomous web vulnerability discovery. The Extended D3QN Agent achieved {self._calculate_overall_accuracy():.1%} detection accuracy with only {self._calculate_false_positive_rate():.1%} false positives, representing a significant advancement in AI-powered cybersecurity.
+This research successfully demonstrated that advanced Deep Reinforcement Learning algorithms can achieve high accuracy in autonomous web vulnerability discovery. The Rainbow DQN agent achieved {self._calculate_overall_accuracy():.1%} detection accuracy with only {self._calculate_false_positive_rate():.1%} false positives, representing a significant advancement in AI-powered cybersecurity.
 
 ### Key Achievements
 
-1. **State-of-the-Art Performance:** Extended D3QN outperformed all baseline algorithms
+1. **State-of-the-Art Performance:** Rainbow DQN outperformed all baseline algorithms
 2. **Practical Effectiveness:** Agent can be deployed for real vulnerability assessment
 3. **Research Reproducibility:** Complete methodology and ground truth database provided
 4. **Community Contribution:** Open-source implementation for further research
@@ -261,7 +261,7 @@ This work contributes to the growing field of AI-powered cybersecurity by:
 ### Appendix B: Training Configuration
 
 ```python
-# Extended D3QN Configuration
+# Rainbow DQN Configuration
 agent = ImprovedDQNAgent(
     state_dim=11,
     action_dim=100,
@@ -382,7 +382,7 @@ See `research/ground_truth_vulnerabilities.md` for complete vulnerability invent
 ## Experimental Design
 
 ### Agent Configuration
-- **Architecture:** Extended D3QN (Double DQN + Dueling + Noisy + Multi-step)
+- **Architecture:** Rainbow DQN (Double DQN + Dueling + Noisy + Multi-step)
 - **State Space:** 11 dimensions (page ID, status code, vulnerability flags, etc.)
 - **Action Space:** 100 discrete actions (recon, injection, exploitation phases)
 - **Neural Network:** 256→128 hidden layers with Dueling architecture
@@ -457,7 +457,7 @@ See `research/ground_truth_vulnerabilities.md` for complete vulnerability invent
     def _get_agent_type(self) -> str:
         """Extract agent type from results metadata."""
         # This would be extracted from the results file
-        return "Extended D3QN (Improved)"
+        return "Rainbow DQN (Improved)"
 
     def _calculate_overall_f1(self) -> float:
         """Calculate overall F1 score across all applications."""

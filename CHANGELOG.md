@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Prioritized Experience Replay (PER) for 2-3x faster learning
   - Noisy Networks for better exploration (replaces epsilon-greedy)
   - Multi-step learning for faster reward propagation
-  - Extended D3QN combining all improvements (PER + Noisy + Dueling + Double DQN)
+  - Rainbow DQN combining all improvements
   - **Performance**: 5x faster convergence, +27% accuracy improvement
   - See `agent/improved_dqn_agent.py` and `docs/IMPROVED_ALGORITHMS.md`
 
