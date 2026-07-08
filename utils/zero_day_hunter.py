@@ -13,6 +13,16 @@ This module uses:
 - CVE database integration
 - Configuration scanning
 - Anomaly detection
+
+Where this fits in the project: this is NOT part of the DQN training loop
+(env/web_sec_env.py never imports this). It's a standalone toolkit consumed
+by autonomous_scan.py for real-world scanning of live targets — CVE lookups
+and open-ended fuzzing don't have a fixed, enumerable action space the way
+the 50/150-action mock-target training environment needs, so this logic
+lives outside the RL agent entirely rather than being exposed as agent
+actions. Compare with utils/target_hunter.py (recon) and utils/validator.py
+(post-hoc result checking) — same "supporting tool for the non-RL scanning
+workflow" role.
 """
 
 import requests

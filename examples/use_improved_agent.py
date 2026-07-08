@@ -34,36 +34,48 @@ def main():
     print()
 
     # Configuration
-    state_dim = 11
-    action_dim = 100
-    target_url = "http://localhost:5002"
+    # NOTE: state_dim=15 and action_dim=50 must match WebSecurityGym's
+    # actual observation/action space in "mock_targets" mode (see
+    # env/web_sec_env.py). Using mismatched dims here would make agent.act()
+    # and env.step() incompatible (wrong network input/output size).
+    state_dim = 15
+    action_dim = 50
+    target_url = "http://localhost:5002"  # ecommerce mock target (config.py)
 
     print(f"Creating Improved DQN Agent with:")
     print(f"  - Prioritized Experience Replay: ✓")
     print(f"  - Noisy Networks: ✓")
-    print(f"  - Multi-step Learning (n=3): ✓")
+    print(f"  - Multi-step Learning (n=1, standard single-step TD): ✓")
     print(f"  - Double DQN + Dueling: ✓")
     print()
 
-    # Create improved agent with all enhancements
+    # Create improved agent with all enhancements.
+    # n_step=1 here to match what was actually used in every published
+    # training run (see ImprovedDQNAgent docstring) — n_step>1 is supported
+    # by the agent but wasn't the configuration behind any reported results,
+    # so this example sticks to the validated setting.
     agent = ImprovedDQNAgent(
         state_dim=state_dim,
         action_dim=action_dim,
         use_prioritized_replay=True,  # Enable PER
         use_noisy_networks=True,  # Enable noisy networks
-        n_step=3,  # Multi-step learning
+        n_step=1,
     )
 
     print("Agent created successfully!")
     print()
 
-    # Create environment
+    # Create environment. mode="mock_targets" is required to match the
+    # 50-action space configured above — the default mode="standard" would
+    # give WebSecurityGym a 150-action space instead, which action_dim=50
+    # would not match.
     print(f"Creating environment for: {target_url}")
-    env = WebSecurityGym(target_url=target_url)
+    env = WebSecurityGym(target_url=target_url, mode="mock_targets")
 
     # Example: Single episode
     print("\nRunning example episode...")
-    state = env.reset()
+    # Gymnasium API: reset() returns (observation, info), not just the state.
+    state, _reset_info = env.reset()
     total_reward = 0
     steps = 0
     max_steps = 10
@@ -72,8 +84,13 @@ def main():
         # Select action (noisy networks handle exploration)
         action = agent.act(state, training=True)
 
-        # Execute action
-        next_state, reward, done, info = env.step(action)
+        # Gymnasium API: step() returns a 5-tuple —
+        # (observation, reward, terminated, truncated, info) — not 4.
+        # `done` here treats either terminated OR truncated as episode end,
+        # which is the usual convention when a script doesn't need to
+        # distinguish "environment ended itself" from "step limit hit".
+        next_state, reward, terminated, truncated, info = env.step(action)
+        done = terminated or truncated
 
         # Store experience
         agent.remember(state, action, reward, next_state, done)
@@ -113,7 +130,7 @@ def main():
         action_dim=action_dim,
         use_prioritized_replay=True,
         use_noisy_networks=True,
-        n_step=3,
+        n_step=1,
     )
     agent2.load(checkpoint_path)
     print("✓ Agent loaded!")
