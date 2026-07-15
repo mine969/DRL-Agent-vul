@@ -51,35 +51,38 @@ A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulner
 
 ### Kill Chain Phases (Action Space)
 
-Mock targets use a tuned 50-action subset mapped into the full 150-action book.
+Mock targets use a tuned 50-action subset mapped into the full 150-action book
+(`env/web_sec_env.py`, `self.action_book`). The runtime phase-unlock gate
+(`_validate_phase_action`) quarters the full space evenly — 0-39 / 40-79 /
+80-119 / 120-149 — which does **not** line up with the category groupings
+below (categories are labeled by attack type, not by unlock timing).
 
-<!-- TODO(owner): clarify -- the phase ranges below (0-29/30-59/60-89/90-99+)
-describe how the 150-action `action_book` is organized/commented in
-env/web_sec_env.py. The reward-shaping phase gate that actually runs during
-training, `_validate_phase_action`, uses a different quartering (0-39 Recon,
-40-79 Discovery, 80-119 Exploit, 120-149 Post-Exploit). Confirm which
-numbering is the one to present here, or note both explicitly. -->
+**Reconnaissance & Auth Testing (Actions 0-29)**
 
-**Phase 1: Reconnaissance (Actions 0-29)**
+- **Core Navigation (0-9):** Home, login, register, search, profile, dashboard, cart, messages, admin, API docs
+- **Endpoint Discovery (10-19):** Sensitive-file/directory/API enumeration, endpoint probing
+- **Authentication Testing (20-29):** Weak passwords, session fixation, password reset, login/registration bypass, account lockout
 
-- **Passive OSINT (10-19):** Whois, DNS History, GitHub Secrets, Shodan, Wayback Machine, Certificate Transparency
-- **Active OSINT (20-29):** Port Scanning, WAF Detection, Subdomain Takeover, Parameter Mining, API Discovery
+**IDOR & Access Control (Actions 30-59)**
 
-**Phase 2: Discovery & Probing (Actions 30-59)**
+- **IDOR — Profiles & Content (30-39):** Profile/post/message view-edit-delete across users
+- **IDOR — Commerce & Files (40-49):** Orders, cart, payment history, file download/upload/delete
+- **Advanced IDOR & Access Control (50-59):** Admin resource access, privilege escalation, session hijacking, token reuse
 
-- **Auth & Session (30-39):** SQL Injection (Login), Brute Force, JWT Attacks, IDOR, OAuth Bypass
-- **Injection Probing (40-49):** XSS (Reflected/Stored/DOM), SSTI, Command Injection, LFI, CSRF
-- **Logic & API (50-59):** Mass Assignment, Rate Limit Bypass, GraphQL, NoSQL, Business Logic Flaws
+**Exploitation (Actions 60-89)**
 
-**Phase 3: Exploitation (Actions 60-89)**
+- **SQL Injection (60-65):** Login bypass, search injection, union/blind/time-based SQLi
+- **XSS (66-75):** Stored/reflected/DOM-based, script/attribute/event-handler injection
+- **File Upload, Path Traversal, CSRF, Template/Command Injection (76-89):** Webshell upload, traversal, money-transfer/post/profile CSRF, SSTI, command/LDAP/GraphQL injection
 
-- **Advanced Injection (60-69):** Blind SQLi (Boolean/Time), Blind XSS, RCE, Deserialization, Template Injection
-- **Cloud & Infrastructure (70-79):** AWS Metadata SSRF, Docker API, Kubernetes, GitLab CI, Jenkins RCE
-- **System Exploits (80-89):** Path Traversal, LFI/RFI, XXE, HTTP Smuggling, Cache Poisoning
+**Post-Exploitation & Modern Bypass Techniques (Actions 90-149)**
 
-**Phase 4: Post-Exploitation (Actions 90-99)**
-
-- Database Dumping, Token Theft, Webshell Installation, Privilege Escalation, Data Exfiltration
+- **Business Logic, Race Conditions, Info Disclosure (90-99):** Mass assignment, price/coupon abuse, race conditions, admin/debug info leaks
+- **Advanced Auth Bypass (100-109):** JWT/OAuth/MFA bypass, session hijacking, token replay
+- **WAF Bypass (110-124):** Encoding, unicode, fragmentation, timing, parameter pollution
+- **Advanced CSRF Bypass (125-132):** Token extraction/prediction/reuse, SameSite/CORS bypass
+- **Modern Security Control Bypass (133-144):** CSP/HSTS/clickjacking/mixed-content bypass
+- **Advanced Exploitation (145-149):** AI prompt injection, GraphQL introspection, WebSocket hijacking, SSRF, deserialization
 
 ## Training Configuration
 
@@ -170,7 +173,6 @@ python scanner_gui.py
 ```
 DQN web vul/
 ├── agent/                           # DQN Agent implementation
-│   ├── dqn_agent.py                # Baseline DQN (action_dim configurable)
 │   ├── improved_dqn_agent.py       # Extended D3QN (PER + Noisy + Multi-Step on top of D3QN)
 │   └── payload_manager.py          # 200+ attack payloads
 │
@@ -192,7 +194,7 @@ DQN web vul/
 ├── research/                        # Research framework & analysis
 │   ├── README.md                   # Research overview
 │   ├── ground_truth_vulnerabilities.md  # Complete vulnerability database
-│   ├── experimental_results.md     # Results framework & templates
+│   ├── Eval_Markdown.md            # Evaluation methodology & results
 │   ├── findings_and_conclusions.md # Research conclusions
 │   ├── evaluate_agent.py           # Automated evaluation framework
 │   └── generate_report.py          # Research report generator

@@ -57,17 +57,25 @@ patterns in these signals, not specific HTML.
 | Mock-target mode | 50 (tuned subset) | `train_mock_targets.py`, scanner audit |
 | Full mode | 150 | `autonomous_scan.py` full runs |
 
-Actions map to concrete security operations:
-<!-- TODO(owner): clarify -- the phase ranges below (0-29/30-59/60-89/90-99+)
-describe how the 150-action book is organized/commented in
-env/web_sec_env.py. The reward-shaping phase gate that actually runs during
-training, `_validate_phase_action`, uses a different quartering (0-39 Recon,
-40-79 Discovery, 80-119 Exploit, 120-149 Post-Exploit). Confirm which
-numbering is the one to present here, or note both explicitly. -->
+Actions map to concrete security operations. Two different groupings exist in
+`env/web_sec_env.py` and they don't line up — the runtime phase-unlock gate
+(`_validate_phase_action`) is authoritative for anything about phase timing:
+
+**Runtime phase-unlock quarters** (what actually gates progression during training):
+- 0–39: Phase 1 — Reconnaissance
+- 40–79: Phase 2 — Discovery & probing
+- 80–119: Phase 3 — Exploitation
+- 120–149: Phase 4 — Post-exploitation
+
+**Action-book category labels** (how actions are grouped/commented for readability, not runtime-gated as a block):
 - 0–29: Reconnaissance (OSINT, port scan, WAF detect)
 - 30–59: Discovery & probing (SQLi, XSS, IDOR, CSRF)
 - 60–89: Exploitation (blind SQLi, RCE, cloud attacks)
 - 90–99: Post-exploitation (data exfil, privilege escalation)
+
+Because these two ranges don't align, some actions unlock earlier or later
+than their category label implies (e.g. IDOR actions 30–39 are categorized
+as "Discovery" but are runtime-gated under Phase 1).
 
 ---
 

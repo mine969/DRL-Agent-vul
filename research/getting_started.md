@@ -6,22 +6,28 @@ Welcome to the research framework for autonomous web vulnerability discovery usi
 
 ---
 
+> **⚠️ STALE DATA WARNING:** The "Key Performance Achievements" originally
+> listed here (95.2% detection, 1.8% false-positive rate) were from an early
+> aspirational draft and do not match the real 5-run evaluation. See
+> [`Eval_Markdown.md`](Eval_Markdown.md) and
+> [`Bachelor_Simplified_Draft.md`](Bachelor_Simplified_Draft.md) (Table I)
+> for the actual measured results, which show low-to-moderate, uneven
+> coverage rather than a single accuracy figure.
+
 ## 🎯 Research Overview
 
-This research project demonstrates how advanced DRL algorithms can autonomously discover web vulnerabilities with high accuracy and efficiency. The project includes:
+This research project explores how DRL algorithms can autonomously discover web vulnerabilities. The project includes:
 
-- **Extended D3QN Agent** with Prioritized Experience Replay, Noisy Networks, and Multi-step learning
-- **5 Mock Applications** with 33 verified vulnerabilities
+- **Extended D3QN Agent**: Double DQN + Dueling + Prioritized Experience Replay + Noisy Networks (multi-step learning is implemented but was **not** used in any reported run — all runs used `n_step=1`)
+- **5 Mock Applications** with 33 cataloged ground-truth vulnerabilities
 - **Comprehensive Ground Truth Database** for evaluation
 - **Automated Evaluation Framework** with detailed metrics
-- **Publication-Ready Research Reports**
 
-### Key Performance Achievements
+### Actual Measured Results (see `Eval_Markdown.md` for the full table)
 
-- **95.2% Detection Accuracy** across 33 ground truth vulnerabilities
-- **1.8% False Positive Rate** (excellent for production use)
-- **5x Faster Training** compared to baseline DQN algorithms
-- **27% Accuracy Improvement** over standard approaches
+- Low-to-moderate, uneven detection coverage — many vulnerability classes at 0% in the 5-run average
+- Strongest on SQL Injection and XSS; weakest on IDOR, business logic, and file-upload chains
+- No baseline-scanner or component-ablation comparison has been run yet
 
 ---
 
@@ -159,24 +165,23 @@ written, either remove this row or point it at the actual results source
 ### Core Research Questions
 
 1. **Can DRL autonomously discover web vulnerabilities?**
-   - ✅ **YES** - Agent achieved 95.2% detection accuracy
+   - **Partially** — yes for direct input attacks (SQLi, XSS); low-to-moderate for IDOR, business logic, and file-upload chains. See `Eval_Markdown.md`.
 
 2. **How do advanced DRL algorithms compare to baselines?**
-   - ✅ **Extended D3QN outperforms baseline by 27% accuracy**
+   - **Not yet measured** — no baseline/ablation comparison has been run (planned in `REVISION_PLAN_incit2026.md` Phase 4).
 
 3. **What are the practical limitations and capabilities?**
-   - ✅ **Strengths:** IDOR, SQLi, XSS detection (90%+ accuracy)
-   - ✅ **Challenges:** Race conditions, CSRF (needs improvement)
+   - **Strengths:** SQL Injection, XSS (best detection rates in the 5-run eval)
+   - **Challenges:** IDOR, business logic, file upload, and race-condition detection remain weak
 
 4. **Is the approach scalable to real-world applications?**
-   - ✅ **YES** - Efficient training (15 min) and fast inference (3 min/app)
+   - **Untested** — evaluation to date is limited to the 5 local mock targets; real-world transfer is discussed as a limitation, not demonstrated.
 
 ### Technical Insights
 
-- **Algorithm Selection Matters:** Extended D3QN provides significant improvements
-- **Exploration is Critical:** Noisy networks solve exploration challenges
-- **Experience Prioritization:** PER accelerates learning by focusing on important experiences
-- **Multi-step Learning:** Better credit assignment for long-term consequences
+- **Exploration:** Noisy networks are used for all exploration (replaces epsilon-greedy entirely) in every reported run
+- **Experience Prioritization:** PER is used in all reported runs
+- **Multi-step learning:** Implemented but **not used** in any reported run — all runs used single-step (`n_step=1`) targets
 
 ---
 
@@ -189,35 +194,24 @@ written, either remove this row or point it at the actual results source
 Precision = TP / (TP + FP)  # How many detected vulnerabilities are real?
 Recall = TP / (TP + FN)     # How many real vulnerabilities were found?
 F1_Score = 2*P*R/(P+R)      # Balanced measure of precision and recall
-
-# Example Results
-# Agent found 31.5 out of 33 vulnerabilities (95.2% recall)
-# Of the vulnerabilities it reported, 96% were correct (96% precision)
-# Combined F1-score: 0.96 (excellent performance)
 ```
 
 ### Performance by Vulnerability Type
 
-```
-IDOR (9 total):           ██████████ 95% (8.6/9 detected)
-SQL Injection (3 total):  ████████░░ 87% (2.6/3 detected)
-Stored XSS (4 total):     ████████░░ 85% (3.4/4 detected)
-Reflected XSS (2 total):  ███████░░░ 70% (1.4/2 detected)
-File Upload (2 total):    ██████░░░░ 60% (1.2/2 detected)
-Business Logic (4 total): ███████░░░ 68% (2.7/4 detected)
-CSRF (2 total):           ████░░░░░░ 40% (0.8/2 detected)
-Path Traversal (2 total): ████████░░ 80% (1.6/2 detected)
-```
+The figures below (IDOR 95%, SQLi 87%, etc.) were illustrative placeholders
+from an early draft and are **not measured results**. See
+[`Eval_Markdown.md`](Eval_Markdown.md) for the real per-vulnerability-class
+detection rates from the actual 5-run evaluation (which vary widely, 0%–100%,
+and are weaker on IDOR/business-logic/file-upload than this placeholder
+table implied).
 
 ### Algorithm Performance Comparison
 
-| Algorithm | Episodes to 90% | F1-Score | Training Time | Key Innovation |
-|-----------|-----------------|----------|---------------|----------------|
-| **Baseline DQN** | 3,000 | 0.72 | 45 min | Basic Q-learning |
-| **Double + Dueling** | 2,000 | 0.81 | 32 min | Stable learning |
-| **+ Prioritized Replay** | 1,200 | 0.89 | 24 min | Smart experience sampling |
-| **+ Noisy Networks** | 800 | 0.94 | 18 min | Efficient exploration |
-| **Extended D3QN** | **600** | **0.96** | **15 min** | All improvements combined |
+The baseline-vs-Extended-D3QN comparison table that was here (Episodes to
+90%, F1-Score per algorithm) was never actually run — no baseline/ablation
+training has been performed yet. This ablation (Random → DQN → Double+Dueling
+→ +PER → +Noisy → Extended D3QN) is planned in `REVISION_PLAN_incit2026.md`
+Phase 4, pending GPU runs. Do not cite the old table; it was placeholder data.
 
 ---
 

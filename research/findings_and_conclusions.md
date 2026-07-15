@@ -6,28 +6,36 @@
 
 ---
 
+> **⚠️ STALE DATA WARNING:** The performance numbers in this document (95.2%
+> detection, F1=0.96, 1.8% false-positive rate, "Publication Ready") are from
+> an early aspirational draft and do **not** match the real 5-run evaluation.
+> The actual measured results are low-to-moderate coverage with many 0%
+> detection rows per vulnerability class — see
+> [`Eval_Markdown.md`](Eval_Markdown.md) and the Table I in
+> [`Bachelor_Simplified_Draft.md`](Bachelor_Simplified_Draft.md) (the current
+> canonical paper draft) for the real numbers. Treat everything below this
+> notice as superseded narrative, not verified results.
+
 ## 🎯 Research Achievement Summary
 
-### Primary Objective: ✅ ACHIEVED
-**Develop an autonomous DRL agent capable of discovering web vulnerabilities with high accuracy and low false positives.**
+### Primary Objective: Partially achieved
+**Goal: an autonomous DRL agent capable of discovering web vulnerabilities with high accuracy and low false positives.** Actual 5-run evaluation shows low-to-moderate, uneven detection coverage — strong on direct input attacks (SQLi, XSS), weak on IDOR, business logic, and file-upload chains. See `Eval_Markdown.md` for the real per-vulnerability-class numbers.
 
-### Performance Metrics: ✅ EXCEEDED TARGETS
+### Performance Metrics: superseded — see `Eval_Markdown.md` for real numbers
 
-| Metric | Target | Achieved | Status |
-|--------|--------|----------|--------|
-| **Overall F1-Score** | > 0.85 | 0.96 | ✅ **Excellent** |
-| **Detection Accuracy** | > 90% | 95.2% | ✅ **Excellent** |
-| **False Positive Rate** | < 5% | 1.8% | ✅ **Excellent** |
-| **Training Convergence** | < 1,000 episodes | ~600 episodes | ✅ **Excellent** |
+| Metric | Target | Claimed here (stale) | Actual (Eval_Markdown.md) |
+|--------|--------|----------------------|----------------------------|
+| **Detection Accuracy** | > 90% | 95.2% | Varies widely by class, 0%–100%, many 0% rows |
+| **Training Convergence** | < 1,000 episodes | ~600 episodes | 10,000 episodes used for the reported checkpoint |
 
-### Algorithm Improvements: ✅ SIGNIFICANT ADVANCEMENT
+### Algorithm Improvements: unverified performance-gain figures below (stale)
 
-| Algorithm Enhancement | Performance Gain | Research Contribution |
+| Algorithm Enhancement | Performance Gain (stale, unverified) | Notes |
 |----------------------|------------------|----------------------|
-| **Prioritized Experience Replay** | 2.5x faster learning | Novel application to security domain |
-| **Noisy Networks** | 3.75x faster convergence | First comprehensive security implementation |
-| **Multi-Step Learning** | Improved credit assignment | Enhanced long-term vulnerability understanding |
-| **Extended D3QN Integration** | 27% accuracy improvement | State-of-the-art security testing |
+| **Prioritized Experience Replay** | 2.5x faster learning (unverified) | Used in all reported runs |
+| **Noisy Networks** | 3.75x faster convergence (unverified) | Used in all reported runs; replaces epsilon-greedy entirely |
+| **Multi-Step Learning** | N/A | Implemented but **not exercised** — all reported runs used single-step (`n_step=1`) targets |
+| **Extended D3QN Integration** | 27% accuracy improvement (unverified) | Component-wise ablation not yet run |
 
 ---
 
@@ -35,15 +43,14 @@
 
 ### 1. DRL Effectiveness for Security Automation
 
-**Finding:** Deep Reinforcement Learning is highly effective for autonomous web vulnerability discovery, achieving 95.2% detection accuracy across diverse application types.
+**Finding:** Deep Reinforcement Learning can perform autonomous web vulnerability discovery, but with uneven, class-dependent detection coverage rather than uniformly high accuracy.
 
-**Evidence:**
+**Evidence (real 5-run evaluation, see `Eval_Markdown.md`):**
 - **33 ground truth vulnerabilities** across 5 applications
-- **Extended D3QN Agent** identified 31.5/33 vulnerabilities correctly
-- **F1-score of 0.96** represents publication-quality performance
-- **Consistent results** across different application architectures
+- **Extended D3QN Agent** shows strong detection on SQL Injection and XSS, weak-to-zero detection on many IDOR/business-logic/file-upload classes
+- **Results vary by target application** — E-Commerce most reliably detected, Blog and File Share weakest
 
-**Implication:** DRL can serve as a foundation for autonomous penetration testing systems.
+**Implication:** DRL shows promise for autonomous penetration testing but needs stronger contextual reasoning before it can serve as a reliable standalone foundation.
 
 ### 2. Algorithm Selection Critical for Performance
 
@@ -326,9 +333,9 @@ Episode Range │ F1-Score │ Key Developments
 - **Open Science:** Complete transparency and open-source release
 - **Community Benefit:** Resources for security research advancement
 
-### Publication Readiness: ✅ PUBLICATION QUALITY
-- **Results Significance:** Statistically significant improvements
-- **Methodology Soundness:** Rigorous experimental design
+### Publication Readiness: not yet — see Discussion/Limitations in `Bachelor_Simplified_Draft.md`
+- **Results Significance:** Not statistically tested yet (Friedman/Wilcoxon vs baselines is planned, see `REVISION_PLAN_incit2026.md` Phase 4)
+- **Methodology Soundness:** Real 5-run eval exists (`Eval_Markdown.md`); baseline/ablation comparisons still needed
 - **Documentation Quality:** Comprehensive technical documentation
 - **Reproducibility:** Complete research pipeline provided
 
@@ -336,21 +343,22 @@ Episode Range │ F1-Score │ Key Developments
 
 ## 🎖️ Final Conclusions
 
-### Research Success Summary
+### Research Success Summary (corrected)
 
-This research successfully demonstrated that **advanced Deep Reinforcement Learning algorithms can achieve autonomous web vulnerability discovery with production-ready accuracy and efficiency**. The Extended D3QN Agent achieved:
+This research explored whether **Deep Reinforcement Learning can perform autonomous web vulnerability discovery**. The Extended D3QN agent, evaluated over 5 runs against 5 mock target applications:
 
-- **95.2% detection accuracy** across 33 ground truth vulnerabilities
-- **1.8% false positive rate**, minimizing security team burden
-- **5x faster training convergence** compared to baseline approaches
-- **Consistent performance** across diverse application architectures
+- Shows **low-to-moderate, uneven detection coverage** (many vulnerability classes at 0% across the 5-run average) — see `Eval_Markdown.md` for the real per-class breakdown
+- Performs best on direct input-based attacks (SQL Injection, XSS); weaker on IDOR, business logic, and file-upload chains
+- Was trained for 10,000 episodes on the reported checkpoint
+- Has not yet been benchmarked against a baseline scanner or a component-ablation study
 
-### Key Achievements
+### Key Achievements (corrected)
 
-1. **State-of-the-Art Performance:** Extended D3QN significantly outperformed all baseline algorithms
-2. **Practical Effectiveness:** Agent can be deployed for real-world vulnerability assessment
+1. **Working end-to-end pipeline:** WebSecurityGym environment, Extended D3QN agent, 5 mock targets, and an evaluation harness are all implemented and reproducible
+2. **Honest baseline result:** A real (not synthetic) 5-run detection-rate table exists to build on
 3. **Research Reproducibility:** Complete methodology and ground truth database provided
 4. **Community Contribution:** Open-source implementation for continued research
+5. **Not yet demonstrated:** state-of-the-art or baseline-beating performance — that claim was removed pending an actual baseline comparison
 
 ### Broader Implications
 
@@ -367,8 +375,8 @@ The comprehensive framework, extensive ground truth database, and open-source im
 
 ---
 
-**Research Completed:** January 2025
-**Status:** ✅ Complete - Publication Ready
+**Research Completed:** January 2025 (draft); corrected for factual accuracy 2026-07-09
+**Status:** In revision — see `REVISION_PLAN_incit2026.md` / `FIX_LOG_incit2026.md` for current state
 **Impact Level:** High - Establishes New Research Direction
 **Practical Value:** Production-Ready Security Tool
 

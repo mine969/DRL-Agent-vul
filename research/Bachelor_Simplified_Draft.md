@@ -12,7 +12,7 @@ Web applications are constantly growing in complexity, which means there are mor
 
 Recently, Reinforcement Learning (RL) has proven to be excellent at solving these types of problems. RL is an area of Artificial Intelligence where an "agent" learns to make decisions by trying different actions and receiving positive rewards or negative penalties. By treating web security testing as an RL problem, we can train an agent to probe an application, analyze the server's responses, and continuously adjust its attacks until it finds a vulnerability.
 
-In this project, we present an autonomous web vulnerability scanner driven by a Deep Q-Network (DQN) architecture. Our system uses a custom environment, WebSecurityGym, which translates complex website interactions into simple numeric states and actions that the AI can understand. The intelligence of the scanner is powered by a highly advanced variant of DQN called an Extended Double Dueling Deep Q-Network (Extended D3QN), which incorporates many components from the state-of-the-art Rainbow DQN algorithm. To help the agent learn faster, we also introduce a Phase-Based Learning strategy, which restricts the agent to basic scanning before allowing it to try complex exploits. Through evaluating our system on several vulnerable websites, we demonstrate that RL is a promising technology for the future of automated security testing.
+In this project, we present an autonomous web vulnerability scanner driven by a Deep Q-Network (DQN) architecture. Our system uses a custom environment, WebSecurityGym, which translates complex website interactions into simple numeric states and actions that the AI can understand. The intelligence of the scanner is powered by an advanced variant of DQN we call an Extended Double Dueling Deep Q-Network (Extended D3QN), which combines Double DQN, a Dueling network architecture, Prioritized Experience Replay, and Noisy Networks. To help the agent learn faster, we also introduce a Phase-Based Learning strategy, which restricts the agent to basic scanning before allowing it to try complex exploits. Through evaluating our system on several vulnerable websites, we demonstrate that RL is a promising technology for the future of automated security testing.
 
 ---
 
@@ -68,27 +68,29 @@ The state is how the agent understands the website at any given moment. To keep 
 
 ### 2) Action Space
 
-The agent can choose from 150 distinct operations, which mimic the steps a human hacker would take:
+The agent can choose from 150 distinct operations, which mimic the steps a human hacker would take, unlocked progressively across four phases as the agent proves competence in each:
 
 - **Phase 0 (Reconnaissance)**: Simple actions like scanning for hidden directories or parameters.
-- **Phase 1 (Assessment)**: Sending mild payloads (like a single quote `'`) to see if the website breaks or leaks an error.
-- **Phase 2 (Exploitation)**: Dropping complex, weaponized payloads aimed at triggering SQL Injection or XSS.
+- **Phase 1 (Discovery & Probing)**: Sending mild payloads (like a single quote `'`) to see if the website breaks or leaks an error.
+- **Phase 2 (Exploitation)**: Dropping complex payloads aimed at triggering SQL Injection or XSS.
+- **Phase 3 (Post-Exploitation)**: Business-logic abuse, race conditions, and modern control-bypass techniques (WAF/CSRF/CSP evasion) once earlier phases are mastered.
 
 ## C. Agent Design
 
-The core intelligence runs on an advanced **Deep Q-Network (DQN)** configured as an **Extended D3QN** (a partial implementation of the Rainbow DQN algorithm). Standard Q-Learning tries to learn the maximum expected future reward for taking a specific action in a specific state. This is updated using the Bellman equation, which we can simplify as:
+The core intelligence runs on an advanced **Deep Q-Network (DQN)** configured as an **Extended D3QN**. Standard Q-Learning tries to learn the maximum expected future reward for taking a specific action in a specific state. This is updated using the Bellman equation, which we can simplify as:
 
 $$
 Q(\text{State}, \text{Action}) \leftarrow Q + \text{LearningRate} \times \big[ \text{Reward} + ( \text{Discount} \times \text{MaxNextQ} ) - Q \big]
 $$
 
-To vastly improve stability and learning speed, our Extended D3QN combines five major AI improvements together:
+To vastly improve stability and learning speed, our Extended D3QN combines four major AI improvements together:
 
 - **Double DQN** prevents the AI from becoming overly optimistic about its attack choices by separating the selection of an action from the evaluation of its value.
 - **Dueling Architecture** splits the neural network into two streams: one calculates the general value of the current website state, and the other calculates the advantage of taking a specific action. This helps the agent learn faster because it realizes some states are just inherently bad (like being blocked by a firewall), regardless of what action it takes next.
 - **Prioritized Experience Replay (PER)** ensures the agent learns from its most "surprising" mistakes or newly discovered vulnerabilities much more frequently than random, boring actions (like receiving a standard 404 page).
-- **Noisy Networks** adds deliberate mathematical noise directly into the neural network instead of just guessing random actions. This forces the agent to explore the website much more systematically.
-- **Multi-Step Learning** calculates rewards over several future steps (rather than just the single next step), allowing the agent to figure out which initial vulnerability (like a minor configuration flaw) led to a massive payoff (like a full database breach) much later in the attack chain.
+- **Noisy Networks** adds deliberate mathematical noise directly into the neural network instead of just guessing random actions. This forces the agent to explore the website much more systematically, and entirely replaces epsilon-greedy exploration.
+
+The implementation also supports optional multi-step returns (accumulating reward over several future steps instead of just the next one), but every result reported in this paper used a single-step target ($n=1$); multi-step learning was not exercised in these experiments and is left for future work.
 
 ### 1) Reward Function
 
@@ -99,19 +101,19 @@ To train the agent properly, we give it clear goals:
 
 ### 2) Phase-Based Training Algorithm
 
-To prevent the agent from randomly guessing complex exploits before it understands the website, we use a phase-based system. The agent starts in Phase 0 and must prove it can find basics before unlocking Phase 2.
+To prevent the agent from randomly guessing complex exploits before it understands the website, we use a phase-based system. The agent starts in Phase 0 and must accumulate enough progress in each phase before the next one unlocks.
 
 **Algorithm 1: Training Process**
 
 ```text
-d cite Initialize Neural Networks (Q_Network)
+Initialize Neural Networks (Q_Network)
 Set Current Phase = 0 (Reconnaissance)
 
 For every training episode:
     Observe initial website state
 
     For every step in the episode:
-        Choose an action based on the AI's current knowledge (or explore randomly)
+        Choose an action using the noisy Q-network (noise drives exploration)
         Execute the action (e.g., send an HTTP request)
 
         Observe the new website state and the received reward
@@ -123,8 +125,8 @@ For every training episode:
         If the website is successfully hacked or the agent is blocked:
             End the current episode
 
-    If the agent's total reward is consistently high:
-        Unlock advanced actions (Move to Phase 1 or Phase 2)
+    If the agent has made enough progress in the current phase:
+        Unlock the next phase
 ```
 
 ---
@@ -178,11 +180,11 @@ The low detection rate should not be seen as a failure of the benchmark. The ben
 
 ## A. Experimental Setup
 
-To validate the proposed Extended D3QN framework, the autonomous scanner and target environments were deployed and evaluated locally. The RL agent was trained over 10,000 algorithmic episodes. The experiments were conducted on a single workstation utilizing an NVIDIA GeForce RTX 2070 Ti GPU, an AMD Ryzen 5 processor, and 32GB of DDR4 RAM. The target mock applications were hosted on the `localhost` network to eliminate external latency variances, allowing for a controlled, high-throughput training pipeline. Training utilized a mini-batch size of 64 transitions and a learning rate of $10^{-4}$, with the exploration rate exponentially decaying from 1.0 down to a minimum of 0.01.
+To validate the proposed Extended D3QN framework, the autonomous scanner and target environments were deployed and evaluated locally. The RL agent was trained over 10,000 algorithmic episodes. The experiments were conducted on a single workstation utilizing an NVIDIA GeForce RTX 2070 Ti GPU, an AMD Ryzen 5 processor, and 32GB of DDR4 RAM. The target mock applications were hosted on the `localhost` network to eliminate external latency variances, allowing for a controlled, high-throughput training pipeline. Training utilized a mini-batch size of 64 transitions and a learning rate of $10^{-4}$. Exploration was handled entirely by Noisy Networks (learned, state-dependent noise injected into the network weights) rather than a decaying epsilon-greedy schedule.
 
 ![Agent Training Progression](training_curve.png)
 
-The learning progression of the Extensive D3QN agent over the 10,000 training episodes demonstrates rapid initial exploration characterized by high variance due to WAF penalties, followed by steady convergence as the agent discovers high-value exploitation chains.
+The learning progression of the Extended D3QN agent over the 10,000 training episodes demonstrates rapid initial exploration characterized by high variance due to WAF penalties, followed by steady convergence as the agent discovers high-value exploitation chains.
 
 ## B. Limitations
 
@@ -194,7 +196,7 @@ While the agent demonstrates significant efficacy in discovering injection flaws
 
 This paper presented an autonomous web vulnerability scanner driven by an Extended Double Dueling Deep Q-Network (Extended D3QN) agent. By formalizing the web exploitation process as a Markov Decision Process (MDP) and training the agent in a custom `WebSecurityGym` environment, we demonstrated that Reinforcement Learning can effectively replicate and scale the cognitive processes of human penetration testers. The implementation of Phase-Based Learning successfully guided the agent through the Cyber Kill Chain, transitioning from reconnaissance to the execution of complex exploit chains like Cross-Site Scripting (XSS) and SQL Injection (SQLi) autonomously.
 
-Our experimental evaluations against a diverse set of deliberately vulnerable mock applications underscore the system's proficiency in maximizing vulnerability discovery while minimizing noisy, brute-force behavior. The agent significantly outperformed traditional, static heuristic-based scanners in both action efficiency and the reduction of false positives, proving capable of adapting to dynamically changing states and defensive mechanisms such as simulated Web Application Firewalls (WAFs).
+Our experimental evaluations against a diverse set of deliberately vulnerable mock applications show low-to-moderate but repeatable detection coverage, strongest on direct input-based vulnerabilities (SQL Injection, XSS) and weaker on vulnerabilities requiring deeper business-logic or contextual reasoning (IDOR, business logic, file-upload chains). We did not benchmark against traditional, static heuristic-based scanners in this evaluation; that comparison is left for future work.
 
 Future work will focus on expanding the agent's action space to encompass a broader array of sophisticated common vulnerabilities and exposures (CVEs). Furthermore, integrating Large Language Models (LLMs) to enhance contextual understanding of HTTP responses could bridge the gap between structural pattern recognition and deep business-logic comprehension. Ultimately, this research lays the groundwork for the next generation of intelligent, adaptive, and highly scalable automated penetration testing frameworks.
 

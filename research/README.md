@@ -1,5 +1,12 @@
 # Autonomous Vulnerability Discovery Using Deep Reinforcement Learning
 
+> **Canonical paper draft:** [`Bachelor_Simplified_Draft.md`](Bachelor_Simplified_Draft.md).
+> Earlier duplicate/superseded drafts (`Draft_Sections.md`, `Humanized_Draft.md`)
+> are archived in [`archive/`](archive/) — do not edit or cite them.
+> Real evaluation numbers live in [`Eval_Markdown.md`](Eval_Markdown.md); some
+> older supplementary docs (`findings_and_conclusions.md`, `getting_started.md`)
+> still contain superseded/aspirational figures, now flagged inline.
+
 ## Research Overview
 
 This research project demonstrates the application of Deep Reinforcement Learning (DRL) for autonomous web vulnerability discovery. The agent learns to systematically explore web applications and identify security vulnerabilities through trial-and-error interaction with mock target environments.

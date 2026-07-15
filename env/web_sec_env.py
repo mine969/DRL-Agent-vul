@@ -205,7 +205,17 @@ class WebSecurityGym(gym.Env):
         # TUNED ACTION BOOK FOR MOCKUP SITES - Optimized for Ground Truth Vulnerabilities
         # Based on analysis of 33 actual vulnerabilities across 5 applications
         #
-        # PHASE 1: RECONNAISSANCE (0-29) - 30 actions
+        # NOTE: The "PHASE N" headers below group actions by attack category
+        # (recon / IDOR / injection-exploit / business-logic) for readability.
+        # They do NOT match the runtime phase-unlock boundaries used by
+        # `_validate_phase_action`, which quarters the full 150-action space
+        # evenly as 0-39 / 40-79 / 80-119 / 120-149 regardless of category.
+        # For example, actions 30-39 below (category "Phase 2: IDOR") are
+        # gated under runtime Phase 1 (0-39), not Phase 2. Treat the runtime
+        # quarters in `_validate_phase_action` as authoritative for anything
+        # about phase unlocking; the headers here are category labels only.
+        #
+        # CATEGORY 1: RECONNAISSANCE (0-29) - 30 actions
         # - Basic navigation and enumeration
         # - Endpoint discovery optimized for mockup sites
         self.action_book = {
@@ -242,7 +252,7 @@ class WebSecurityGym(gym.Env):
             27: self.check_session_timeout,  # Session timeout testing
             28: self.test_remember_me,  # Remember me functionality
             29: self.test_account_lockout,  # Account lockout testing
-            # PHASE 2: DISCOVERY & PROBING (30-59) - 30 actions (IDOR-Focused)
+            # CATEGORY 2: DISCOVERY & PROBING (30-59) - 30 actions (IDOR-Focused)
             # IDOR is the most common vulnerability (9 instances), so heavy focus here
             # IDOR - User Profiles (30-34)
             30: self.attack_idor_profile_view,  # View other user profiles
@@ -279,7 +289,7 @@ class WebSecurityGym(gym.Env):
             57: self.attack_token_reuse,  # Token reuse attacks
             58: self.attack_authorization_bypass,  # Direct authorization bypass
             59: self.attack_role_escalation,  # Role privilege escalation
-            # PHASE 3: EXPLOITATION (60-89) - 30 actions (XSS, SQLi, File attacks)
+            # CATEGORY 3: EXPLOITATION (60-89) - 30 actions (XSS, SQLi, File attacks)
             # Focus on actual vulnerabilities found in mockup sites
             # SQL Injection Attacks (60-65)
             60: self.attack_sqli_login_bypass,  # Login form SQLi
@@ -316,7 +326,7 @@ class WebSecurityGym(gym.Env):
             87: self.attack_command_injection,  # Command injection
             88: self.attack_ldap_injection,  # LDAP injection
             89: self.attack_graphql_injection,  # GraphQL injection
-            # PHASE 4: POST-EXPLOITATION & VALIDATION (90-99) - 10 actions
+            # CATEGORY 4: POST-EXPLOITATION & VALIDATION (90-99) - 10 actions
             # Focus on business logic flaws and validation bypass
             # Business Logic & Validation (90-94)
             90: self.attack_mass_assignment,  # Mass assignment bypass
