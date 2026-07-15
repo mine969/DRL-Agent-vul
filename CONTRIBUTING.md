@@ -49,7 +49,7 @@ Thank you for your interest in contributing to the DRL Web Vulnerability Scanner
 
 4. **Verify installation**
    ```bash
-   python -c "from agent.dqn_agent import DQNAgent; print('✓ Installation successful')"
+   python -c "from agent.improved_dqn_agent import ImprovedDQNAgent; print('✓ Installation successful')"
    ```
 
 ## Development Setup
@@ -73,7 +73,7 @@ DQN web vul/
 python -m pytest tests/
 
 # Run specific test
-python -m pytest tests/test_agent.py
+python -m pytest tests/verify_all_targets.py
 
 # Run with coverage
 pytest --cov=agent --cov=env tests/
@@ -162,7 +162,7 @@ Use the centralized configuration system:
 from config import get_config
 
 config = get_config()
-agent = DQNAgent(
+agent = ImprovedDQNAgent(
     state_dim=config.agent.state_dim,
     action_dim=config.agent.action_dim,
     config=config.agent

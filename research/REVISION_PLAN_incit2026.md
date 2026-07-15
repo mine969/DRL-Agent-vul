@@ -59,14 +59,14 @@ Net: salvageable. Three accept/borderline, one harsh. The gate is Reviewer 1's s
 ## Phase 3 — Framework flowchart + Methodology clarity (Reviewers 1 & 3)
 - Create ONE new end‑to‑end flowchart: env → 15‑D state vector → Extended D3QN → action → HTTP request → reward → phase unlock → reporting. Sits alongside existing architecture figure (Fig. 1).
 - Add step‑by‑step narrative tying the figure to the algorithm.
-- Add website‑selection rationale to Section 4 (why these 6 mock apps; what vuln classes each covers).
+- Add website‑selection rationale to Section 4 (why these 5 mock apps; what vuln classes each covers).
 
 ## Phase 4 — Statistical rigor (Reviewer 1 — the gate) — needs GPU + DECISION 2
-Codebase readiness: `agent/dqn_agent.py` = D3QN baseline; `agent/improved_dqn_agent.py` = Extended D3QN (PER + Noisy + multi‑step, with toggle flags). Only one trained checkpoint exists; baselines must be trained.
+Codebase readiness: `legacy_archive/dqn_agent.py` = Double DQN baseline; `agent/improved_dqn_agent.py` = Extended D3QN (PER + Noisy + multi‑step, with toggle flags). Only one trained checkpoint exists; baselines must be trained.
 
 Deliverables I will build (scripts run on YOUR RTX 2070 Ti; I process the CSV outputs):
 1. **Ablation harness** — Random → D3QN → Extended D3QN (+ component‑drop variants: −PER, −Noisy, −multi‑step), consistent episode budget, multiple seeds.
-2. **Seeded eval** across all 6 targets → per‑target detection‑rate matrix.
+2. **Seeded eval** across all 5 targets → per‑target detection‑rate matrix.
 3. **Stats script:**
    - Convergence analysis (from *real* training logs).
    - Convergence stability (coefficient of variation across seeds).

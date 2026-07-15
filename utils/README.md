@@ -26,7 +26,7 @@ Helper functions and utilities for the DRL Security Agent.
 - System log sanitization
 - Selective entry deletion
 
-### `proxy_fetcher.py` (230+ lines)
+### `proxy_fetcher.py` (200+ lines)
 
 **Proxy Management**
 
@@ -50,7 +50,7 @@ Helper functions and utilities for the DRL Security Agent.
 - Timeline visualization
 - Captured flags and evidence snippets
 
-### `target_hunter.py` (530+ lines)
+### `target_hunter.py` (450+ lines)
 
 **Target Discovery**
 
@@ -74,7 +74,7 @@ Helper functions and utilities for the DRL Security Agent.
 - Patch information
 - Attack patterns
 
-### `zero_day_hunter.py` (360+ lines)
+### `zero_day_hunter.py` (380+ lines)
 
 **Zero-Day Discovery**
 
@@ -84,6 +84,34 @@ Helper functions and utilities for the DRL Security Agent.
 - Fuzzing techniques
 - Novel vulnerability discovery
 - Pattern analysis
+
+### `validator.py` (130+ lines)
+
+**Vulnerability Validator**
+
+**Features**:
+
+- Post-hoc validation of flagged findings (`VulnerabilityValidator`)
+- Evidence-based confirmation (DB error strings, reflected payloads, success markers)
+- Independent of the environment's reward shaping
+
+### `false_positive_filter.py` (130+ lines)
+
+**False Positive Filter**
+
+**Features**:
+
+- Filters common false positives from scan findings (`FalsePositiveFilter`)
+- Pattern-based rules (e.g. WordPress paths on non-WordPress sites)
+
+### `model_loader.py` (150+ lines)
+
+**Checkpoint Loading Utilities**
+
+**Features**:
+
+- Finds the latest checkpoint by episode number (`find_latest_checkpoint`)
+- Used by training scripts for auto-resume
 
 ## 🎯 Usage Examples
 

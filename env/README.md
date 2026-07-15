@@ -46,14 +46,14 @@ All applications:
 
 ## 🧪 Training Environment
 
-### `web_sec_env.py` (1,200+ lines)
+### `web_sec_env.py` (3,800+ lines)
 
 **Gymnasium Environment** for RL training
 
 **Features**:
 
-- 20-dimensional state space
-- 15 discrete actions
+- 15-dimensional state space
+- 50 actions (mock targets) / 150 actions (full mode)
 - Phase-based reward shaping
 - Vulnerability detection
 - Response analysis
@@ -64,9 +64,9 @@ All applications:
 from env.web_sec_env import WebSecurityGym
 
 env = WebSecurityGym("http://localhost:5002")
-state = env.reset()
+state, info = env.reset()
 action = 0  # Navigate
-next_state, reward, done, info = env.step(action)
+next_state, reward, terminated, truncated, info = env.step(action)
 ```
 
 ## 📁 Database Files
@@ -99,7 +99,7 @@ See [TARGETS_README.md](TARGETS_README.md) for comprehensive documentation inclu
 
 - `../train_mock_targets.py` - Train on all 5 targets
 - `../init_targets.py` - Initialize databases
-- `../deploy_agent.py` - Deploy trained agent
+- `../autonomous_scan.py` - Run a trained agent against a target
 
 ---
 

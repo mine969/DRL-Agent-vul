@@ -25,7 +25,7 @@ This log has two parts: **Part 1 — Planning** (prioritized reviewer audit + wh
 
 ### P2 — Medium (content + one diagram)
 - **Framework flowchart (R1, R3):** add one end-to-end algorithm flowchart beside Fig. 1.
-- **Website-selection rationale (R3):** explain why the 6 mock apps were chosen.
+- **Website-selection rationale (R3):** explain why the 5 mock apps were chosen.
 - **Equation numbering (R3):** equations are centered OMML objects; numbering them (1)–(4) needs careful layout. Best done/verified in Word (cannot render here). FLAGGED.
 - **Table I on one page (R3):** set rows to not break across pages — Word layout, verify visually. FLAGGED.
 
