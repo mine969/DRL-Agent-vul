@@ -217,6 +217,53 @@ class PrioritizedReplayBuffer:
         return self.size
 
 
+class UniformReplayBuffer:
+    """
+    Plain (non-prioritized) experience replay buffer -- uniform random
+    sampling, no TD-error-based priority. This is what use_prioritized_replay=False
+    needs: the -PER ablation variant (research/REVISION_PLAN_incit2026.md,
+    Phase 4) has to actually be a different, real buffer, not a raised
+    ValueError. Every experience has equal probability of being sampled,
+    same as the original DQN paper (Mnih et al., 2015) before PER existed.
+
+    Exposes recall_batch() (not sample(), deliberately -- see replay()'s
+    branch for use_prioritized_replay=False) returning tensors directly,
+    since there are no importance weights or priority indices to track.
+    """
+
+    def __init__(self, capacity: int = 100000, seed: int = None):
+        self.capacity = capacity
+        self.buffer = []
+        self.pos = 0
+        self.size = 0
+        self.rng = np.random.default_rng(seed)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    def add(self, state, action, reward, next_state, done) -> None:
+        experience = Experience(state, action, reward, next_state, done)
+        if len(self.buffer) < self.capacity:
+            self.buffer.append(experience)
+        else:
+            self.buffer[self.pos] = experience
+        self.pos = (self.pos + 1) % self.capacity
+        self.size = min(self.size + 1, self.capacity)
+
+    def recall_batch(self, batch_size: int):
+        batch_size = min(batch_size, self.size)
+        indices = self.rng.choice(self.size, size=batch_size, replace=False)
+        experiences = [self.buffer[idx] for idx in indices]
+
+        states = torch.tensor(np.array([e.state for e in experiences]), dtype=torch.float32).to(self.device)
+        actions = torch.tensor([e.action for e in experiences], dtype=torch.long).to(self.device)
+        rewards = torch.tensor([e.reward for e in experiences], dtype=torch.float32).to(self.device)
+        next_states = torch.tensor(np.array([e.next_state for e in experiences]), dtype=torch.float32).to(self.device)
+        dones = torch.tensor([e.done for e in experiences], dtype=torch.float32).to(self.device)
+        return states, actions, rewards, next_states, dones
+
+    def __len__(self) -> int:
+        return self.size
+
+
 class NoisyLinear(nn.Module):
     """
     Noisy Linear Layer for better exploration.
@@ -453,19 +500,21 @@ class ImprovedDQNAgent:
 
         self._log_initialization()
 
-        # Experience replay — PER is required for Extended D3QN
-        if not use_prioritized_replay:
-            raise ValueError(
-                "use_prioritized_replay=False is not supported. "
-                "ImprovedDQNAgent requires Prioritized Experience Replay."
+        # Experience replay -- PER is the default (Extended D3QN), but
+        # use_prioritized_replay=False is a real, supported configuration:
+        # it's the -PER ablation variant (training/train_ablation.py),
+        # needed to show PER is actually contributing rather than just
+        # being present. Falls back to plain uniform-sampling replay.
+        if use_prioritized_replay:
+            self.memory = PrioritizedReplayBuffer(
+                capacity=config.memory_size,
+                alpha=0.6,
+                beta=0.4,
+                beta_increment=0.001,
+                seed=seed,
             )
-        self.memory = PrioritizedReplayBuffer(
-            capacity=config.memory_size,
-            alpha=0.6,
-            beta=0.4,
-            beta_increment=0.001,
-            seed=seed,
-        )
+        else:
+            self.memory = UniformReplayBuffer(capacity=config.memory_size, seed=seed)
 
         # Networks
         self.q_network = DuelingNoisyDQN(
@@ -697,3 +746,79 @@ class ImprovedDQNAgent:
         self.training_steps = checkpoint["training_steps"]
 
         print(f"✓ Improved agent loaded from {filepath}")
+
+
+if __name__ == "__main__":
+    # Standalone self-test: exercises act/remember/replay/save/load against
+    # random dummy data, with NO env, HTTP, or training script involved.
+    # This exists so the agent implementation can be sanity-checked on its
+    # own after any change here -- if this fails, the bug is in this file,
+    # not in web_sec_env.py, the training loop, or the mock target apps.
+    #
+    # Run directly: python agent/improved_dqn_agent.py
+    import tempfile
+    import os as _os
+
+    print("=" * 70)
+    print("ImprovedDQNAgent standalone self-test")
+    print("=" * 70)
+
+    STATE_DIM = 15  # matches env/web_sec_env.py's observation size
+    ACTION_DIM = 50  # matches mock_targets mode's action space size
+    rng = np.random.default_rng(0)
+
+    print(f"\n[1/5] Constructing agent (state_dim={STATE_DIM}, action_dim={ACTION_DIM})...")
+    agent = ImprovedDQNAgent(
+        state_dim=STATE_DIM,
+        action_dim=ACTION_DIM,
+        use_prioritized_replay=True,
+        use_noisy_networks=True,
+        n_step=1,
+        seed=0,
+    )
+    print(f"    OK -- device={agent.device}")
+
+    print("\n[2/5] act() on a random state...")
+    dummy_state = rng.random(STATE_DIM, dtype=np.float32)
+    action = agent.act(dummy_state, training=True)
+    assert isinstance(action, int), f"act() returned {type(action)}, expected int"
+    assert 0 <= action < ACTION_DIM, f"act() returned out-of-range action {action}"
+    print(f"    OK -- action={action} (valid range: 0-{ACTION_DIM - 1})")
+
+    print(f"\n[3/5] remember() with {agent.batch_size * 3} random transitions...")
+    for _ in range(agent.batch_size * 3):
+        s = rng.random(STATE_DIM, dtype=np.float32)
+        a = int(rng.integers(0, ACTION_DIM))
+        r = float(rng.normal())
+        s2 = rng.random(STATE_DIM, dtype=np.float32)
+        done = bool(rng.random() < 0.05)
+        agent.remember(s, a, r, s2, done)
+    print(f"    OK -- replay buffer size={len(agent.memory)}")
+
+    print("\n[4/5] replay() -- one gradient step...")
+    loss = agent.replay()
+    assert loss is not None, "replay() returned None with a full buffer -- expected a loss value"
+    assert loss == loss, "replay() returned NaN loss"  # NaN != NaN
+    print(f"    OK -- loss={loss:.4f}")
+
+    print("\n[5/5] save() / load() round-trip...")
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ckpt_path = _os.path.join(tmpdir, "selftest.pth")
+        agent.save(ckpt_path)
+
+        fresh_agent = ImprovedDQNAgent(
+            state_dim=STATE_DIM,
+            action_dim=ACTION_DIM,
+            use_prioritized_replay=True,
+            use_noisy_networks=True,
+            n_step=1,
+            seed=1,  # deliberately different seed -- load() should still work
+        )
+        fresh_agent.load(ckpt_path)
+        reloaded_action = fresh_agent.act(dummy_state, training=False)
+        assert 0 <= reloaded_action < ACTION_DIM
+    print("    OK -- saved, reloaded into a fresh agent, act() still works")
+
+    print("\n" + "=" * 70)
+    print("✅ ALL CHECKS PASSED -- agent implementation is self-consistent")
+    print("=" * 70)

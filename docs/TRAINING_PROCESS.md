@@ -32,7 +32,7 @@ What this script does:
 
 - Uses `ImprovedDQNAgent` (Extended D3QN: PER + Noisy + Dueling + Double DQN)
 - Rotates across all 5 mock targets episode by episode
-- Saves checkpoints every 50 episodes to `checkpoints/improved_mock_ep*.pth`
+- Saves checkpoints every 100 episodes to `checkpoints/d3qn_primary_3k_ep*.pth` (default 3,000-episode budget)
 - Auto-resumes from the latest compatible checkpoint if one exists
 
 ## 4) Continue Training to Stronger Milestones
@@ -70,7 +70,7 @@ Notes:
 Test a saved model on a target endpoint:
 
 ```bash
-python autonomous_scan.py http://localhost:5002 --model checkpoints/improved_mock_ep1000.pth --depth 30 --intensity 3
+python autonomous_scan.py http://localhost:5002 --model checkpoints/d3qn_primary_3k_ep1000.pth --depth 30 --intensity 3
 ```
 
 Repeat with different checkpoint versions (for example 1000, 3000, 5000) and compare:
@@ -91,7 +91,7 @@ python start_services.py
 python train_mock_targets.py --episodes 1000
 python train_mock_targets.py --episodes 3000
 python train_mock_targets.py --episodes 5000
-python autonomous_scan.py http://localhost:5002 --model checkpoints/improved_mock_ep5000.pth --depth 30 --intensity 3
+python autonomous_scan.py http://localhost:5002 --model checkpoints/d3qn_primary_3k_ep3000.pth --depth 30 --intensity 3
 ```
 
 ## Legal Reminder

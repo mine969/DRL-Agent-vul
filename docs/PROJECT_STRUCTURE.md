@@ -10,16 +10,33 @@ This map focuses on the files and folders that drive current behavior.
 |-- easyscan.py
 |-- scanner_gui.py
 |-- autonomous_scan.py
-|-- train_mock_targets.py
-|-- quick_train_5000.py
 |-- start_services.py
 |-- config.py
+|-- training/
+|   |-- train_mock_targets.py      # primary training entry point (Extended D3QN, 3k eps default)
+|   |-- train_ablation.py           # per-(variant,seed) ablation trainer -- Reviewer 1 gate
+|   |-- evaluate_variant.py         # deterministic eval for one (variant,seed)
+|   |-- stats_ablation.py           # Friedman + Wilcoxon across ablation results
+|   |-- run_ablation_suite.py       # single command: all variants x seeds, training+eval+stats
+|   |-- training_logger.py         # per-episode/per-finding CSV logging
+|   `-- plot_curve.py              # renders real reward/loss curve from logged CSVs
 |-- agent/
+|   |-- improved_dqn_agent.py      # run standalone: python agent/improved_dqn_agent.py
+|   `-- random_baseline_agent.py   # lower-bound comparison point for the ablation study
 |-- env/
+|   `-- inprocess_client.py        # fast in-process training transport
 |-- utils/
 |-- checkpoints/
+|   |-- d3qn_primary_3k_ep*.pth    # active primary-model checkpoints (3k-episode budget)
+|   |-- backup/                    # redundant checkpoint copies (every 500 eps + on exit/crash)
+|   |-- ablation/                  # ablation study checkpoints, <variant>_seed<seed>_ep*.pth
+|   `-- archive_10k_run/            # archived original 10k run (historical, not resumable)
 |-- reports/
 |-- logs/
+|   |-- train_run_<timestamp>/     # episodes.csv, findings.csv, run_config.json per hero run
+|   `-- ablation/                  # <variant>_seed<seed>/ subfolders, one per ablation combo
+|-- research/
+|   `-- results/ablation_stats.json  # Friedman/Wilcoxon output, ready for the paper
 |-- docs/
 `-- tests/
 ```
@@ -48,7 +65,7 @@ This map focuses on the files and folders that drive current behavior.
 
 ## Data and Outputs
 
-- `checkpoints/`: saved model checkpoints (for example `improved_mock_ep*.pth`).
+- `checkpoints/`: saved model checkpoints (active: `d3qn_primary_3k_ep*.pth`; ablation: `checkpoints/ablation/`; historical: `checkpoints/archive_10k_run/`).
 - `reports/`: scan reports (`vulnerability_report_<timestamp>.md`).
 - `logs/`: service logs and run-time logs.
 

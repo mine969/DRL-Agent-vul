@@ -540,7 +540,12 @@ class WebSecurityGym(gym.Env):
                         port = p
                         break
 
-            requests.post(f"http://localhost:{port}/api/reset", timeout=1)
+            # Route through self.session (not a bare module-level
+            # requests.post) so this respects an injected in-process
+            # session (see env/inprocess_client.py) the same way every
+            # other request in this class does, instead of always hitting
+            # a real socket regardless of transport mode.
+            self.session.post(f"http://localhost:{port}/api/reset", timeout=1)
         except:
             pass
 

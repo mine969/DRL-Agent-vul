@@ -1,38 +1,14 @@
-import subprocess
-import sys
-import os
+"""
+DEPRECATED -- moved to tests/verify_quick_fix.py.
 
-# Single target, low depth, just to prove it doesn't crash on emojis
-url = "http://localhost:5002"
-model = "checkpoints/improved_mock_ep4300.pth"
+This root-level copy could not be deleted automatically (filesystem lock in
+the build environment) -- delete it manually once that clears:
+    del verify_quick_fix.py
+"""
 
-print(f"[TEST] Testing Quick Fix on {url}...")
-
-# Force UTF-8
-env = os.environ.copy()
-env["PYTHONIOENCODING"] = "utf-8"
-
-cmd = [
-    sys.executable,
-    "autonomous_scan.py",
-    url,
-    "--model",
-    model,
-    "--depth",
-    "5",
-    "--ai-mode",  # Ensure emojis are printed
-]
-
-try:
-    result = subprocess.run(
-        cmd, capture_output=True, text=True, encoding="utf-8", env=env, timeout=60
-    )
-    print(result.stdout)
-    if result.returncode == 0:
-        print("\n[PASS] QUICK TEST PASSED! No Unicode Errors.")
-    else:
-        print("\n[FAIL] FAILED with code", result.returncode)
-        print(result.stderr)
-
-except Exception as e:
-    print(f"\n[ERR] SCRIPT ERROR: {e}")
+raise SystemExit(
+    "verify_quick_fix.py (root) is deprecated -- use tests/verify_quick_fix.py:\n"
+    "  python tests/verify_quick_fix.py\n"
+    "This file is safe to delete; it's kept only as a pointer since it couldn't "
+    "be removed automatically."
+)

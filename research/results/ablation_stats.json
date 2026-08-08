@@ -1,0 +1,87 @@
+{
+  "metric": "mean_reward",
+  "seeds_available_per_variant": {
+    "random": [
+      1,
+      2,
+      3
+    ],
+    "dqn": [
+      1
+    ],
+    "d3qn_full": [
+      1
+    ],
+    "d3qn_no_per": [
+      1
+    ],
+    "d3qn_no_noisy": [
+      1
+    ],
+    "d3qn_no_multistep": [
+      1
+    ]
+  },
+  "common_seeds_used": [
+    1
+  ],
+  "per_variant_stats": {
+    "random": {
+      "n": 1,
+      "mean": -56.90599999999996,
+      "stdev": null,
+      "coefficient_of_variation": null,
+      "values": [
+        -56.90599999999996
+      ]
+    },
+    "dqn": {
+      "n": 1,
+      "mean": -6.898000000000003,
+      "stdev": null,
+      "coefficient_of_variation": null,
+      "values": [
+        -6.898000000000003
+      ]
+    },
+    "d3qn_full": {
+      "n": 1,
+      "mean": -187.92999999999975,
+      "stdev": null,
+      "coefficient_of_variation": null,
+      "values": [
+        -187.92999999999975
+      ]
+    },
+    "d3qn_no_per": {
+      "n": 1,
+      "mean": -59.018000000000164,
+      "stdev": null,
+      "coefficient_of_variation": null,
+      "values": [
+        -59.018000000000164
+      ]
+    },
+    "d3qn_no_noisy": {
+      "n": 1,
+      "mean": -0.05000000000000031,
+      "stdev": null,
+      "coefficient_of_variation": null,
+      "values": [
+        -0.05000000000000031
+      ]
+    },
+    "d3qn_no_multistep": {
+      "n": 1,
+      "mean": -0.05000000000000031,
+      "stdev": null,
+      "coefficient_of_variation": null,
+      "values": [
+        -0.05000000000000031
+      ]
+    }
+  },
+  "friedman": null,
+  "wilcoxon_vs_d3qn_full": {},
+  "status": "ok"
+}

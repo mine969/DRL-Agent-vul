@@ -2351,4 +2351,9 @@ if __name__ == "__main__":
     init_db()
     print("\n Starting on http://localhost:5002\n")
     print("=" * 70)
-    app.run(port=5002, debug=True)
+    # debug=False, threaded=True: the Flask dev server's debug/reloader mode adds
+    # significant per-request overhead and runs single-threaded by default, which
+    # becomes the dominant bottleneck during RL training (thousands of episodes,
+    # many HTTP round trips each). threaded=True lets it handle overlapping
+    # requests instead of serializing every one.
+    app.run(port=5002, debug=False, threaded=True)

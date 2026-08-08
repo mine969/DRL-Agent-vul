@@ -1,0 +1,83 @@
+# Beginner Guide
+
+This guide is for first-time users who want to run the scanner locally with minimal setup.
+
+## Step 1: Install Python Packages
+
+From the project root:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Step 2: Start the Training Targets
+
+```bash
+python start_services.py
+```
+
+This starts five intentionally vulnerable local apps on ports `5002` through `5006`.
+
+## Step 3: Make Sure a Model Exists
+
+If you do not have model/checkpoint files yet:
+
+```bash
+python training/train_mock_targets.py --episodes 1000
+```
+
+## Step 4: Run the Easiest Scanner Interface
+
+```bash
+python easy_scanner.py
+```
+
+You can also use:
+
+```bash
+python easyscan.py
+```
+
+In interactive mode, you can select:
+
+- Scan style (`Hybrid-Driven` or `AI-Driven`)
+- Model
+- Target (`localhost:5002` to `localhost:5006`, custom URL, or all local targets)
+
+## Step 5: Open the Report
+
+After the run, a report is saved in:
+
+- `reports/vulnerability_report_<timestamp>.md`
+
+The scanner can open the latest report for you from the menu.
+
+## Optional: Run Without Prompts
+
+### Easy CLI headless
+
+```bash
+python easy_scanner.py --auto --target http://localhost:5002 --mode hybrid
+```
+
+### GUI headless
+
+```bash
+python scanner_gui.py --auto --target http://localhost:5002
+```
+
+## What to Expect
+
+- The scanner crawls pages, runs attack actions, and logs findings.
+- Findings should be reviewed manually before taking action.
+- Local mock targets are the most reliable baseline for this project.
+
+## Troubleshooting
+
+- If a target is offline, restart `python start_services.py`.
+- If scans return nothing, increase depth/intensity or use a better checkpoint.
+- If model loading fails, verify the file exists in `checkpoints/`.
+
+## Safety
+
+Use this tool only on systems you are authorized to test.

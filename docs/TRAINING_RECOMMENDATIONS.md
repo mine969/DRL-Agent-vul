@@ -18,7 +18,7 @@ Characteristics:
 
 - Uses `ImprovedDQNAgent`.
 - Trains against local mock targets on ports `5002` to `5006`.
-- Saves checkpoints every 50 episodes (`improved_mock_ep*.pth`).
+- Saves checkpoints every 100 episodes (`d3qn_primary_3k_ep*.pth`, default 3,000-episode budget).
 - Resumes automatically from latest compatible checkpoint.
 
 ## Episode Planning (Practical Ranges)
@@ -49,7 +49,7 @@ Notes:
 Evaluate checkpoints periodically:
 
 ```bash
-python autonomous_scan.py http://localhost:5002 --model checkpoints/improved_mock_ep1000.pth --depth 30 --intensity 3
+python autonomous_scan.py http://localhost:5002 --model checkpoints/d3qn_primary_3k_ep1000.pth --depth 30 --intensity 3
 ```
 
 Compare:

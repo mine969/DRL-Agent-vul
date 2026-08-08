@@ -902,4 +902,6 @@ if __name__ == "__main__":
     print("=" * 70)
     print("Starting on http://localhost:5004")
     init_db()
-    app.run(port=5004, debug=True)
+    # debug=False, threaded=True: avoids the Werkzeug debugger/reloader overhead
+    # and per-request serialization that bottlenecks RL training throughput.
+    app.run(port=5004, debug=False, threaded=True)

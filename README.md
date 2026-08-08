@@ -93,22 +93,56 @@ below (categories are labeled by attack type, not by unlock timing).
 - TF32 Math: Enabled
 - Expected Speedup: 35-40%
 
-**Training Command (Mock Targets, Improved DQN):**
+**Training Command (Mock Targets, Extended D3QN):**
 
 ```bash
-python train_mock_targets.py --episodes 1000
+python training/train_mock_targets.py                  # 3,000 episodes (default since 2026-08-09), fast (in-process) mode
+python training/train_mock_targets.py --episodes 1000  # shorter run
+python training/train_mock_targets.py --episodes 10000 # old budget, explicit opt-in
+python training/train_mock_targets.py --real            # real HTTP instead of in-process
+python training/train_mock_targets.py --fresh            # ignore existing checkpoints
 ```
 
-**Quick Long-Run Training (Auto-Resume):**
-
-```bash
-python quick_train_5000.py
-```
+(training/quick_train_5000.py was merged into this single script and is deprecated. The original 10k-episode run is archived at `checkpoints/archive_10k_run/` -- see that folder's README for why.)
 
 **Resume Behavior:**
 
-- `train_mock_targets.py` auto-resumes from the latest checkpoint in `checkpoints/`
-- `quick_train_5000.py --fresh` forces a clean start
+- Auto-resumes from the latest `checkpoints/d3qn_primary_3k_ep*.pth` checkpoint by default
+- `--fresh` forces a clean start ignoring existing checkpoints
+
+**Checkpoint Safety:**
+
+- Every checkpoint save is atomic (written to a `.tmp` file, then renamed into place) so a crash mid-write can't corrupt the file a resume would load
+- A redundant copy is written to `checkpoints/backup/` every 500 episodes, and always on training completion, Ctrl-C, or an uncaught exception
+- Any uncaught exception during training triggers an emergency checkpoint save before the error is re-raised, so a crash mid-run doesn't lose progress
+
+**Live Logging + Real Training Curves:**
+
+- Every run writes `logs/train_run_<timestamp>/episodes.csv` (reward/loss/steps per episode) and `findings.csv` (every confirmed vulnerability, with a running best-per-type leaderboard)
+- The terminal prints an immediate `🏆 NEW BEST` line the moment the agent beats its best-known reward for a given vulnerability type, plus a leaderboard summary every 200 episodes
+- `python training/plot_curve.py logs/train_run_<timestamp>/episodes.csv` renders a real reward/loss training curve in the same style as `research/generate_training_curve.py` — this is the direct replacement path for the paper's currently-synthetic Fig. 3 once a real training run has been logged
+
+**Agent Self-Test (no env/HTTP needed):**
+
+```bash
+python agent/improved_dqn_agent.py
+```
+
+Runs act/remember/replay/save/load against random dummy data to sanity-check the agent implementation in isolation.
+
+**Ablation Study (Reviewer 1 statistical-rigor gate):**
+
+Six comparison points -- random, vanilla DQN, Extended D3QN (full), and three component-drop variants (−PER, −Noisy, −multi-step) -- each across 5 seeds at the 3,000-episode budget, feeding a Friedman test + pairwise Wilcoxon signed-rank vs the full method. See `research/REVISION_PLAN_incit2026.md` (Phase 4) for why.
+
+```bash
+python training/run_ablation_suite.py                        # everything: train + eval + stats, all variants x 5 seeds
+python training/run_ablation_suite.py --seeds 1,2,3           # fewer seeds
+python training/train_ablation.py --variant d3qn_full --seed 1   # one (variant, seed) combo only
+python training/evaluate_variant.py --variant d3qn_full --seed 1 # eval an already-trained combo
+python training/stats_ablation.py --metric mean_reward         # Friedman/Wilcoxon once eval data exists
+```
+
+Resumable: reruns skip any (variant, seed) that already has a checkpoint/eval result, so an interrupted overnight run picks up where it left off (`--force` to redo anyway). One failing combo is logged to `logs/ablation/suite_errors.log` and doesn't stop the rest of the suite. Output lands in `logs/ablation/<variant>_seed<seed>/` and the final stats in `research/results/ablation_stats.json`.
 
 **See [IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details on advanced algorithms (Prioritized Replay, Noisy Networks, Multi-step learning) that provide:
 
@@ -210,8 +244,9 @@ DQN web vul/
 │
 ├── config.py                        # Centralized configuration
 ├── start_services.py                # Start all target applications
-├── train_mock_targets.py            # Mock target training script
-├── quick_train_5000.py              # Long-run training with auto-resume
+├── training/
+│   ├── train_mock_targets.py        # Mock target training script
+│   └── quick_train_5000.py          # Long-run training with auto-resume
 ├── easy_scanner.py                  # Interactive CLI scanner
 ├── autonomous_scan.py               # CLI vulnerability scanner
 └── scanner_gui.py                   # GUI application

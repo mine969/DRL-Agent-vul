@@ -1,0 +1,99 @@
+# Training Process (Step by Step)
+
+This guide explains how to train the DRL Web Security Agent on the local mock targets from start to finish.
+
+## 1) Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+## 2) Start Mock Target Services (Terminal 1)
+
+```bash
+python start_services.py
+```
+
+Keep this terminal open during training. The trainer expects these local targets to be running:
+
+- `http://localhost:5002` (E-Commerce)
+- `http://localhost:5003` (Social)
+- `http://localhost:5004` (Banking)
+- `http://localhost:5005` (Blog)
+- `http://localhost:5006` (File Share)
+
+## 3) Run Baseline Training (Terminal 2)
+
+```bash
+python train_mock_targets.py --episodes 1000
+```
+
+What this script does:
+
+- Uses `ImprovedDQNAgent` (Extended D3QN: PER + Noisy + Dueling + Double DQN)
+- Rotates across all 5 mock targets episode by episode
+- Saves checkpoints every 50 episodes to `checkpoints/d3qn_primary_3k_ep*.pth`
+- Auto-resumes from the latest compatible checkpoint if one exists
+
+## 4) Continue Training to Stronger Milestones
+
+Run these in order as your next stages:
+
+```bash
+python train_mock_targets.py --episodes 3000
+python train_mock_targets.py --episodes 5000
+```
+
+Because resume is automatic, each run continues from the latest saved checkpoint.
+
+## 5) Optional Long-Run Training Mode
+
+Use the quick script for extended runs:
+
+```bash
+python quick_train_5000.py
+```
+
+If you want to ignore old checkpoints and start from scratch:
+
+```bash
+python quick_train_5000.py --fresh
+```
+
+Notes:
+
+- This script actually trains up to episode `10000`
+- Checkpoints are saved every 100 episodes
+
+## 6) Evaluate a Checkpoint
+
+Test a saved model on a target endpoint:
+
+```bash
+python autonomous_scan.py http://localhost:5002 --model checkpoints/d3qn_primary_3k_ep1000.pth --depth 30 --intensity 3
+```
+
+Repeat with different checkpoint versions (for example 1000, 3000, 5000) and compare:
+
+- detection quality
+- consistency across repeated runs
+- false-positive behavior
+
+## 7) Stop Services After Training
+
+Go back to Terminal 1 and press `Ctrl+C` to stop all mock targets cleanly.
+
+## Recommended Workflow (Copy/Paste)
+
+```bash
+pip install -r requirements.txt
+python start_services.py
+python train_mock_targets.py --episodes 1000
+python train_mock_targets.py --episodes 3000
+python train_mock_targets.py --episodes 5000
+python autonomous_scan.py http://localhost:5002 --model checkpoints/d3qn_primary_3k_ep3000.pth --depth 30 --intensity 3
+```
+
+## Legal Reminder
+
+Use this project only on systems you own or are explicitly authorized to test.
