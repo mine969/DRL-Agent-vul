@@ -118,6 +118,26 @@ Verified: 0 flagged hyperbole terms remain; `document.xml` parses well-formed.
 
 ## Already clean in this draft (no action)
 - Title already "…for Modern Web Applications" (no "Benchmarks") — R2 handled.
-- Duplicate reference numbers `[1] [1]` not present.
 
 **Verification:** every batch checked by string assertions; `document.xml` parses well-formed after each.
+
+---
+
+## Batch G — 2026-08-09, real render-verified pass (`9-8-2026 draft v5.docx`, copy of v4)
+
+**Important correction to the record above:** the "Duplicate reference numbers `[1] [1]` not present" claim in the "Already clean" section was **wrong**, and the reason it was wrong is worth keeping on file — it was checked with a text regex over `document.xml` paragraph text (`\[(\d+)\]\s*\[\1\]`), which found nothing, because the duplication isn't in the paragraph text at all. The `references` paragraph style has `numPr numId="8"` (Word/LibreOffice auto-generates the `[N]` bracket for every paragraph using that style), and every reference *also* had a literal `[N] ` typed at the start of its text — invisible to a text-only check, but renders as `[1] [1] R. Singh…` through `[20] [20] M. Hessel…` when actually opened. Caught this time by rendering the docx to PDF via LibreOffice (`soffice --headless --convert-to pdf`) and visually inspecting the pages instead of trusting string checks alone. **Any future numbering/formatting verification on this document should render and look, not just grep the text.**
+
+| # | Reviewer | Item | Found | Fix |
+|---|---|---|---|---|
+| 1.1 | R4 | Duplicated reference numbers | **Confirmed live** on visual render, all 20 entries doubled (see correction above) | Stripped literal `[N] ` prefix from all 20 `references`-styled paragraphs; kept the style's auto-numbering as sole source of the bracket number. Re-rendered: `[1]` through `[20]`, no duplication. |
+| 1.9 | R3 | Consistent section numbering | `EVALUATION AND RESULTS` and `CONCLUSION` headings had paragraph-level auto-numbering disabled (`numId=0` override) but never got literal numeral text added — unlike `V. DISCUSSION`, which has both the override and literal `V. ` text. Rendered with **no visible section number at all**. | Added `IV. ` / `VI. ` literal prefixes, matching the working `V. DISCUSSION` pattern exactly. Re-rendered: `IV. EVALUATION AND RESULTS`, `VI. CONCLUSION` now correct. Left `I. INTRODUCTION`, `II. RELATED WORK`, `III. METHODOLOGY`, and Related Work's `A./B./C.` subsections **untouched** — these already render correctly via the style's own `numId=4` auto-numbering (verified on render); adding literal text to these would have caused the same doubling bug as the references list. |
+| 1.5 | R2 | Retitle | Title was "Vulnerability Scanner for Web Applications Based on Deep Reinforcement Learning" | Changed to R2's exact suggested phrasing: "Deep Reinforcement Learning Vulnerability Scanner for Web Applications". |
+| 1.8 | R2 | Duplicated "three primary modules" sentence | Confirmed still present: the System Architecture intro paragraph restated "three primary modules" (already implied by the surrounding "decouple...HTTP execution engine" framing) immediately before a separate "three main parts:" lead-in to the same bulleted breakdown | Removed the redundant summary paragraph entirely; the bulleted breakdown right after already names and describes all three components in more detail. Re-rendered: flows cleanly from Fig. 1 caption straight into the bulleted breakdown, no repetition. |
+
+**Verified already done (re-checked against v4, not re-changed):** 1.2 (paper-structure paragraph), 1.3 (equations 1-3 numbered; no missing 4th equation, reward function is prose+values not a formal equation), 1.4 (DOM, TD defined on first use), 1.6 (no leaked filenames), 1.7 (M, T defined in Algorithm 1 prose). Phase 2's citation/critique work (Batch B) and Phase 3's end-to-end flowchart (Fig. 2, already present with full narrative) also confirmed present on this render pass — not re-verified line-by-line against every reviewer sub-point yet.
+
+**Found but NOT fixed this pass (flagged, needs a decision):**
+- **Table I still spans two pages** (breaks mid-table between pages 5 and 6, splitting the Banking row group across the page boundary in v4; still overflows in v5 after the paragraph-removal, just slightly later). R3's "keep Table I on one page" is still open. Deliberately not doing layout surgery on this now because Table I is scheduled to be **regenerated from the 3k `d3qn_full` ablation run** once training finishes (see "Regenerate Table I from 3k model" task) — fixing pagination on data about to be replaced would be wasted effort. Revisit once the new table exists; it may have a different row count that changes the fix needed.
+- **Fig. 1 (System Architecture diagram) contains an embedded "Is the model training 10K Episodes?" decision diamond** — baked into the image itself, not editable text. This is now inconsistent with the project's actual current 3,000-episode default. Flagged for the paper's author to decide: update the diagram image, or leave as a description of the diagram's original design intent (needs a human call, not a silent edit to a figure).
+
+**File:** working copy is `research/9-8-2026 draft v5.docx` (copy of `8-7-2026 draft v4.docx`, which is untouched). Verified via `python-docx` (opens cleanly, 114 paragraphs after the one removal) and a full LibreOffice PDF render (7 pages, visually checked pages 1, 3, 4, 5, 6, 7).

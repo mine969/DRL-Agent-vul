@@ -1,0 +1,2 @@
+episode,timestamp,target,vuln_type,reward,step,is_new_best
+1,2026-08-09T06:14:40,Social Media,SESSION_FIXATION,2.09,3,True

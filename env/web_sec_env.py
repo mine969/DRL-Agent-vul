@@ -2501,7 +2501,15 @@ class WebSecurityGym(gym.Env):
         """OSINT: Scan for sensitive files (.git, .env, etc.)"""
         files = self.payload_manager.get_osint_files()
         target_file = np.random.choice(files)
-        r = self.session.get(f"{self.target_url}/{target_file}", timeout=3)
+        # get_osint_files() entries already start with "/" (e.g.
+        # "/.git/config") -- do NOT add another "/" here. The old
+        # f"{self.target_url}/{target_file}" produced double slashes
+        # (e.g. "http://host//.git/config"), which real HTTP servers
+        # tolerate but Werkzeug's test client (env/inprocess_client.py's
+        # fast in-process transport) mis-parses when reconstructing the
+        # request URL, raising a UnicodeError from an empty-hostname idna
+        # decode. Same bug either way, just silent over real HTTP.
+        r = self.session.get(f"{self.target_url}{target_file}", timeout=3)
 
         # Check if we found something interesting
         if r.status_code == 200:

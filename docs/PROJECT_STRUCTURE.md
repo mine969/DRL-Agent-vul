@@ -2,30 +2,48 @@
 
 This map focuses on the files and folders that drive current behavior.
 
+## Current Status (2026-08-10)
+
+Active training budget is **3,000 episodes** (10k archived, see below). The ablation study (6 variants x 5 seeds x 3,000 episodes) is complete; Friedman/Wilcoxon stats and the real Table I / Fig. 3 are in the paper draft.
+
+**Cleanup debt from earlier sessions is resolved.** As of 2026-08-10 the root was reorganized for a clean, professional layout (see below). Two items remain that only a real terminal can finish, since this assistant's sandbox can create/move files but never delete them:
+
+- `nul` (empty, 0-byte Windows redirect artifact at repo root) -- safe to delete.
+- `checkpoints/ablation/*_seed91_*.pth`, `*_seed92_*.pth` and matching `logs/ablation/*_seed91`/`*_seed92`/`env/_workers/` folders -- smoke-test artifacts from verifying `run_ablation_parallel.py`'s isolation, outside the real seed 1-5 range on purpose so they're never mistaken for real results, but still on disk pending manual deletion.
+
 ## Top-Level Layout
 
 ```text
 .
-|-- easy_scanner.py
-|-- easyscan.py
-|-- scanner_gui.py
-|-- autonomous_scan.py
-|-- start_services.py
-|-- config.py
+|-- easy_scanner.py                # interactive CLI + --auto wrapper (entry point)
+|-- easyscan.py                    # thin compatibility launcher for easy_scanner.py
+|-- scanner_gui.py                 # Tk GUI + headless --auto mode (entry point)
+|-- autonomous_scan.py             # core scan engine (entry point)
+|-- start_services.py              # boots the 5 mock target apps (entry point)
+|-- init_targets.py                # seeds mock target DBs
+|-- proxies.txt                    # auto-regenerated cache, written by utils/proxy_fetcher.py -- not clutter
 |-- training/
 |   |-- train_mock_targets.py      # primary training entry point (Extended D3QN, 3k eps default)
 |   |-- train_ablation.py           # per-(variant,seed) ablation trainer -- Reviewer 1 gate
 |   |-- evaluate_variant.py         # deterministic eval for one (variant,seed)
 |   |-- stats_ablation.py           # Friedman + Wilcoxon across ablation results
 |   |-- run_ablation_suite.py       # single command: all variants x seeds, training+eval+stats
+|   |-- run_ablation_parallel.py    # same suite, N worker processes in parallel (CPU-bound speedup)
 |   |-- training_logger.py         # per-episode/per-finding CSV logging
 |   `-- plot_curve.py              # renders real reward/loss curve from logged CSVs
 |-- agent/
 |   |-- improved_dqn_agent.py      # run standalone: python agent/improved_dqn_agent.py
 |   `-- random_baseline_agent.py   # lower-bound comparison point for the ablation study
 |-- env/
-|   `-- inprocess_client.py        # fast in-process training transport
+|   |-- inprocess_client.py        # fast in-process training transport
+|   `-- _workers/worker<N>/         # (transient) per-parallel-worker isolated copies of the 5 target apps' .db files
 |-- utils/
+|-- scripts/                       # one-off analysis/tooling, not part of the live scan/train pipeline
+|   |-- aggregate_results.py       # ground-truth-vs-detected rollup -> Evaluation Form.xlsx
+|   |-- evaluate_fill_excel.py     # ground-truth scanning + classification helpers (imported by aggregate_results.py)
+|   |-- eval_from_code.py          # standalone ground-truth extraction from target app source
+|   |-- quick_train_5000.py        # legacy quick-training helper
+|   `-- git-commit.ps1             # commit helper script
 |-- checkpoints/
 |   |-- d3qn_primary_3k_ep*.pth    # active primary-model checkpoints (3k-episode budget)
 |   |-- backup/                    # redundant checkpoint copies (every 500 eps + on exit/crash)
@@ -36,10 +54,21 @@ This map focuses on the files and folders that drive current behavior.
 |   |-- train_run_<timestamp>/     # episodes.csv, findings.csv, run_config.json per hero run
 |   `-- ablation/                  # <variant>_seed<seed>/ subfolders, one per ablation combo
 |-- research/
-|   `-- results/ablation_stats.json  # Friedman/Wilcoxon output, ready for the paper
+|   |-- results/ablation_stats_reward.json      # Friedman/Wilcoxon on mean_reward
+|   |-- results/ablation_stats_detection.json   # Friedman/Wilcoxon on detection_rate
+|   |-- results/autonomous_scan_single_run_20260810.json  # real live-scan Table I source data
+|   `-- 10-8-2026 draft v7.docx    # current final paper draft
 |-- docs/
-`-- tests/
+|   `-- references/                # non-code reference material (e.g. juice-shop.pdf)
+|-- tests/
+`-- archive/                        # everything historical, consolidated in one place
+    |-- 2026-08-09_cleanup/        # earlier session's dated cleanup batch
+    |-- legacy/                    # old standalone scripts/models predating the current pipeline
+    |-- legacy_archive/            # old docs, verify_*/debug_* scripts, dead experiments
+    `-- checkpoints_backup_v21_success/  # historical checkpoint backup, kept for provenance
 ```
+
+**What was deliberately left alone:** `agent/`, `env/`, `training/`, `utils/` were not nested under a `src/` (or similar) directory. Every training, evaluation, and scanning script imports from these by their current top-level names (`from agent.improved_dqn_agent import ...`, `from env.web_sec_env import ...`, etc.) — moving them five days before the InCIT 2026 submission deadline would mean touching import paths across dozens of files for a cosmetic win, with real risk of breaking a working pipeline. If there's time after submission, that's a clean follow-up.
 
 ## Key Runtime Files
 

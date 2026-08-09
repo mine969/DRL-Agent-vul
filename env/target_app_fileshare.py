@@ -28,11 +28,16 @@ import re
 
 app = Flask(__name__)
 app.secret_key = "fileshare_secret_2025"
-DB_NAME = "env/fileshare.db"
-UPLOAD_FOLDER = "uploads"
+# MOCK_DB_DIR lets parallel training workers point each process at its own
+# isolated copy of the db files instead of all colliding on env/fileshare.db --
+# see training/run_ablation_parallel.py.
+DB_NAME = os.path.join(os.environ.get("MOCK_DB_DIR", "env"), "fileshare.db")
+# Same isolation as DB_NAME -- parallel workers must not share one uploads/ dir.
+UPLOAD_FOLDER = os.path.join(os.environ.get("MOCK_DB_DIR", "env"), "uploads") \
+    if os.environ.get("MOCK_DB_DIR") else "uploads"
 
 # Fix: Ensure env directory exists before DB operations
-os.makedirs("env", exist_ok=True)
+os.makedirs(os.path.dirname(DB_NAME) or "env", exist_ok=True)
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # SECURITY CONFIG
@@ -510,7 +515,7 @@ def login():
         conn = get_db()
         user = conn.execute(
             "SELECT * FROM users WHERE username = ? AND password = ?",
-            (username, hashlib.md5(password.encode()).hexdigest()),
+            (username, hashlib.md5((password or "").encode()).hexdigest()),
         ).fetchone()
         conn.close()
 
@@ -533,7 +538,7 @@ def register():
         try:
             conn.execute(
                 "INSERT INTO users (username, password) VALUES (?, ?)",
-                (username, hashlib.md5(password.encode()).hexdigest()),
+                (username, hashlib.md5((password or "").encode()).hexdigest()),
             )
             conn.commit()
             return redirect("/login")

@@ -13,6 +13,12 @@ This project uses `.pth` files for model persistence across training and scannin
 | `dqn_web_sec_model.pth` | base model artifact | Default fallback model path |
 | `dqn_juiceshop_model.pth` | optional base model artifact | Additional fallback candidate |
 
+## Current Status (2026-08-09)
+
+The real ablation training run (all variants x 5 seeds x 3,000 episodes) has not finished yet. Any `checkpoints/ablation/*_ep2.pth`-`*_ep5.pth` files on disk right now are smoke-test leftovers from verifying the pipeline, not real results -- a completed combo produces `_ep500.pth` through `_ep3000.pth`.
+
+Also pending manual cleanup: the full old `improved_mock_ep*.pth` series (100+ files) currently exists both at `checkpoints/` top level and inside `checkpoints/archive_10k_run/`. The copy succeeded; deleting the top-level originals has been blocked by a filesystem lock and needs to be done from a real terminal.
+
 ## Loader Behavior
 
 - `training/train_mock_targets.py`'s `find_latest_checkpoint()` defaults to pattern `d3qn_primary_3k_ep*.pth` -- this will never match anything in `checkpoints/archive_10k_run/`, by design (see that function's docstring for why the rename mattered).
@@ -45,6 +51,20 @@ python training/train_ablation.py --variant d3qn_full --seed 1   # a single (var
 ```
 
 See `research/REVISION_PLAN_incit2026.md` (Phase 4) for what this is for.
+
+### Running it in parallel (multiple OS processes)
+
+`training/run_ablation_parallel.py` splits the same 30 combos round-robin across N worker processes instead of one process doing them sequentially -- real speedup because the bottleneck is CPU (Flask's `env.step()`), not GPU. Each worker gets an isolated copy of the 5 target apps' SQLite files under `env/_workers/worker<N>/` (via a `MOCK_DB_DIR` env var the target apps now read) so parallel writes never collide on the same `env/*.db` file:
+
+```bash
+python training/run_ablation_parallel.py --worker-id 0 --total-workers 3
+python training/run_ablation_parallel.py --worker-id 1 --total-workers 3
+python training/run_ablation_parallel.py --worker-id 2 --total-workers 3
+```
+
+All workers still write checkpoints to the same shared `checkpoints/ablation/` (filenames are unique per variant+seed regardless of which worker trained them, so no collision there). Run `training/stats_ablation.py` by hand once every worker reports done.
+
+Each worker defaults to 1 CPU thread (`--cpu-threads-per-worker`) so N workers don't oversubscribe your cores fighting each other for the same threads -- worker *count* is the real speed lever here (GIL makes each process's env-stepping single-threaded regardless), not threads-per-worker. On a 12-core machine, 8-10 workers is a reasonable start; on 6 cores, 4-5. Every worker still auto-uses your GPU the same as the sequential script -- this is a CPU-tuning knob, not a CPU-vs-GPU choice.
 
 `training/quick_train_5000.py` is deprecated -- it was merged into `training/train_mock_targets.py` and now just raises `SystemExit` pointing here.
 

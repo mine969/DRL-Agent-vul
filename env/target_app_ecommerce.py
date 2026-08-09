@@ -33,12 +33,16 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = "ecommerce_secret_2025"
 JWT_SECRET = "ecommerce_jwt_secret"
-DB_NAME = "env/ecommerce.db"
+# MOCK_DB_DIR lets parallel training workers point each process at its own
+# isolated copy of the db files instead of all colliding on env/ecommerce.db --
+# see training/run_ablation_parallel.py.
+import os as _os_dbname
+DB_NAME = _os_dbname.path.join(_os_dbname.environ.get("MOCK_DB_DIR", "env"), "ecommerce.db")
 
 # Fix: Ensure env directory exists before DB operations
 import os
 
-os.makedirs("env", exist_ok=True)
+os.makedirs(os.path.dirname(DB_NAME) or "env", exist_ok=True)
 
 # ============================================================================
 # MODERN SECURITY CONTROLS - For Advanced Agent Training

@@ -134,6 +134,16 @@ class InProcessSession:
         # the test client only needs the path (+ query string).
         parsed = urlparse(url)
         path = parsed.path or "/"
+        # Defensive: collapse a leading "//" (e.g. from
+        # f"{target_url}/{item}" where item already starts with "/") down
+        # to a single "/". Real HTTP servers tolerate a leading double
+        # slash in a path; Werkzeug's test client does not -- it can
+        # mis-parse the request when reconstructing the current URL and
+        # raise a UnicodeError from an empty-hostname idna decode. Fixed
+        # at the source in web_sec_env.py's attack_osint_files, but this
+        # stays as a safety net against the same class of bug elsewhere.
+        while path.startswith("//"):
+            path = path[1:]
         if parsed.query:
             path += "?" + parsed.query
         return path
@@ -198,9 +208,25 @@ def build_target_sessions():
     exist (run `python init_targets.py` once beforehand, same as for the
     real-HTTP path -- this function does not seed databases itself)."""
     import importlib
+    import logging
+
+    # Quiet Flask/Werkzeug's internal request-error logging. The agent
+    # deliberately sends malformed requests as part of exploration (e.g.
+    # a login POST with no password) -- the mock apps already handle this
+    # correctly (return a 500, keep serving), and env/web_sec_env.py's own
+    # step() has a broad except around every action so training/eval never
+    # actually breaks because of it. But Flask's default error logger
+    # prints a full traceback for every one of these caught exceptions,
+    # which in a real training run means thousands of lines of "ERROR in
+    # app: Exception on /api/login [POST]" burying real progress output
+    # and making a perfectly healthy run look like it's stuck or crashing.
+    # This does not hide anything that matters: the reward signal and
+    # env-level "CRITICAL ERROR in Action X" messages are unaffected.
+    logging.getLogger("werkzeug").setLevel(logging.CRITICAL)
 
     sessions = {}
     for port, module_path in _TARGET_MODULES.items():
         module = importlib.import_module(module_path)
+        module.app.logger.setLevel(logging.CRITICAL)
         sessions[port] = InProcessSession(module.app)
     return sessions

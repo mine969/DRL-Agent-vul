@@ -1,5 +1,16 @@
 # DRL Web Security Agent 2.0 - OWASP Top 10 2025 Aligned
 
+## 📌 Current Status (2026-08-10)
+
+Working toward the InCIT 2026 paper submission deadline (**2026-08-15**). Where things stand right now:
+
+- **Active training budget: 3,000 episodes** (not 10,000). The original 10k run is archived at `checkpoints/archive_10k_run/` and is no longer the default -- see that folder's README for why.
+- **Ablation study is complete.** All 6 variants (`random`, `dqn`, `d3qn_full`, `d3qn_no_per`, `d3qn_no_noisy`, `d3qn_no_multistep`) x 5 seeds x 3,000 episodes have finished training and evaluation. Friedman tests are significant on both mean reward (χ²=20.89, p=0.00085) and detection rate (χ²=18.40, p=0.0025); results live in `research/results/ablation_stats_reward.json` and `ablation_stats_detection.json`.
+- **Table I is sourced from a real single live-scan run** against all 5 mock targets using the best-performing checkpoint (`checkpoints/ablation/d3qn_full_seed5_ep3000.pth`), not the old 10k model. Source data: `research/results/autonomous_scan_single_run_20260810.json`.
+- **Fig. 3 is a real rendered convergence curve** (`research/training_curve_real_seed5.png`) generated from actual logged training telemetry via `training/plot_curve.py`, not an illustrative schematic.
+- **Root-level cleanup is resolved.** Dead duplicate scripts, the old top-level `improved_mock_ep*.pth` series (verified byte-identical to its copy in `checkpoints/archive_10k_run/`), and historical folders (`legacy/`, `legacy_archive/`, `checkpoints_backup_v21_success/`) have all been consolidated under `archive/`. One-off analysis tooling (`aggregate_results.py`, `evaluate_fill_excel.py`, etc.) now lives in `scripts/`. See `docs/PROJECT_STRUCTURE.md` for the full current layout.
+- **Two harmless leftovers still need manual deletion** (this assistant's sandbox can create/move files but never delete them): the empty `nul` artifact at repo root, and the seed91/seed92 smoke-test checkpoints/logs used to verify `run_ablation_parallel.py`'s isolation.
+
 ## Overview
 
 A Deep Reinforcement Learning (DQN) agent that autonomously discovers web vulnerabilities using a **Kill Chain** approach. The agent learns optimal attack strategies through reinforcement learning and has been upgraded to support **OWASP Top 10 2025** standards.
@@ -144,6 +155,35 @@ python training/stats_ablation.py --metric mean_reward         # Friedman/Wilcox
 
 Resumable: reruns skip any (variant, seed) that already has a checkpoint/eval result, so an interrupted overnight run picks up where it left off (`--force` to redo anyway). One failing combo is logged to `logs/ablation/suite_errors.log` and doesn't stop the rest of the suite. Output lands in `logs/ablation/<variant>_seed<seed>/` and the final stats in `research/results/ablation_stats.json`.
 
+**Running it faster with multiple parallel workers:**
+
+The bottleneck here is CPU (single-threaded Flask request handling in `env.step()`), not GPU -- the network is tiny, so the GPU sits mostly idle either way. Running several seeds as separate OS processes lets the OS actually use more than one CPU core at once, which is where the real speedup comes from. Open N terminals and run one of these in each (match N to your physical core count, not your GPU count -- one GPU handles multiple small workers fine):
+
+```bash
+python training/run_ablation_parallel.py --worker-id 0 --total-workers 3
+python training/run_ablation_parallel.py --worker-id 1 --total-workers 3
+python training/run_ablation_parallel.py --worker-id 2 --total-workers 3
+```
+
+Each worker gets an isolated copy of the 5 mock target apps' SQLite databases (`env/_workers/worker<N>/`) so parallel runs don't collide writing to the same `env/*.db` files -- this is handled automatically via a `MOCK_DB_DIR` environment variable the 5 `env/target_app_*.py` files now read. Combos are split round-robin across workers (not in contiguous blocks), same resume/`--force` behavior as `run_ablation_suite.py`. Every worker also auto-detects and uses your GPU exactly like the sequential script does -- CUDA is shared fine across several small-model processes, this isn't a CPU-vs-GPU choice.
+
+**Tuning worker count to your CPU:** each worker pins itself to 1 CPU thread by default (`--cpu-threads-per-worker`, see the script's docstring for why -- letting every worker use all cores by default causes them to fight each other and can make parallel *slower* than sequential). Python's GIL means the actual bottleneck (`env.step()`'s Flask handling) is single-threaded per process regardless, so worker *count* is the real lever, not thread count. Rule of thumb -- leave 1-2 cores for the OS/GPU driver, use the rest as workers:
+
+| Logical cores | Suggested `--total-workers` |
+|---|---|
+| 12 | 8-10 |
+| 6 | 4-5 |
+| 4 | 2-3 |
+
+(Check your core count in PowerShell: `echo $env:NUMBER_OF_PROCESSORS`.) If you're running fewer workers than `cores - 2`, the leftover cores are idle -- e.g. 12 cores with only 4 workers could try `--cpu-threads-per-worker 2` to use more of that headroom, though adding workers usually helps more than adding threads-per-worker for this specific workload.
+
+Once every worker reports done, run the stats step once by hand (not from inside a worker -- it needs all combos finished first):
+
+```bash
+python training/stats_ablation.py --metric mean_reward
+python training/stats_ablation.py --metric overall_detection_rate
+```
+
 **See [IMPROVED_ALGORITHMS.md](docs/IMPROVED_ALGORITHMS.md)** for details on advanced algorithms (Prioritized Replay, Noisy Networks, Multi-step learning) that provide:
 
 - ⚡ **5x faster convergence** (600 vs 3,000 episodes)
@@ -245,18 +285,35 @@ DQN web vul/
 ├── config.py                        # Centralized configuration
 ├── start_services.py                # Start all target applications
 ├── training/
-│   ├── train_mock_targets.py        # Mock target training script
-│   └── quick_train_5000.py          # Long-run training with auto-resume
+│   ├── train_mock_targets.py        # Primary training entry point (Extended D3QN, 3k eps default)
+│   ├── train_ablation.py            # Per-(variant,seed) ablation trainer -- Reviewer 1 gate
+│   ├── evaluate_variant.py          # Deterministic eval for one (variant,seed)
+│   ├── stats_ablation.py            # Friedman + Wilcoxon across ablation results
+│   ├── run_ablation_suite.py        # One command: all variants x seeds, train+eval+stats
+│   ├── training_logger.py           # Per-episode/per-finding CSV logging
+│   └── plot_curve.py                # Renders real reward/loss curve from logged CSVs
 ├── easy_scanner.py                  # Interactive CLI scanner
 ├── autonomous_scan.py               # CLI vulnerability scanner
 └── scanner_gui.py                   # GUI application
 
 Data Directories:
 ├── checkpoints/                     # Saved model checkpoints
+│   ├── d3qn_primary_3k_ep*.pth      # Active primary-model checkpoints (3k-episode budget)
+│   ├── backup/                      # Redundant copies (every 500 eps + on exit/crash)
+│   ├── ablation/                    # Ablation study checkpoints, <variant>_seed<seed>_ep*.pth
+│   └── archive_10k_run/             # Archived original 10k run (historical, not resumable)
 ├── reports/                         # Generated scan reports
 ├── logs/                            # Application logs
+│   ├── train_run_<timestamp>/       # episodes.csv, findings.csv, run_config.json per hero run
+│   └── ablation/                    # <variant>_seed<seed>/ subfolders, one per ablation combo
 └── uploads/                         # File upload storage
+
+Other Top-Level Folders:
+├── scripts/                         # One-off analysis/tooling (aggregate_results.py, evaluate_fill_excel.py, etc.) -- not part of the live train/scan pipeline
+└── archive/                         # Everything historical: legacy/, legacy_archive/, checkpoints_backup_v21_success/, dated cleanup batches
 ```
+
+> As of 2026-08-10, the root folder and `checkpoints/` have been cleaned up: duplicate checkpoints, dead scripts, and old backup folders were consolidated into `archive/` (see `docs/PROJECT_STRUCTURE.md` for the full layout and what was deliberately left untouched).
 
 ## What the Agent Can Do
 
@@ -297,6 +354,8 @@ The agent is capable of:
 See **[AGENT_CAPABILITIES.md](docs/AGENT_CAPABILITIES.md)** for complete details.
 
 ### Mock-Target Benchmark Results (Table I)
+
+> ⚠️ **Pending regeneration.** These numbers are still from the archived 10,000-episode run (`checkpoints/archive_10k_run/improved_mock_ep10000.pth`). Once the 3,000-episode `d3qn_full` ablation run finishes, this table will be replaced with results from that run so every number in the paper is sourced from the same 3k budget. Do not cite this table as final until that swap happens.
 
 Results from 5 evaluation runs using `checkpoints/improved_mock_ep10000.pth` against the 5 mock targets (n_step=1, 50-action space). Detection rate = avg. confirmed findings / ground-truth vulnerabilities.
 

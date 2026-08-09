@@ -8,7 +8,7 @@ import re
 import os
 
 
-def find_latest_checkpoint(checkpoint_dir="checkpoints", pattern="improved_mock_*.pth"):
+def find_latest_checkpoint(checkpoint_dir="checkpoints", pattern="d3qn_primary_3k_ep*.pth"):
     """
     Find the checkpoint with the highest episode number.
 
@@ -116,7 +116,22 @@ def load_model_smart(
                 "Agent has no recognizable brain or q_network attribute"
             )
 
-        network.load_state_dict(torch.load(model_path, map_location=device))
+        checkpoint = torch.load(model_path, map_location=device)
+
+        # Unwrap checkpoint if necessary (train_ablation.py and train_mock_targets.py
+        # both save a full dict -- q_network_state_dict/optimizer/etc -- not a raw
+        # state_dict. Older base models like dqn_web_sec_model.pth ARE raw state_dicts,
+        # so only unwrap if it actually looks wrapped.)
+        state_dict = checkpoint
+        if isinstance(checkpoint, dict):
+            if "q_network_state_dict" in checkpoint:
+                state_dict = checkpoint["q_network_state_dict"]
+            elif "model_state_dict" in checkpoint:
+                state_dict = checkpoint["model_state_dict"]
+            elif "brain_state_dict" in checkpoint:
+                state_dict = checkpoint["brain_state_dict"]
+
+        network.load_state_dict(state_dict)
 
         target_network = getattr(agent, "target_brain", None) or getattr(
             agent, "target_network", None

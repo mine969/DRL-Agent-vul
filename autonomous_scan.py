@@ -871,6 +871,10 @@ class SecurityAuditor:
             print(" [AI-RECON] Starting 30-step exploration sequence...")
 
             for step in range(steps):
+                if self.stop_requested:
+                    print("    [STOP] Exploration aborted by user.")
+                    break
+
                 action = self.ai_agent.act(state)
                 next_state, reward, terminated, truncated, info = env.step(action)
 
@@ -975,6 +979,18 @@ class SecurityAuditor:
                 )
 
             for step in range(attempts):
+                # Check for user-requested stop on every step, not just
+                # between URLs (the outer loops in start_audit() only check
+                # self.stop_requested between whole pages, which meant
+                # clicking Stop mid-attack still had to wait for the
+                # current page's full `attempts` count to finish -- up to
+                # 50+ steps in pentester mode, or more again across
+                # persistence-mode's growing retries. This is the actual
+                # fix for "clicking Stop still keeps scanning."
+                if self.stop_requested:
+                    print("    [STOP] Scan aborted by user mid-attack.")
+                    break
+
                 # 1. AI Decides Action
                 if ai_mode and step < warmup_steps:
                     action = focus_actions[step]

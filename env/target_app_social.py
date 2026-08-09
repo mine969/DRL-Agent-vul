@@ -34,10 +34,15 @@ from werkzeug.utils import secure_filename
 app = Flask(__name__)
 app.secret_key = "social_secret_2025"
 JWT_SECRET = "social_jwt_secret_2025"
-DB_NAME = "env/social.db"
+# MOCK_DB_DIR lets parallel training workers point each process at its own
+# isolated copy of the db files instead of all colliding on env/social.db --
+# see training/run_ablation_parallel.py.
+DB_NAME = os.path.join(os.environ.get("MOCK_DB_DIR", "env"), "social.db")
 # Fix: Ensure env directory exists before DB operations
-os.makedirs("env", exist_ok=True)
-UPLOAD_FOLDER = "uploads"
+os.makedirs(os.path.dirname(DB_NAME) or "env", exist_ok=True)
+# Same isolation as DB_NAME -- parallel workers must not share one uploads/ dir.
+UPLOAD_FOLDER = os.path.join(os.environ.get("MOCK_DB_DIR", "env"), "uploads") \
+    if os.environ.get("MOCK_DB_DIR") else "uploads"
 ALLOWED_EXTENSIONS = {"txt", "pdf", "png", "jpg", "jpeg", "gif"}
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)

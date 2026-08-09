@@ -1,0 +1,255 @@
+{
+  "generated_from": {
+    "ecommerce": "vulnerability_report_20260810_023345.md",
+    "social": "vulnerability_report_20260810_024136.md",
+    "banking": "vulnerability_report_20260810_024346.md",
+    "blog": "vulnerability_report_20260810_025142.md",
+    "fileshare": "vulnerability_report_20260810_025430.md"
+  },
+  "model": "checkpoints/ablation/d3qn_full_seed5_ep3000.pth",
+  "runs": 1,
+  "targets": [
+    {
+      "name": "E-Commerce (5002)",
+      "rows": [
+        {
+          "vuln_type": "SQL Injection",
+          "total_existing": 3,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Critical"
+        },
+        {
+          "vuln_type": "Cross-Site Scripting (XSS)",
+          "total_existing": 2,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 4,
+          "detected": 1,
+          "detection_rate_pct": 25.0,
+          "severity": "Medium"
+        },
+        {
+          "vuln_type": "Broken Access Control (BAC)",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Critical"
+        },
+        {
+          "vuln_type": "Insecure Deserialization",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Critical"
+        },
+        {
+          "vuln_type": "Mass Assignment",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Business Logic",
+          "total_existing": 4,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Medium"
+        },
+        {
+          "vuln_type": "Sensitive Data Exposure",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "JWT Bypass",
+          "total_existing": 3,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        }
+      ]
+    },
+    {
+      "name": "Social Media (5003)",
+      "rows": [
+        {
+          "vuln_type": "SQL Injection",
+          "total_existing": 2,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Critical"
+        },
+        {
+          "vuln_type": "Cross-Site Scripting (XSS)",
+          "total_existing": 3,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 6,
+          "detected": 1,
+          "detection_rate_pct": 16.7,
+          "severity": "Medium"
+        },
+        {
+          "vuln_type": "Cross-Site Request Forgery (CSRF)",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Medium"
+        },
+        {
+          "vuln_type": "File Upload",
+          "total_existing": 2,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Critical"
+        },
+        {
+          "vuln_type": "Path Traversal",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Weak Password",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Session Fixation",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Weak Reset Token",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "OAuth Bypass",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "JWT Bypass",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        }
+      ]
+    },
+    {
+      "name": "Banking App (5004)",
+      "rows": [
+        {
+          "vuln_type": "Cross-Site Scripting (XSS)",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 2,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Medium"
+        },
+        {
+          "vuln_type": "Cross-Site Request Forgery (CSRF)",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Medium"
+        }
+      ]
+    },
+    {
+      "name": "Blog Platform (5005)",
+      "rows": [
+        {
+          "vuln_type": "Cross-Site Scripting (XSS)",
+          "total_existing": 4,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Server-Side Request Forgery (SSRF)",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "JWT Bypass",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        }
+      ]
+    },
+    {
+      "name": "File Share (5006)",
+      "rows": [
+        {
+          "vuln_type": "Cross-Site Scripting (XSS)",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Insecure Direct Object Reference (IDOR)",
+          "total_existing": 2,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Medium"
+        },
+        {
+          "vuln_type": "File Upload",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Critical"
+        },
+        {
+          "vuln_type": "Path Traversal",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "High"
+        },
+        {
+          "vuln_type": "Command Injection",
+          "total_existing": 1,
+          "detected": 0,
+          "detection_rate_pct": 0.0,
+          "severity": "Critical"
+        }
+      ]
+    }
+  ]
+}

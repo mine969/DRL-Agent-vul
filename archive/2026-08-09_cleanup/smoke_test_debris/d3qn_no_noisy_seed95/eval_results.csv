@@ -1,0 +1,6 @@
+variant,seed,target,eval_episode,total_reward,vulns_found,vuln_types,steps
+d3qn_no_noisy,95,E-Commerce,0,0.6500,0,,5
+d3qn_no_noisy,95,Social Media,0,0.6500,0,,5
+d3qn_no_noisy,95,Banking App,0,-19.9500,0,,5
+d3qn_no_noisy,95,Blog Platform,0,-19.9500,0,,5
+d3qn_no_noisy,95,File Share,0,-19.9500,0,,5

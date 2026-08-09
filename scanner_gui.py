@@ -23,6 +23,7 @@ import json
 import argparse
 import time
 import subprocess
+import urllib.parse
 from datetime import datetime
 
 # Add parent directory to path
@@ -480,7 +481,11 @@ class SecurityScannerGUI:
         default_model = (
             latest_model_path
             if latest_model_path
-            else "checkpoints/improved_mock_ep500.pth"
+            # No checkpoint found at all (fresh clone, training not started
+            # yet) -- fall back to the generic base-model path rather than
+            # a hardcoded episode-numbered checkpoint filename that may not
+            # exist. Matches utils/model_loader.py's own fallback.
+            else "dqn_web_sec_model.pth"
         )
 
         self.model_path = tk.StringVar(value=default_model)
@@ -1004,9 +1009,15 @@ class SecurityScannerGUI:
             if os.path.exists(m):
                 models.append(m)
 
-        # Checkpoints
+        # Checkpoints -- current active naming first, then ablation-study
+        # checkpoints (so a specific variant/seed can be picked for manual
+        # comparison), then old-naming patterns kept for backward
+        # compatibility with anyone who still has pre-2026-08-09 checkpoints
+        # lying around (harmless if these don't match anything).
         checkpoints = (
-            glob.glob("checkpoints/improved_mock_ep*.pth")
+            glob.glob("checkpoints/d3qn_primary_3k_ep*.pth")
+            + glob.glob("checkpoints/ablation/*.pth")
+            + glob.glob("checkpoints/improved_mock_ep*.pth")
             + glob.glob("checkpoints/dqn_checkpoint_ep*.pth")
             + glob.glob("checkpoints/multi_target_*.pth")
         )
@@ -1422,11 +1433,57 @@ class SecurityScannerGUI:
             else:
                 self.log(f"Using HTTP as specified: {target}", "INFO")
 
+        # Sanity-check the URL actually has a real hostname before handing
+        # it to the scan thread -- catches "http://" alone, "http:// foo",
+        # stray spaces, etc. that would otherwise crash deep inside
+        # SecurityAuditor with a raw traceback dumped into the output box
+        # instead of a clear, fixable message shown up front.
+        parsed = urllib.parse.urlparse(target)
+        if not parsed.netloc or " " in target:
+            messagebox.showerror(
+                "Error",
+                f"'{target}' doesn't look like a valid URL.\n\n"
+                "Expected something like: http://localhost:5002 or https://example.com",
+            )
+            return
+
+        # Safety confirmation for anything that isn't a local mock target.
+        # This is a pentesting tool -- launching an intensive automated
+        # attack (especially --persist mode, which retries with growing
+        # intensity up to 50 times) against a real external host by
+        # accident is exactly the kind of mistake a confirmation dialog
+        # exists to prevent. Localhost/127.0.0.1/mock-target ports are
+        # exempt since that's the expected everyday workflow.
+        hostname = (parsed.hostname or "").lower()
+        is_local = hostname in ("localhost", "127.0.0.1", "0.0.0.0") or hostname.startswith("192.168.")
+        if not is_local:
+            proceed = messagebox.askyesno(
+                "Confirm External Target",
+                f"You are about to scan a non-local target:\n\n{target}\n\n"
+                "Only scan systems you own or have explicit written permission to test. "
+                "Unauthorized scanning may be illegal.\n\nProceed?",
+                icon="warning",
+            )
+            if not proceed:
+                self.log("Scan cancelled by user (external target not confirmed).", "INFO")
+                return
+
         model_selection = self.model_path.get()
         if " (Final)" in model_selection:
             model = model_selection.replace(" (Final)", "")
         else:
             model = model_selection
+
+        # Confirm the selected model file actually exists before spinning
+        # up the scan thread -- otherwise this fails deep inside model
+        # loading with a raw traceback instead of a clear message here.
+        if model and not os.path.exists(model):
+            messagebox.showerror(
+                "Error",
+                f"Selected model file not found:\n{model}\n\n"
+                "Pick a different model from the dropdown, or Browse to a valid .pth file.",
+            )
+            return
 
         self.scan_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)

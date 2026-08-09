@@ -567,8 +567,12 @@ class ImprovedDQNAgent:
         Returns:
             Selected action index
         """
-        if training and self.use_noisy_networks:
-            # Reset noise for exploration
+        if self.use_noisy_networks:
+            # Resample noise every call (train AND eval/live-scan) so Noisy
+            # Networks keep exploring at inference time instead of running
+            # on stale/frozen noise left over from the last training step.
+            # This matches how training actually discovered vulnerabilities
+            # (fresh noise -> diverse actions -> occasional exploit hits).
             self.q_network.reset_noise()
 
         # Always use network (noisy networks handle exploration)

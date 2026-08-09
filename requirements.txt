@@ -1,3 +1,12 @@
+# GPU (NVIDIA/CUDA) users: this --extra-index-url makes `pip install -r
+# requirements.txt` pull the CUDA build of torch directly, instead of the
+# CPU-only build from plain PyPI. cu128 matches drivers supporting CUDA
+# 12.8+ (check with `nvidia-smi`, top-right "CUDA Version"). If cu128 isn't
+# available for your pip/OS combo, swap the URL below to cu126 or cu118 --
+# https://pytorch.org/get-started/locally/ has the current list.
+# CPU-only machines: delete this line entirely, plain PyPI torch is fine.
+--extra-index-url https://download.pytorch.org/whl/cu128
+
 gymnasium
 gym
 torch
@@ -9,3 +18,5 @@ numpy
 pyjwt
 beautifulsoup4
 python-dotenv
+scipy
+matplotlib
