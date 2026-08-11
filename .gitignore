@@ -73,3 +73,6 @@ checkpoints_backup*/
 # === Proxy list (fetched at runtime) ===
 proxies.txt
 
+
+# === LibreOffice/OpenOffice lock files ===
+.~lock.*#
