@@ -68,6 +68,12 @@ Active training budget is **3,000 episodes** (10k archived, see below). The abla
     `-- checkpoints_backup_v21_success/  # historical checkpoint backup, kept for provenance
 ```
 
+## config.py
+
+Root-level `config.py` was missing for part of this session (never committed to git history — likely a local file from an earlier clone that never made it in) and has been restored from a working copy, with two stale defaults corrected to match current reality: `TrainingConfig.max_episodes` (was 10000, now 3000) and `ScanConfig.crawl_depth`/`intensity` (were 30/3, now 100/50, matching `autonomous_scan.py`'s CLI defaults below). `env/web_sec_env.py` treats this file as fully optional (`try/except ImportError`, falls back to `self.config = None` with defaults handled inline) — its absence never broke training or scanning, it only silenced a startup warning.
+
+`autonomous_scan.py`'s `--depth`/`--intensity` CLI flags do **not** read from `config.py`'s `ScanConfig` — they have their own separate argparse defaults, now aligned to the same values (100/50) so a bare invocation without flags still gets reasonable coverage.
+
 **What was deliberately left alone:** `agent/`, `env/`, `training/`, `utils/` were not nested under a `src/` (or similar) directory. Every training, evaluation, and scanning script imports from these by their current top-level names (`from agent.improved_dqn_agent import ...`, `from env.web_sec_env import ...`, etc.) — moving them five days before the InCIT 2026 submission deadline would mean touching import paths across dozens of files for a cosmetic win, with real risk of breaking a working pipeline. If there's time after submission, that's a clean follow-up.
 
 ## Key Runtime Files

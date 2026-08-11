@@ -23,11 +23,11 @@ CATEGORY_ORDER = eval_module.CATEGORY_ORDER
 
 # Map report files to targets
 REPORT_MAPPING = {
-    "ecommerce": "vulnerability_report_20260810_023345.md",
-    "social": "vulnerability_report_20260810_024136.md",
-    "banking": "vulnerability_report_20260810_024346.md",
-    "blog": "vulnerability_report_20260810_025142.md",
-    "fileshare": "vulnerability_report_20260810_025430.md",
+    "ecommerce": "vulnerability_report_20260810_081820.md",
+    "social": "vulnerability_report_20260810_094014.md",
+    "banking": "vulnerability_report_20260810_094928.md",
+    "blog": "vulnerability_report_20260810_104206.md",
+    "fileshare": "vulnerability_report_20260810_105507.md",
 }
 
 TARGET_NAMES = {

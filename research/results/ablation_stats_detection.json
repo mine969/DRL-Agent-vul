@@ -6,8 +6,7 @@
       2,
       3,
       4,
-      5,
-      99
+      5
     ],
     "dqn": [
       1,
@@ -55,37 +54,37 @@
   "per_variant_stats": {
     "random": {
       "n": 5,
-      "mean": 0.48200000000000004,
-      "stdev": 0.17640861656959958,
-      "coefficient_of_variation": 0.36599298043485384,
+      "mean": 0.74,
+      "stdev": 0.017320508075688787,
+      "coefficient_of_variation": 0.023406091994174035,
       "values": [
-        0.4,
-        0.4,
-        0.3,
+        0.71,
         0.75,
-        0.56
+        0.74,
+        0.75,
+        0.75
       ]
     },
     "dqn": {
       "n": 5,
-      "mean": 0.688,
-      "stdev": 0.15352524222420233,
-      "coefficient_of_variation": 0.22314715439564295,
+      "mean": 0.72,
+      "stdev": 0.10464224768228172,
+      "coefficient_of_variation": 0.14533645511428017,
       "values": [
-        0.48,
+        0.67,
+        0.82,
         0.84,
-        0.83,
         0.6,
-        0.69
+        0.67
       ]
     },
     "d3qn_full": {
       "n": 5,
-      "mean": 0.532,
-      "stdev": 0.10256705123966468,
-      "coefficient_of_variation": 0.19279520909711406,
+      "mean": 0.572,
+      "stdev": 0.08555699854482975,
+      "coefficient_of_variation": 0.1495751722811709,
       "values": [
-        0.42,
+        0.62,
         0.6,
         0.6,
         0.42,
@@ -120,15 +119,15 @@
     },
     "d3qn_no_multistep": {
       "n": 5,
-      "mean": 0.374,
-      "stdev": 0.1509304475578072,
-      "coefficient_of_variation": 0.40355734641124924,
+      "mean": 0.63,
+      "stdev": 0.14815532390029054,
+      "coefficient_of_variation": 0.23516718079411197,
       "values": [
         0.4,
         0.6,
-        0.39,
-        0.2,
-        0.28
+        0.77,
+        0.63,
+        0.75
       ]
     }
   },
@@ -141,29 +140,29 @@
       "d3qn_no_noisy",
       "d3qn_no_multistep"
     ],
-    "statistic": 18.403614457831324,
-    "p_value": 0.002480866049853485
+    "statistic": 17.60355029585799,
+    "p_value": 0.003486590810418313
   },
   "wilcoxon_vs_d3qn_full": {
     "random": {
-      "statistic": 5.0,
-      "p_value": 0.625
+      "statistic": 0.0,
+      "p_value": 0.0625
     },
     "dqn": {
       "statistic": 0.0,
       "p_value": 0.0625
     },
     "d3qn_no_per": {
-      "statistic": 0.0,
-      "p_value": 0.5
+      "statistic": 2.0,
+      "p_value": 0.75
     },
     "d3qn_no_noisy": {
       "statistic": 0.0,
       "p_value": 0.0625
     },
     "d3qn_no_multistep": {
-      "statistic": 0.0,
-      "p_value": 0.125
+      "statistic": 4.0,
+      "p_value": 0.875
     }
   },
   "status": "ok"

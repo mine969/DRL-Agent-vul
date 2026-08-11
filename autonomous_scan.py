@@ -1222,14 +1222,18 @@ if __name__ == "__main__":
         parser.add_argument(
             "--depth",
             type=int,
-            default=20,
-            help="How many pages to crawl (default: 20)",
+            default=100,
+            help="How many pages to crawl (default: 100). Mock targets with "
+            "templated per-item routes (products, profiles, posts) can expose "
+            "more discoverable URLs than a low depth would ever reach.",
         )
         parser.add_argument(
             "--intensity",
             type=int,
-            default=5,
-            help="Attack intensity 1-10 (default: 5)",
+            default=50,
+            help="Attack attempts per page (default: 50). No hard cap enforced. "
+            "Higher values give Noisy Net exploration more chances to resample "
+            "into an exploit action per page (see agent/improved_dqn_agent.py act()).",
         )
         parser.add_argument(
             "--model",
