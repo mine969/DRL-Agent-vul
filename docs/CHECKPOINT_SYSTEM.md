@@ -13,11 +13,11 @@ This project uses `.pth` files for model persistence across training and scannin
 | `dqn_web_sec_model.pth` | base model artifact | Default fallback model path |
 | `dqn_juiceshop_model.pth` | optional base model artifact | Additional fallback candidate |
 
-## Current Status (2026-08-09)
+## Current Status (2026-08-13)
 
-The real ablation training run (all variants x 5 seeds x 3,000 episodes) has not finished yet. Any `checkpoints/ablation/*_ep2.pth`-`*_ep5.pth` files on disk right now are smoke-test leftovers from verifying the pipeline, not real results -- a completed combo produces `_ep500.pth` through `_ep3000.pth`.
+The real ablation training run (all variants x 5 seeds x 3,000 episodes) is **complete**. All 6 variants have full `_ep500.pth` through `_ep3000.pth` checkpoint sets in `checkpoints/ablation/`, and Friedman/Wilcoxon stats computed from them are in the paper (Section V-E). The only leftover smoke-test artifacts are 10 `*_seed91_ep3.pth`/`*_seed92_ep3.pth` files sitting in `checkpoints/ablation/backup/` -- outside the real seed 1-5 range on purpose, harmless, pending manual deletion from a real terminal (this assistant's sandbox can't delete files). A provenance copy of the same smoke-test debris already lives safely in `archive/2026-08-09_cleanup/smoke_test_debris/`.
 
-Also pending manual cleanup: the full old `improved_mock_ep*.pth` series (100+ files) currently exists both at `checkpoints/` top level and inside `checkpoints/archive_10k_run/`. The copy succeeded; deleting the top-level originals has been blocked by a filesystem lock and needs to be done from a real terminal.
+The old top-level `improved_mock_ep*.pth` duplicate series is resolved -- confirmed byte-identical to its copy in `checkpoints/archive_10k_run/`, and the top-level originals are gone.
 
 ## Loader Behavior
 

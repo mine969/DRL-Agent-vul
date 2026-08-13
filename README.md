@@ -1,15 +1,16 @@
 # DRL Web Security Agent 2.0 - OWASP Top 10 2025 Aligned
 
-## 📌 Current Status (2026-08-10)
+## 📌 Current Status (2026-08-13)
 
 Working toward the InCIT 2026 paper submission deadline (**2026-08-15**). Where things stand right now:
 
 - **Active training budget: 3,000 episodes** (not 10,000). The original 10k run is archived at `checkpoints/archive_10k_run/` and is no longer the default -- see that folder's README for why.
-- **Ablation study is complete.** All 6 variants (`random`, `dqn`, `d3qn_full`, `d3qn_no_per`, `d3qn_no_noisy`, `d3qn_no_multistep`) x 5 seeds x 3,000 episodes have finished training and evaluation. Friedman tests are significant on both mean reward (χ²=20.89, p=0.00085) and detection rate (χ²=18.40, p=0.0025); results live in `research/results/ablation_stats_reward.json` and `ablation_stats_detection.json`.
+- **Ablation study is complete.** All 6 variants (`random`, `dqn`, `d3qn_full`, `d3qn_no_per`, `d3qn_no_noisy`, `d3qn_no_multistep`) x 5 seeds x 3,000 episodes have finished training and evaluation. Friedman tests are significant on both mean reward (χ²=18.83, p=0.0021) and detection rate (χ²=17.60, p=0.0035); results live in `research/results/ablation_stats_reward.json` and `ablation_stats_detection.json`. (Superseded an earlier run at χ²=20.89/18.40 -- those numbers are kept only in `*_PREFIX_backup.json` for reference.)
 - **Table I is sourced from a real single live-scan run** against all 5 mock targets using the best-performing checkpoint (`checkpoints/ablation/d3qn_full_seed5_ep3000.pth`), not the old 10k model. Source data: `research/results/autonomous_scan_single_run_20260810.json`.
-- **Fig. 3 is a real rendered convergence curve** (`research/training_curve_real_seed5.png`) generated from actual logged training telemetry via `training/plot_curve.py`, not an illustrative schematic.
-- **Root-level cleanup is resolved.** Dead duplicate scripts, the old top-level `improved_mock_ep*.pth` series (verified byte-identical to its copy in `checkpoints/archive_10k_run/`), and historical folders (`legacy/`, `legacy_archive/`, `checkpoints_backup_v21_success/`) have all been consolidated under `archive/`. One-off analysis tooling (`aggregate_results.py`, `evaluate_fill_excel.py`, etc.) now lives in `scripts/`. See `docs/PROJECT_STRUCTURE.md` for the full current layout.
-- **Two harmless leftovers still need manual deletion** (this assistant's sandbox can create/move files but never delete them): the empty `nul` artifact at repo root, and the seed91/seed92 smoke-test checkpoints/logs used to verify `run_ablation_parallel.py`'s isolation.
+- **Fig. 3 is a real rendered convergence curve** (`research/figures/training_curve_real_seed5.png`) generated from actual logged training telemetry via `training/plot_curve.py`, not an illustrative schematic.
+- **Root-level cleanup is resolved, and `legacy_archive/` now lives at repo root** (not nested under `archive/` -- moved back out during the 2026-08-10 cleanup pass since it's referenced directly by `docs/ARCHITECTURE.md`). Dead duplicate scripts, the old top-level `improved_mock_ep*.pth` series (verified byte-identical to its copy in `checkpoints/archive_10k_run/`), and `checkpoints_backup_v21_success/` are consolidated under `archive/`. One-off analysis tooling (`aggregate_results.py`, `evaluate_fill_excel.py`, etc.) now lives in `scripts/`. See `docs/PROJECT_STRUCTURE.md` for the full current layout.
+- **The `nul` artifact and seed91/seed92 smoke-test leftovers are resolved** -- `nul` is gone, and the seed91/92 checkpoints/logs are now tucked under `archive/2026-08-09_cleanup/smoke_test_debris/`, not loose at repo root.
+- **Paper submission deliverables now live in `research/`**: `INCIT2026_submission_FINAL_10-8-2026.docx`/`.pdf` (the paper), `INCIT2026_presentation.pptx`/`.pdf` (conference talk deck), `INCIT2026_talk_script.md` (slide-by-slide script + Q&A prep), and `research/figures/` (all figure PNGs plus a `generators/` subfolder with their regeneration scripts).
 
 ## Overview
 
@@ -265,13 +266,19 @@ DQN web vul/
 │   ├── target_hunter.py            # OSINT target discovery
 │   └── zero_day_hunter.py          # Fuzzing & CVE intelligence
 │
-├── research/                        # Research framework & analysis
+├── research/                        # Research framework, paper, and conference deliverables
 │   ├── README.md                   # Research overview
 │   ├── ground_truth_vulnerabilities.md  # Complete vulnerability database
 │   ├── Eval_Markdown.md            # Evaluation methodology & results
 │   ├── findings_and_conclusions.md # Research conclusions
 │   ├── evaluate_agent.py           # Automated evaluation framework
-│   └── generate_report.py          # Research report generator
+│   ├── generate_report.py          # Research report generator
+│   ├── INCIT2026_submission_FINAL_10-8-2026.docx/.pdf  # The paper (submission-ready)
+│   ├── INCIT2026_presentation.pptx/.pdf  # Conference talk deck
+│   ├── INCIT2026_talk_script.md    # Slide-by-slide script + interview Q&A prep
+│   ├── REVISION_PLAN_incit2026.md / FIX_LOG_incit2026.md  # Reviewer-response tracking
+│   ├── results/                    # ablation_stats*.json, autonomous_scan_*.json (Table I source data)
+│   └── figures/                    # All figure PNGs actually embedded in the paper, + generators/ subfolder with regeneration scripts
 │
 ├── docs/                            # Comprehensive documentation
 │   ├── CODE_STYLE.md               # Coding standards
@@ -309,11 +316,12 @@ Data Directories:
 └── uploads/                         # File upload storage
 
 Other Top-Level Folders:
+├── legacy_archive/                  # Retired code (old dqn_agent.py, dead trainers) -- lives at repo root, referenced directly by docs/ARCHITECTURE.md
 ├── scripts/                         # One-off analysis/tooling (aggregate_results.py, evaluate_fill_excel.py, etc.) -- not part of the live train/scan pipeline
-└── archive/                         # Everything historical: legacy/, legacy_archive/, checkpoints_backup_v21_success/, dated cleanup batches
+└── archive/                         # Everything else historical: legacy/, checkpoints_backup_v21_success/, dated cleanup batches
 ```
 
-> As of 2026-08-10, the root folder and `checkpoints/` have been cleaned up: duplicate checkpoints, dead scripts, and old backup folders were consolidated into `archive/` (see `docs/PROJECT_STRUCTURE.md` for the full layout and what was deliberately left untouched).
+> As of 2026-08-10, the root folder and `checkpoints/` have been cleaned up: duplicate checkpoints, dead scripts, and old backup folders were consolidated into `archive/`, and `legacy_archive/` was moved back out to repo root (see `docs/PROJECT_STRUCTURE.md` for the full layout and what was deliberately left untouched).
 
 ## What the Agent Can Do
 

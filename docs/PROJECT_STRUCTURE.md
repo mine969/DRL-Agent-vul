@@ -2,14 +2,13 @@
 
 This map focuses on the files and folders that drive current behavior.
 
-## Current Status (2026-08-10)
+## Current Status (2026-08-13)
 
 Active training budget is **3,000 episodes** (10k archived, see below). The ablation study (6 variants x 5 seeds x 3,000 episodes) is complete; Friedman/Wilcoxon stats and the real Table I / Fig. 3 are in the paper draft.
 
-**Cleanup debt from earlier sessions is resolved.** As of 2026-08-10 the root was reorganized for a clean, professional layout (see below). Two items remain that only a real terminal can finish, since this assistant's sandbox can create/move files but never delete them:
+**Cleanup debt from earlier sessions is mostly resolved.** As of 2026-08-10 the root was reorganized for a clean, professional layout (see below). `nul` is gone and `logs/ablation/*_seed91`/`*_seed92` are gone. One item remains that only a real terminal can finish, since this assistant's sandbox can create/move files but never delete them:
 
-- `nul` (empty, 0-byte Windows redirect artifact at repo root) -- safe to delete.
-- `checkpoints/ablation/*_seed91_*.pth`, `*_seed92_*.pth` and matching `logs/ablation/*_seed91`/`*_seed92`/`env/_workers/` folders -- smoke-test artifacts from verifying `run_ablation_parallel.py`'s isolation, outside the real seed 1-5 range on purpose so they're never mistaken for real results, but still on disk pending manual deletion.
+- `checkpoints/ablation/backup/*_seed91_ep3.pth`, `*_seed92_ep3.pth` (10 files) -- smoke-test artifacts from verifying `run_ablation_parallel.py`'s isolation, outside the real seed 1-5 range on purpose so they're never mistaken for real results, but still on disk in the `backup/` subfolder pending manual deletion. (A separate copy already lives safely in `archive/2026-08-09_cleanup/smoke_test_debris/` for provenance -- these are the loose leftovers, not the archived record.)
 
 ## Top-Level Layout
 
@@ -57,14 +56,17 @@ Active training budget is **3,000 episodes** (10k archived, see below). The abla
 |   |-- results/ablation_stats_reward.json      # Friedman/Wilcoxon on mean_reward
 |   |-- results/ablation_stats_detection.json   # Friedman/Wilcoxon on detection_rate
 |   |-- results/autonomous_scan_single_run_20260810.json  # real live-scan Table I source data
-|   `-- 10-8-2026 draft v7.docx    # current final paper draft
+|   |-- INCIT2026_submission_FINAL_10-8-2026.docx/.pdf  # current final paper draft (submission-ready)
+|   |-- INCIT2026_presentation.pptx/.pdf   # conference talk deck
+|   |-- INCIT2026_talk_script.md   # slide-by-slide script + interview Q&A prep
+|   `-- figures/                   # figure PNGs actually embedded in the paper, + generators/ subfolder
 |-- docs/
 |   `-- references/                # non-code reference material (e.g. juice-shop.pdf)
 |-- tests/
-`-- archive/                        # everything historical, consolidated in one place
-    |-- 2026-08-09_cleanup/        # earlier session's dated cleanup batch
+|-- legacy_archive/                 # old docs, verify_*/debug_* scripts, dead experiments -- lives at repo ROOT, not under archive/ (docs/ARCHITECTURE.md references it directly at this path)
+`-- archive/                        # everything else historical, consolidated in one place
+    |-- 2026-08-09_cleanup/        # earlier session's dated cleanup batch, incl. smoke_test_debris/ (seed91/92 leftovers)
     |-- legacy/                    # old standalone scripts/models predating the current pipeline
-    |-- legacy_archive/            # old docs, verify_*/debug_* scripts, dead experiments
     `-- checkpoints_backup_v21_success/  # historical checkpoint backup, kept for provenance
 ```
 
