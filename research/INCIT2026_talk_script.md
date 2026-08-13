@@ -47,31 +47,39 @@ Read this once, then talk from the slide titles, not this page. Numbers in **bol
 
 # Q&A / Interview Prep
 
-Answer these like you're explaining to a beginner first, then add the technical layer. If you can't do that split from memory, that's the gap — go back to the paper before the talk, not during it.
+Every answer below has two layers: **Simple** — say this first, always, even to a technical interviewer. **If they push for detail** — the technical follow-up, only if they ask "how exactly" or "show me the numbers." If you can't explain the Simple line in your own words without reading it, that's the gap — go back to the paper before the talk, not during it.
 
 ### "Why detection rate this low — isn't that a weak result?"
-Don't get defensive. Say: "It is low, and we say so directly. The contribution isn't the win rate, it's that every number on that slide is independently confirmed, not just flagged — and we proved that with the 5x robustness check, which most DRL-scanner papers don't do at all. A lot of prior work reports higher numbers precisely because they don't have that confirmation step."
+**Simple:** "It is low, and we say that upfront instead of hiding it. What we built isn't a tool that finds everything — it's a tool that only reports a bug when it's actually 100% sure. Most similar research tools just guess and report high numbers without double-checking themselves. Ours double-checks everything, so our number is smaller but it's a number you can trust."
+**If they push for detail:** "Every number on that slide is independently confirmed, not just flagged — and we proved that with the 5x robustness check, which most DRL-scanner papers don't do at all."
 
 ### "Why only IDOR gets confirmed — what about XSS, SQLi, etc.?"
-"The agent explores all action classes, but IDOR is the one where our confirmation criteria — ground-truth header plus independent validator agreement — consistently line up in these five targets. That's a real limitation of the current reward/confirmation design, not a claim that the agent can't detect other classes. It's on the future-work list to ablate that per vulnerability type."
+**Simple:** "The tool actually looks for all kinds of bugs, not just this one. But this particular type — where someone can access another user's data by just changing a number in a web address — is the one our strict double-checking system agreed on every time, in these five test apps. It's a real gap in how we currently check, not proof the tool can't find other bug types. Fixing that is next on our list."
+**If they push for detail:** "Our confirmation criteria — ground-truth header plus independent validator agreement — consistently line up for IDOR specifically. It's on the future-work list to ablate that per vulnerability type."
 
 ### "Why these five specific apps?"
-"They give deliberate, code-enumerated ground truth across different domains — e-commerce, social, banking, blog, file-share — so we're not testing on one narrow app type. Vuln counts (20/20/4/6/6) come from `run_ground_truth_scan`, not estimation."
+**Simple:** "We built five fake but realistic websites ourselves — an online shop, a social media site, a bank, a blog, and a file-sharing site — and we planted a known, counted number of bugs in each one, in the actual code. So we always know the exact right answer to grade against, instead of guessing."
+**If they push for detail:** "Vuln counts (20/20/4/6/6) come from `run_ground_truth_scan`, not estimation — they're enumerated directly in source code."
 
 ### "Why D3QN and not a newer architecture (Rainbow full, PPO, etc.)?"
-"D3QN with PER, Noisy Nets, and multi-step returns covers five of Rainbow's six components — we deliberately excluded Distributional RL to keep the state/action space tractable for a first systematic study. It's a reasonable middle ground between a vanilla DQN baseline and full Rainbow complexity we haven't yet justified with ablation data."
+**Simple:** "There's a well-known upgrade path in this field with about six different improvements you can stack together. We used five of the six — leaving one out kept the problem manageable for a first proper study. Think of it as the sensible middle option between the basic version and the maximum-complexity version we haven't earned the right to claim works yet."
+**If they push for detail:** "D3QN with PER, Noisy Nets, and multi-step returns covers five of Rainbow's six components — we deliberately excluded Distributional RL to keep the state/action space tractable."
 
 ### "Where's your statistical significance testing?"
-It's already in the paper, Section V-E — don't undersell this one. "We ran a Friedman test across all six variants — Random, vanilla DQN, full Extended D3QN, and three leave-one-out ablations — five seeds each. It came back significant on both reward and detection rate (χ²=18.83, p=0.0021 and χ²=17.60, p=0.0035). What didn't clear significance were the individual pairwise Wilcoxon comparisons against the full model — and that's not us hiding a weak result, it's arithmetic: at n=5 seeds, Wilcoxon's p-value floor is 0.0625, so no pairwise comparison could hit p<0.05 even with a perfect sweep. We report the honest limitation and flag more seeds as the fix."
+**Simple:** "It's already done, in the paper. We tested six different versions of our agent, five separate times each, and ran a standard statistics test to check if the differences between them were real or just luck. The answer: yes, real differences exist between the six versions overall. What we couldn't yet prove is exactly which specific version beats which other one — that needs more test runs than we had time for, and we say so honestly instead of hiding it."
+**If they push for detail:** "A Friedman test across all six variants — Random, vanilla DQN, full Extended D3QN, three leave-one-out ablations — five seeds each, came back significant on both reward and detection rate (χ²=18.83, p=0.0021 and χ²=17.60, p=0.0035). The pairwise Wilcoxon comparisons against the full model didn't clear p<0.05, and that's arithmetic, not a weak result: at n=5 seeds, Wilcoxon's p-value floor is 0.0625, so no pairwise comparison could hit significance even with a perfect sweep."
 
 ### "How do you know the confirmation step itself isn't buggy / trivially satisfied?"
-"Two independent signals have to agree — the target's own ground-truth response header and a separate local validator that doesn't read that header. They're deliberately decoupled so one can't rubber-stamp the other. The 5x scan test is really an indirect proof of this: if confirmation was trivially satisfied, more scanning volume would have inflated the confirmed count too, and it didn't."
+**Simple:** "We require two separate, independent checks to both say 'yes, this is a real bug' before we count it — like needing two different witnesses to agree instead of trusting one. We also tested this by scanning much harder and much longer: if our checking system was too easy to fool, scanning harder should have found more 'confirmed' bugs. It didn't. That's good evidence the check is doing its job properly."
+**If they push for detail:** "The target's own ground-truth response header and a separate local validator are deliberately decoupled so one can't rubber-stamp the other. The 5x scan test is an indirect proof: if confirmation was trivially satisfied, more scanning volume would have inflated the confirmed count too, and it didn't."
 
 ### "What's the real-world deployment story — would you run this against a live app?"
-"Not yet, and we're upfront about that boundary. Everything here runs against mock apps with known ground truth specifically so we can measure recall honestly. Deploying against a real target without ground truth removes exactly the thing that makes our numbers trustworthy — that's a deliberate scope limitation, not an oversight."
+**Simple:** "Not yet, and that's on purpose. Right now we only test against our own fake websites, where we already know exactly what bugs exist. That's the only way to know for certain if the tool is right or wrong. Pointing it at a real website would mean we couldn't grade its answers anymore — we'd lose the thing that makes our results trustworthy."
+**If they push for detail:** "Everything runs against mock apps with known ground truth specifically so we can measure recall honestly — that's a deliberate scope limitation, not an oversight."
 
 ### "What would you do differently if you restarted this project?"
-Have a real answer, not a hedge: "Build the ground-truth confirmation pipeline and the ablation harness before scaling up training episodes — we built compute-heavy training first and retrofitted rigor second. Doing it in the other order would have saved a lot of rework."
+**Simple:** "We'd build our 'how do we know it's telling the truth' checks first, and the expensive training runs second. We did it backwards — spent weeks on heavy training, then had to go back and bolt on the verification afterward. If we'd built the verification step first, we'd have caught problems earlier and wasted a lot less time."
+**If they push for detail:** "Build the ground-truth confirmation pipeline and the ablation harness before scaling up training episodes — we built compute-heavy training first and retrofitted rigor second."
 
 ---
 
