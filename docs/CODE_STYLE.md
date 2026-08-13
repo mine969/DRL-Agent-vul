@@ -38,7 +38,7 @@ These conventions keep the repository maintainable and consistent.
 Use quick checks before sharing changes:
 
 ```bash
-python -m py_compile easy_scanner.py scanner_gui.py easyscan.py autonomous_scan.py
+python -m py_compile easy_scanner.py scanner_gui.py scripts/easyscan.py autonomous_scan.py
 python easy_scanner.py --help
 python scanner_gui.py --help
 python autonomous_scan.py --help

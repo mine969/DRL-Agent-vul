@@ -27,7 +27,7 @@ These are implemented in `agent/improved_dqn_agent.py` and used by training scri
 
 - `easy_scanner.py` now supports non-interactive `--auto` operation.
 - `scanner_gui.py` now supports headless `--auto` automation mode.
-- `easyscan.py` provides compatibility launcher behavior.
+- `scripts/easyscan.py` provides compatibility launcher behavior.
 
 ## 5) Output and Evidence Quality
 

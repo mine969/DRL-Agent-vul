@@ -1,14 +1,15 @@
 """
 Compatibility launcher for easy_scanner.py.
 
-Usage examples:
-    python easyscan.py
-    python easyscan.py --auto --target http://localhost:5002
+Usage examples (run from the project root):
+    python scripts/easyscan.py
+    python scripts/easyscan.py --auto --target http://localhost:5002
 """
 
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import easy_scanner as scanner
 
 

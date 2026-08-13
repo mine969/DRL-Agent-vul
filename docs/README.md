@@ -4,7 +4,7 @@ This documentation set reflects the current code behavior in this repository.
 
 ## Canonical Scanner Entry Points
 
-- Interactive CLI: `python easy_scanner.py` or `python easyscan.py`
+- Interactive CLI: `python easy_scanner.py` or `python scripts/easyscan.py`
 - Easy CLI headless mode: `python easy_scanner.py --auto ...`
 - GUI: `python scanner_gui.py`
 - GUI headless automation: `python scanner_gui.py --auto --target http://localhost:5002`

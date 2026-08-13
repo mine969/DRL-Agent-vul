@@ -205,7 +205,7 @@ _TARGET_MODULES = {
 def build_target_sessions():
     """Imports all 5 mock target Flask apps into the current process and
     returns {port: InProcessSession}. Requires env/*.db files to already
-    exist (run `python init_targets.py` once beforehand, same as for the
+    exist (run `python scripts/init_targets.py` once beforehand, same as for the
     real-HTTP path -- this function does not seed databases itself)."""
     import importlib
     import logging

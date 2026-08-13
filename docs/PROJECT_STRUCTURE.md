@@ -12,16 +12,16 @@ Active training budget is **3,000 episodes** (10k archived, see below). The abla
 
 **GitHub showcase cleanup (2026-08-13):** `checkpoints/` (all `.pth` weights), `archive/`, `legacy_archive/`, and most of `research/`'s scratch scripts, old drafts, raw per-run scan logs, and third-party PDFs in `Related Works/` were untracked from git (`git rm --cached`, kept locally, added to `.gitignore`) so the public repo reads clean for recruiters/contributors. `research/` on GitHub now holds only: the final paper (`INCIT2026_submission_FINAL_10-8-2026.docx`/`.pdf`), the presentation (`INCIT2026_presentation.pptx`/`.pdf`), `INCIT2026_talk_script.md`, `figures/`, `results/` (ablation stats + Table I source data), and the core research markdown (`README.md`, `ground_truth_vulnerabilities.md`, `findings_and_conclusions.md`, `FIX_LOG_incit2026.md`, `REVISION_PLAN_incit2026.md`). Nothing was deleted from disk -- this only affects what a fresh `git clone` or the GitHub file browser shows.
 
+**Root folder decluttered (2026-08-13):** only the real GUI/CLI entry points now sit at repo root -- `scanner_gui.py`, `autonomous_scan.py`, `easy_scanner.py`, `start_services.py` -- plus the standard project files (`README.md`, `LICENSE`, `config.py`, `requirements.txt`, etc.). `easyscan.py`, `init_targets.py`, `run_all_seeds_scan.ps1`, and `run_live_scan_full.ps1` moved into `scripts/` (`git mv`, history preserved) with every doc/code reference updated to the new path. Also removed the root-level `__init__.py`, which imported `agent.dqn_agent.DQNAgent` -- a module that no longer exists (`DQNAgent` was moved to `legacy_archive/` in an earlier cleanup and nothing in the active codebase used this package-level import; every real script imports `ImprovedDQNAgent` from `agent.improved_dqn_agent` directly).
+
 ## Top-Level Layout
 
 ```text
 .
 |-- easy_scanner.py                # interactive CLI + --auto wrapper (entry point)
-|-- easyscan.py                    # thin compatibility launcher for easy_scanner.py
 |-- scanner_gui.py                 # Tk GUI + headless --auto mode (entry point)
 |-- autonomous_scan.py             # core scan engine (entry point)
 |-- start_services.py              # boots the 5 mock target apps (entry point)
-|-- init_targets.py                # seeds mock target DBs
 |-- proxies.txt                    # auto-regenerated cache, written by utils/proxy_fetcher.py -- not clutter
 |-- training/
 |   |-- train_mock_targets.py      # primary training entry point (Extended D3QN, 3k eps default)
@@ -44,6 +44,10 @@ Active training budget is **3,000 episodes** (10k archived, see below). The abla
 |   |-- evaluate_fill_excel.py     # ground-truth scanning + classification helpers (imported by aggregate_results.py)
 |   |-- eval_from_code.py          # standalone ground-truth extraction from target app source
 |   |-- quick_train_5000.py        # legacy quick-training helper
+|   |-- easyscan.py                # thin compatibility launcher for easy_scanner.py -- moved from root 2026-08-13
+|   |-- init_targets.py            # seeds mock target DBs -- moved from root 2026-08-13
+|   |-- run_all_seeds_scan.ps1     # one-off: live-scan all 5 targets with each ablation seed's checkpoint
+|   |-- run_live_scan_full.ps1     # one-off: live-scan all 5 targets with the seed5 checkpoint
 |   `-- git-commit.ps1             # commit helper script
 |-- checkpoints/
 |   |-- d3qn_primary_3k_ep*.pth    # active primary-model checkpoints (3k-episode budget)
@@ -83,7 +87,7 @@ Root-level `config.py` was missing for part of this session (never committed to 
 ## Key Runtime Files
 
 - `easy_scanner.py`: interactive CLI + `--auto` wrapper around `autonomous_scan.py`.
-- `easyscan.py`: compatibility launcher mirroring `easy_scanner.py` behavior.
+- `scripts/easyscan.py`: compatibility launcher mirroring `easy_scanner.py` behavior.
 - `scanner_gui.py`: Tk GUI and headless automation mode (`--auto`).
 - `autonomous_scan.py`: core scan engine (`SecurityAuditor`, crawler, attack loop, report generation).
 - `start_services.py`: boots local vulnerable mock targets on ports `5002` to `5006`.

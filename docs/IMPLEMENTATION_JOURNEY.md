@@ -25,7 +25,7 @@ This timeline summarizes major project evolution based on the current repository
 - Built interactive wrapper `easy_scanner.py`.
 - Added GUI workflow in `scanner_gui.py`.
 - Added non-interactive automation modes (`easy_scanner.py --auto`, `scanner_gui.py --auto`).
-- Added `easyscan.py` compatibility launcher.
+- Added `easyscan.py` compatibility launcher (now lives at `scripts/easyscan.py`).
 
 ## Phase 5: Reporting and Validation
 

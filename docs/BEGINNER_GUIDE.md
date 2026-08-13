@@ -35,7 +35,7 @@ python easy_scanner.py
 You can also use:
 
 ```bash
-python easyscan.py
+python scripts/easyscan.py
 ```
 
 In interactive mode, you can select:

@@ -33,7 +33,7 @@ This document describes capabilities that are implemented in the current codebas
 
 ## 6) User-Facing Modes
 
-- Interactive CLI (`easy_scanner.py` / `easyscan.py`).
+- Interactive CLI (`easy_scanner.py` / `scripts/easyscan.py`).
 - Interactive GUI (`scanner_gui.py`).
 - Headless wrappers (`easy_scanner.py --auto`, `scanner_gui.py --auto`).
 

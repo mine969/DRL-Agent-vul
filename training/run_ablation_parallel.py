@@ -30,9 +30,8 @@ This script fixes that by setting the MOCK_DB_DIR environment variable
 before anything imports the target apps (env/target_app_*.py all read
 DB_NAME from os.environ.get("MOCK_DB_DIR", "env")), and gives each worker
 its own private copy of the 5 db files under env/_workers/worker<N>/,
-seeded once from whatever's currently in env/*.db (run init_targets.py in
-the shared env/ folder first, same as always -- this script does not seed
-from scratch).
+seeded once from whatever's currently in env/*.db (run scripts/init_targets.py
+first, same as always -- this script does not seed from scratch).
 
 Usage -- open N terminals, one command per terminal, same episode/seed
 settings in each:
@@ -155,7 +154,7 @@ def _seed_worker_db(worker_db_dir):
             continue
         src = os.path.join("env", db_file)
         if not os.path.exists(src):
-            print(f"[worker] WARNING: {src} not found -- run `python init_targets.py` first. "
+            print(f"[worker] WARNING: {src} not found -- run `python scripts/init_targets.py` first. "
                   f"This worker's target apps will create an empty db at {dest} instead.")
             continue
         shutil.copy2(src, dest)

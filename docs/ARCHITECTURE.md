@@ -10,7 +10,7 @@ It has three layers: learning, environment, and scanner interfaces.
 ```
  ┌─────────────────────────────────────────────────┐
  │              User Interfaces                    │
- │  easy_scanner.py / easyscan.py  (interactive)   │
+ │  easy_scanner.py / scripts/easyscan.py (interactive) │
  │  scanner_gui.py                 (GUI)            │
  │  autonomous_scan.py             (CLI / direct)   │
  └─────────────────┬───────────────────────────────┘
@@ -112,10 +112,13 @@ DQN web vul/
 ├── tests/                   # verification scripts
 ├── legacy_archive/          # retired code (dqn_agent.py, old trainers) -- kept locally, not published to GitHub
 ├── checkpoints/             # saved model .pth files -- kept locally, not published to GitHub
-├── train_mock_targets.py    # main training script
-├── quick_train_5000.py      # long-run training with auto-resume
-├── autonomous_scan.py       # CLI scanner
-├── easy_scanner.py          # interactive CLI (menus)
-├── scanner_gui.py           # GUI
+├── training/train_mock_targets.py    # main training script
+├── scripts/quick_train_5000.py       # deprecated, points to training/train_mock_targets.py
+├── autonomous_scan.py       # CLI scanner (entry point)
+├── easy_scanner.py          # interactive CLI (menus) (entry point)
+├── scanner_gui.py           # GUI (entry point)
+├── start_services.py        # boots the 5 mock target apps (entry point)
 └── config.py                # centralized configuration dataclasses
 ```
+
+Note: `train_mock_targets.py` and `quick_train_5000.py` are not at repo root -- see `docs/PROJECT_STRUCTURE.md` for the authoritative current layout. Only `autonomous_scan.py`, `easy_scanner.py`, `scanner_gui.py`, `start_services.py`, and `config.py` are root-level Python entry points as of the 2026-08-13 root cleanup.

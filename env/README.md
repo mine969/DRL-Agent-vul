@@ -17,7 +17,7 @@
 ### Initialize Databases
 
 ```bash
-python ../init_targets.py
+python ../scripts/init_targets.py
 ```
 
 ### Run Individual Target
@@ -98,7 +98,7 @@ See [TARGETS_README.md](TARGETS_README.md) for comprehensive documentation inclu
 ## 🔗 Related Files
 
 - `../train_mock_targets.py` - Train on all 5 targets
-- `../init_targets.py` - Initialize databases
+- `../scripts/init_targets.py` - Initialize databases
 - `../autonomous_scan.py` - Run a trained agent against a target
 
 ---

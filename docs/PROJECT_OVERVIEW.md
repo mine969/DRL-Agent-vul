@@ -5,7 +5,7 @@ This repository is an AI-assisted web vulnerability scanning project built aroun
 ## Primary Entry Points
 
 - `python easy_scanner.py` (interactive CLI)
-- `python easyscan.py` (compatibility alias)
+- `python scripts/easyscan.py` (compatibility alias)
 - `python scanner_gui.py` (interactive GUI)
 - `python scanner_gui.py --auto --target http://localhost:5002` (headless GUI automation)
 - `python autonomous_scan.py <url> --depth ... --intensity ... [--persist --ai-mode --pentester]` (core scanner)
@@ -22,7 +22,7 @@ This repository is an AI-assisted web vulnerability scanning project built aroun
 
 | Capability | Status | Notes |
 | --- | --- | --- |
-| Interactive CLI scanner | Implemented | `easy_scanner.py` and `easyscan.py` |
+| Interactive CLI scanner | Implemented | `easy_scanner.py` and `scripts/easyscan.py` |
 | GUI scanner | Implemented | `scanner_gui.py` |
 | Headless GUI automation | Implemented | `scanner_gui.py --auto` |
 | Core scanner CLI flags (`--depth`, `--intensity`, `--persist`, `--ai-mode`, `--pentester`) | Implemented | `autonomous_scan.py` |

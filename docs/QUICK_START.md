@@ -35,7 +35,7 @@ python easy_scanner.py
 Alias:
 
 ```bash
-python easyscan.py
+python scripts/easyscan.py
 ```
 
 ### GUI
