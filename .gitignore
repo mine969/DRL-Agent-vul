@@ -70,6 +70,21 @@ checkpoints_backup*/
 # === Personal AI memory (session notes) ===
 .remember/
 
+# === Kept locally for reference, not published to the public repo ===
+# (showcase cleanup, 2026-08-13: these stay on disk, just untracked)
+/archive/
+/legacy_archive/
+research/archive/
+research/Related Works/
+research/results/autonomous_scan_logs/
+research/results/*_PREFIX_backup.json
+research/Eval_Markdown.md
+research/EVALUATION.md
+research/results/EVALUATION.md
+research/results/evaluation_improved_latest.json
+research/results/Evaluation Form.xlsx
+research/Presentation - Autonomous Vulnerability.pptx
+
 # === Proxy list (fetched at runtime) ===
 proxies.txt
 

@@ -1,4 +1,0 @@
-episode,timestamp,target,steps,total_reward,avg_loss,vulns_found,replay_buffer_size,elapsed_sec
-1,2026-08-09T06:20:43,Social Media,5,0.6500,,0,3,0.1
-2,2026-08-09T06:20:43,Banking App,5,-4.6300,,0,8,0.1
-3,2026-08-09T06:20:43,Blog Platform,5,0.6500,,0,13,0.2

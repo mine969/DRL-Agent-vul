@@ -1,8 +1,0 @@
-{
-  "variant": "d3qn_no_multistep",
-  "seed": 94,
-  "max_steps": 5,
-  "replay_every": 1,
-  "state_dim": 15,
-  "action_dim": 50
-}

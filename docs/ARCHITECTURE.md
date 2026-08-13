@@ -110,8 +110,8 @@ DQN web vul/
 ├── research/                # paper drafts, evaluation results, scripts
 ├── examples/                # usage examples
 ├── tests/                   # verification scripts
-├── legacy_archive/          # retired code (dqn_agent.py, old trainers)
-├── checkpoints/             # saved model .pth files (only latest tracked)
+├── legacy_archive/          # retired code (dqn_agent.py, old trainers) -- kept locally, not published to GitHub
+├── checkpoints/             # saved model .pth files -- kept locally, not published to GitHub
 ├── train_mock_targets.py    # main training script
 ├── quick_train_5000.py      # long-run training with auto-resume
 ├── autonomous_scan.py       # CLI scanner

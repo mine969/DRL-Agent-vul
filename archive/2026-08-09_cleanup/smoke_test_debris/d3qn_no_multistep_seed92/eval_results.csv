@@ -1,6 +1,0 @@
-variant,seed,target,eval_episode,total_reward,vulns_found,vuln_types,steps
-d3qn_no_multistep,92,E-Commerce,0,-25.0500,0,,5
-d3qn_no_multistep,92,Social Media,0,-25.0500,0,,5
-d3qn_no_multistep,92,Banking App,0,-25.0500,0,,5
-d3qn_no_multistep,92,Blog Platform,0,-25.0500,0,,5
-d3qn_no_multistep,92,File Share,0,-25.0500,0,,5

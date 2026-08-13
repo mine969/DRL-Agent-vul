@@ -1,6 +1,0 @@
-variant,seed,target,eval_episode,total_reward,vulns_found,vuln_types,steps
-random,94,E-Commerce,0,-1.9000,0,,5
-random,94,Social Media,0,-7.6800,0,,5
-random,94,Banking App,0,-9.7300,0,,5
-random,94,Blog Platform,0,-4.6000,0,,5
-random,94,File Share,0,-9.7300,0,,5

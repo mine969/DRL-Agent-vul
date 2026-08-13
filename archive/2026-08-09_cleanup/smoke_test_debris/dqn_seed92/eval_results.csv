@@ -1,6 +1,0 @@
-variant,seed,target,eval_episode,total_reward,vulns_found,vuln_types,steps
-dqn,92,E-Commerce,0,0.6500,0,,5
-dqn,92,Social Media,0,10.6500,5,PREDICTABLE_RESET_TOKEN|PREDICTABLE_RESET_TOKEN|PREDICTABLE_RESET_TOKEN|PREDICTABLE_RESET_TOKEN|PREDICTABLE_RESET_TOKEN,5
-dqn,92,Banking App,0,0.6500,0,,5
-dqn,92,Blog Platform,0,0.6500,0,,5
-dqn,92,File Share,0,0.6500,0,,5

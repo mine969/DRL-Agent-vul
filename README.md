@@ -315,13 +315,13 @@ Data Directories:
 │   └── ablation/                    # <variant>_seed<seed>/ subfolders, one per ablation combo
 └── uploads/                         # File upload storage
 
-Other Top-Level Folders:
-├── legacy_archive/                  # Retired code (old dqn_agent.py, dead trainers) -- lives at repo root, referenced directly by docs/ARCHITECTURE.md
+Other Top-Level Folders (local only -- not published to GitHub, see below):
+├── legacy_archive/                  # Retired code (old dqn_agent.py, dead trainers) -- referenced by docs/ARCHITECTURE.md, kept locally
 ├── scripts/                         # One-off analysis/tooling (aggregate_results.py, evaluate_fill_excel.py, etc.) -- not part of the live train/scan pipeline
 └── archive/                         # Everything else historical: legacy/, checkpoints_backup_v21_success/, dated cleanup batches
 ```
 
-> As of 2026-08-10, the root folder and `checkpoints/` have been cleaned up: duplicate checkpoints, dead scripts, and old backup folders were consolidated into `archive/`, and `legacy_archive/` was moved back out to repo root (see `docs/PROJECT_STRUCTURE.md` for the full layout and what was deliberately left untouched).
+> **What's on GitHub vs. kept local-only (as of 2026-08-13):** this is a showcase-cleaned public repo. All code (`agent/`, `env/`, `training/`, `utils/`, `scripts/`, `tests/`, entry-point scripts) and the finished research deliverables (`research/INCIT2026_submission_FINAL_10-8-2026.docx`/`.pdf`, `INCIT2026_presentation.pptx`/`.pdf`, `INCIT2026_talk_script.md`, `figures/`, `results/` stats) are tracked and public. **Not tracked** (kept on the local machine only, listed in `.gitignore`): `checkpoints/` (all `.pth` model weights -- large binaries, not meaningful to browse), `archive/` and `legacy_archive/` (dead code and old cleanup batches), `logs/`/`reports/` (runtime output), old paper drafts and scratch extraction scripts that predate the final submission, the raw per-run scan logs under `research/results/autonomous_scan_logs/`, and `research/Related Works/` (other authors' copyrighted PDFs -- cited in the paper's references instead). Nothing was deleted from disk, only untracked from git.
 
 ## What the Agent Can Do
 
